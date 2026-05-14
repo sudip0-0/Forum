@@ -1,8 +1,9 @@
-# Forum Website — Progress Tracker
+# Forum Website Progress Tracker
 
-**Version:** 1.1  
-**Status:** Not Started  
+**Version:** 1.1
+**Status:** Foundation In Progress
 **Owner:** Project Coordinator
+**Last Updated:** 2026-05-14
 
 ## 1. Current State
 
@@ -11,28 +12,28 @@
 | Product scope | MVP defined |
 | Architecture | Build-ready architecture drafted |
 | Task roadmap | Ordered roadmap created |
-| Local repo | Not confirmed |
-| App scaffold | Not confirmed |
+| Local repo | Confirmed |
+| App scaffold | Implemented |
 | Database migration | Not started |
 | Auth | Not started |
 | Core forum | Not started |
-| Tests | Not started |
+| Tests | Basic scaffold test added |
 | Staging deploy | Not started |
 
 ## 2. Current Sprint
 
-**Sprint:** 0 — Foundation  
+**Sprint:** 0 - Foundation
 **Goal:** Create the local project, database schema, API foundation, and auth base.
 
 ### Active Tasks
 
 | Task | Owner | Status | Notes |
 |---|---|---|---|
-| INF-001 | agent-devops | 🔲 Not Started | Scaffold app |
-| INF-002 | agent-devops | 🔲 Not Started | Docker and env |
-| INF-003 | agent-backend | 🔲 Not Started | Prisma schema |
-| INF-004 | agent-backend | 🔲 Not Started | tRPC setup |
-| INF-005 | agent-security/backend/frontend | 🔲 Not Started | Auth foundation |
+| INF-001 | agent-devops | Review | Scaffold app implemented and checks pass |
+| INF-002 | agent-devops | Not Started | Docker and env |
+| INF-003 | agent-backend | Not Started | Prisma schema |
+| INF-004 | agent-backend | Not Started | tRPC setup |
+| INF-005 | agent-security/backend/frontend | Not Started | Auth foundation |
 
 ## 3. Daily Log Template
 
@@ -66,29 +67,37 @@
 - Documentation pack improved for agentic build.
 - MVP scope separated from post-MVP features.
 - Build process, agent rules, prompt library, testing guide, and release checklist added.
+- INF-001 scaffold implemented with Next.js App Router, TypeScript, Tailwind CSS, shadcn/ui configuration, ESLint, Prettier, and basic folder structure.
+- Added a basic Vitest test for the shared class-name utility.
 
 ### In Progress
-- No implementation confirmed yet.
+- INF-001 is ready for reviewer inspection.
 
 ### Blockers
-- Need local repository confirmation.
-- Need final stack confirmation before generating code.
+- None for INF-001.
 
 ### Decisions
 - Build MVP first with PostgreSQL search.
 - Add Meilisearch, Redis real-time, R2 uploads, and advanced engagement after core forum works.
+- Pinned ESLint and TypeScript to versions compatible with the resolved Next.js ESLint config.
+- Set Turbopack root to the project directory because parent lockfiles exist outside this repo.
 
 ### Test Results
-- No code tests yet.
+- `pnpm lint` passed.
+- `pnpm typecheck` passed.
+- `pnpm test` passed.
+- `pnpm build` passed.
+- `pnpm dev -p 3000` served the home page with HTTP 200.
 
 ### Next Steps
-- Start INF-001 with implementation agent.
+- Reviewer should inspect INF-001 diff.
+- Start INF-002 after INF-001 is approved.
 
 ## 5. Blocker Log
 
 | ID | Date | Task | Blocker | Owner | Resolution |
 |---|---|---|---|---|---|
-| BLK-001 | 2026-05-14 | Project | Local repo not yet confirmed | User | Create or open project root |
+| BLK-001 | 2026-05-14 | Project | Local repo not yet confirmed | User | Resolved: project root confirmed at `C:\Users\sudip\Desktop\Projects\Forum` |
 
 ## 6. Decision Log Summary
 
@@ -105,13 +114,13 @@ Full records are in `decisions.md`.
 
 | Task | Implementation Summary | Reviewer | Status |
 |---|---|---|---|
-| None | — | — | — |
+| INF-001 | Next.js project scaffold implemented with passing checks | reviewer | Awaiting review |
 
 ## 8. Completed Tasks
 
 | Task | Date | Commit | Notes |
 |---|---|---|---|
-| None | — | — | — |
+| None | - | - | - |
 
 ## 9. Metrics
 
@@ -119,12 +128,12 @@ Populate after working app exists.
 
 | Metric | Target | Current |
 |---|---:|---:|
-| Build passing | Yes | — |
-| Unit tests passing | Yes | — |
-| E2E passing | Yes | — |
-| Lighthouse mobile | > 90 | — |
-| Search latency | < 300ms MVP | — |
-| API p95 local | < 300ms | — |
+| Build passing | Yes | Yes |
+| Unit tests passing | Yes | Yes |
+| E2E passing | Yes | - |
+| Lighthouse mobile | > 90 | - |
+| Search latency | < 300ms MVP | - |
+| API p95 local | < 300ms | - |
 
 ## 10. Update Rules
 

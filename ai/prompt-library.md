@@ -50,7 +50,7 @@ Read:
 - ai/agent-rules.md
 
 Task ID:
-INF-001 — Create Next.js Project Scaffold
+
 
 
 
