@@ -1,0 +1,32 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+
+const schema = readFileSync(
+  join(process.cwd(), "prisma", "schema.prisma"),
+  "utf8",
+);
+
+describe("Prisma schema", () => {
+  it("defines the MVP forum models", () => {
+    for (const model of [
+      "User",
+      "Account",
+      "Session",
+      "VerificationToken",
+      "Category",
+      "Thread",
+      "Post",
+      "Tag",
+      "Report",
+      "ModerationLog",
+    ]) {
+      expect(schema).toContain(`model ${model} `);
+    }
+  });
+
+  it("keeps moderated user content soft deletable", () => {
+    expect(schema).toMatch(/model Thread[\s\S]*isDeleted\s+Boolean\s+@default\(false\)/);
+    expect(schema).toMatch(/model Post[\s\S]*isDeleted\s+Boolean\s+@default\(false\)/);
+  });
+});

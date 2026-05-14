@@ -1,4 +1,4 @@
-# Forum Website — Known Issues and Risks
+# Forum Website - Known Issues and Risks
 
 ## Open Issues
 
@@ -43,4 +43,5 @@ Do not implement until MVP passes staging:
 
 | ID | Date | Resolution |
 |---|---|---|
-| None | — | — |
+| KI-006 | 2026-05-14 | Docker Desktop is running; `docker compose ps` shows Postgres and Redis healthy. |
+| KI-007 | 2026-05-14 | Docker Postgres was remapped to host port `5433`; migration and seed now pass with `DATABASE_URL=postgresql://forum:forum@localhost:5433/forum_dev`. |

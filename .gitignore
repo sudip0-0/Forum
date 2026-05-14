@@ -17,8 +17,8 @@ build/
 
 # test and coverage output
 coverage/
+tsconfig.tsbuildinfo
 
 # OS/editor files
 .DS_Store
 Thumbs.db
-tsconfig.tsbuildinfo

@@ -20,11 +20,16 @@ Optional later:
 
 ```bash
 pnpm install
-cp .env.example .env.local
+cp .env.example .env
 docker compose up -d
+pnpm dev
+```
+
+After local services are running, initialize the database:
+
+```bash
 pnpm db:migrate
 pnpm db:seed
-pnpm dev
 ```
 
 ## Recommended Scripts
@@ -37,7 +42,7 @@ Add these scripts to `package.json`:
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -62,7 +67,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 NODE_ENV=development
 
 # Database
-DATABASE_URL=postgresql://forum:forum@localhost:5432/forum_dev
+DATABASE_URL=postgresql://forum:forum@localhost:5433/forum_dev
 
 # Auth
 AUTH_SECRET=replace-with-local-secret
@@ -106,7 +111,7 @@ services:
       POSTGRES_PASSWORD: forum
       POSTGRES_DB: forum_dev
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -121,6 +126,8 @@ services:
     image: getmeili/meilisearch:v1.6
     container_name: forum-meilisearch
     restart: unless-stopped
+    profiles:
+      - search
     environment:
       MEILI_MASTER_KEY: local-master-key
     ports:
@@ -138,8 +145,16 @@ volumes:
 | Service | URL |
 |---|---|
 | App | `http://localhost:3000` |
+| PostgreSQL | `localhost:5433` |
+| Redis | `localhost:6379` |
 | Prisma Studio | `http://localhost:5555` |
 | Meilisearch | `http://localhost:7700` |
+
+Start Meilisearch only when search infrastructure is needed:
+
+```bash
+docker compose --profile search up -d
+```
 
 ## Troubleshooting
 
@@ -162,6 +177,10 @@ Check Docker:
 ```bash
 docker ps
 ```
+
+If Docker reports that it cannot connect to `dockerDesktopLinuxEngine`, start Docker Desktop and wait for the Linux engine to become ready.
+
+If Prisma reports authentication failure for `forum`, confirm `DATABASE_URL` points to the Docker-mapped Postgres port: `localhost:5433`.
 
 Restart services:
 

@@ -11,9 +11,14 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.3",
     "@radix-ui/react-slot": "latest",
     "class-variance-authority": "latest",
     "clsx": "latest",
@@ -31,7 +36,9 @@
     "eslint": "^9.39.1",
     "eslint-config-next": "latest",
     "prettier": "latest",
+    "prisma": "^6.19.3",
     "tailwindcss": "latest",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "latest"
   },

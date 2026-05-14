@@ -14,7 +14,7 @@
 | Task roadmap | Ordered roadmap created |
 | Local repo | Confirmed |
 | App scaffold | Implemented |
-| Database migration | Not started |
+| Database migration | Implemented and applied locally |
 | Auth | Not started |
 | Core forum | Not started |
 | Tests | Basic scaffold test added |
@@ -29,9 +29,9 @@
 
 | Task | Owner | Status | Notes |
 |---|---|---|---|
-| INF-001 | agent-devops | Review | Scaffold app implemented and checks pass |
-| INF-002 | agent-devops | Not Started | Docker and env |
-| INF-003 | agent-backend | Not Started | Prisma schema |
+| INF-001 | agent-devops | Review | Reviewer changes applied and checks pass |
+| INF-002 | agent-devops | Review | Docker Compose starts Postgres and Redis successfully |
+| INF-003 | agent-backend | Review | Prisma schema, migration, and seed verified locally |
 | INF-004 | agent-backend | Not Started | tRPC setup |
 | INF-005 | agent-security/backend/frontend | Not Started | Auth foundation |
 
@@ -69,18 +69,27 @@
 - Build process, agent rules, prompt library, testing guide, and release checklist added.
 - INF-001 scaffold implemented with Next.js App Router, TypeScript, Tailwind CSS, shadcn/ui configuration, ESLint, Prettier, and basic folder structure.
 - Added a basic Vitest test for the shared class-name utility.
+- Applied INF-001 reviewer fixes: removed unused ESLint compatibility dependency and ignored TypeScript incremental build artifacts.
+- Added INF-002 local infrastructure files: Docker Compose, `.env.example`, and root README setup instructions.
+- Added INF-003 Prisma schema, database scripts, seed script, and schema contract tests.
+- Remapped Docker Postgres to host port `5433` to avoid an existing local PostgreSQL process on `5432`.
+- Applied initial Prisma migration and seeded local development data.
 
 ### In Progress
-- INF-001 is ready for reviewer inspection.
+- INF-001 is ready for reviewer re-inspection.
+- INF-002 and INF-003 are ready for reviewer inspection.
 
 ### Blockers
-- None for INF-001.
+- None for INF-001 through INF-003.
 
 ### Decisions
 - Build MVP first with PostgreSQL search.
 - Add Meilisearch, Redis real-time, R2 uploads, and advanced engagement after core forum works.
 - Pinned ESLint and TypeScript to versions compatible with the resolved Next.js ESLint config.
 - Set Turbopack root to the project directory because parent lockfiles exist outside this repo.
+- Meilisearch is included behind a Compose profile so default local infrastructure starts only PostgreSQL and Redis.
+- Prisma is pinned to 6.19.3 because Prisma 7 requires a newer config/client setup that does not match the project docs or standard `DATABASE_URL` workflow.
+- Local Docker Postgres uses host port `5433` because a separate PostgreSQL process is already listening on host port `5432`.
 
 ### Test Results
 - `pnpm lint` passed.
@@ -88,16 +97,25 @@
 - `pnpm test` passed.
 - `pnpm build` passed.
 - `pnpm dev -p 3000` served the home page with HTTP 200.
+- `docker compose config` passed.
+- `docker compose up -d` passed.
+- `DATABASE_URL=postgresql://forum:forum@localhost:5433/forum_dev pnpm prisma validate` passed.
+- `DATABASE_URL=postgresql://forum:forum@localhost:5433/forum_dev pnpm db:generate` passed.
+- `DATABASE_URL=postgresql://forum:forum@localhost:5433/forum_dev pnpm prisma migrate dev --name init` passed.
+- `DATABASE_URL=postgresql://forum:forum@localhost:5433/forum_dev pnpm db:seed` passed.
+- Seed verification found 7 users, 5 categories, 20 threads, 80 posts, 2 reports, and 1 moderation log.
 
 ### Next Steps
-- Reviewer should inspect INF-001 diff.
-- Start INF-002 after INF-001 is approved.
+- Reviewer should re-inspect INF-001 fixes and inspect INF-002/INF-003.
+- Start INF-004 after reviewer approval.
 
 ## 5. Blocker Log
 
 | ID | Date | Task | Blocker | Owner | Resolution |
 |---|---|---|---|---|---|
 | BLK-001 | 2026-05-14 | Project | Local repo not yet confirmed | User | Resolved: project root confirmed at `C:\Users\sudip\Desktop\Projects\Forum` |
+| BLK-002 | 2026-05-14 | INF-002 | Docker Desktop Linux engine is not running | User | Resolved: Docker services are running and healthy |
+| BLK-003 | 2026-05-14 | INF-003 | Existing PostgreSQL listener rejects configured `forum` credentials | User | Resolved: Docker Postgres remapped to host port `5433`; migration and seed pass |
 
 ## 6. Decision Log Summary
 
@@ -114,7 +132,9 @@ Full records are in `decisions.md`.
 
 | Task | Implementation Summary | Reviewer | Status |
 |---|---|---|---|
-| INF-001 | Next.js project scaffold implemented with passing checks | reviewer | Awaiting review |
+| INF-001 | Next.js project scaffold implemented; reviewer changes applied with passing checks | reviewer | Awaiting re-review |
+| INF-002 | Local infrastructure files added; Compose config valid; Postgres and Redis healthy | reviewer | Awaiting review |
+| INF-003 | Prisma schema, migration, and seed added; validate/generate/migrate/seed pass | reviewer | Awaiting review |
 
 ## 8. Completed Tasks
 
