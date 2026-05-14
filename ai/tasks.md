@@ -270,7 +270,7 @@ Definition of done:
 ### POL-002 — Responsive Mobile UX
 
 **Owner:** agent-frontend  
-**Status:** 🔲 Not Started
+**Status:** ✅ Done
 
 **Acceptance Criteria**
 - Core pages work at 375px width.

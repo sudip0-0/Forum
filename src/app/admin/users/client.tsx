@@ -120,8 +120,8 @@ function UserRow({ user }: { user: UserItem }) {
 
 export function UserList({ users }: { users: UserItem[] }) {
   return (
-    <div className="mt-8 rounded-lg border">
-      <table className="w-full">
+    <div className="mt-8 rounded-lg border overflow-x-auto">
+      <table className="w-full min-w-[600px]">
         <thead>
           <tr className="border-b text-left text-xs font-medium text-muted-foreground">
             <th className="px-4 py-2">User</th>

@@ -1,8 +1,28 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { appRouter } from "@/server/api/root";
 import { auth } from "@/server/auth/config";
 import { db } from "@/server/db/prisma";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ categorySlug: string }>;
+}): Promise<Metadata> {
+  const { categorySlug } = await params;
+
+  const caller = appRouter.createCaller({ db, session: null });
+  try {
+    const { category } = await caller.thread.listByCategory({ categorySlug, limit: 1 });
+    return {
+      title: category.name,
+      description: category.description ?? `Threads in ${category.name}`,
+    };
+  } catch {
+    return { title: "Category" };
+  }
+}
 
 export default async function CategoryThreadListPage({
   params,

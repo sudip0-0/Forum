@@ -1,9 +1,30 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { appRouter } from "@/server/api/root";
 import { auth } from "@/server/auth/config";
 import { db } from "@/server/db/prisma";
 import { ProfileEditForm } from "./client";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ username: string }>;
+}): Promise<Metadata> {
+  const { username } = await params;
+
+  const caller = appRouter.createCaller({ db, session: null });
+  try {
+    const profile = await caller.user.getPublicProfile({ username });
+    const description = profile.bio ?? `${profile.displayName ?? profile.username}'s profile`;
+    return {
+      title: profile.displayName ?? profile.username,
+      description,
+    };
+  } catch {
+    return { title: "Profile" };
+  }
+}
 
 export default async function UserProfilePage({
   params,

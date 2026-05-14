@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { appRouter } from "@/server/api/root";
 import { db } from "@/server/db/prisma";
+
+export const metadata: Metadata = {
+  title: "Search",
+  description: "Search forum threads by title and content.",
+};
 
 export default async function SearchPage({
   searchParams,

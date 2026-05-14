@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { appRouter } from "@/server/api/root";
 import { auth } from "@/server/auth/config";
@@ -5,6 +6,30 @@ import { db } from "@/server/db/prisma";
 import { Markdown } from "@/components/forum/markdown";
 import { ReportForm } from "@/components/forum/report-form";
 import { ReplyForm } from "./client";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ categorySlug: string; threadSlug: string }>;
+}): Promise<Metadata> {
+  const { threadSlug } = await params;
+
+  const caller = appRouter.createCaller({ db, session: null });
+  try {
+    const thread = await caller.thread.getBySlug({ slug: threadSlug });
+    const { posts } = await caller.post.listByThread({ threadId: thread.id, limit: 1 });
+    const firstPost = posts[0];
+    const description = firstPost
+      ? firstPost.content.replace(/[#*`\[\]()]/g, "").slice(0, 160)
+      : thread.title;
+    return {
+      title: thread.title,
+      description,
+    };
+  } catch {
+    return { title: "Thread" };
+  }
+}
 
 interface PostWithAuthor {
   id: string;

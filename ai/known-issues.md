@@ -13,6 +13,7 @@
 | KI-009 | Low | Code | `createCaller` helper duplicated in 4 server action files | Open | backend | Extract to shared utility in next refactor |
 | KI-010 | Low | Architecture | Category softDelete conflates visibility with deletion (isPublic=false) | Open | architect | Document as intentional or add isDeleted field to Category |
 | KI-011 | Low | Search | No GIN indexes on tsvector columns — search slow at scale | Open | backend | Add migration with GIN indexes before public launch |
+| KI-012 | Low | UX | Header uses useSession causing brief flash of unauthenticated state | Open | frontend | Pass session from server layout as prop |
 
 ## Deferred Features
 

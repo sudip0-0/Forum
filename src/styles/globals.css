@@ -84,3 +84,13 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input:not([type]),
+select,
+textarea {
+  min-height: 44px;
+}

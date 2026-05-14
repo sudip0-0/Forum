@@ -1,7 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { appRouter } from "@/server/api/root";
 import { auth } from "@/server/auth/config";
 import { db } from "@/server/db/prisma";
+
+export const metadata: Metadata = {
+  title: "Forums",
+  description: "Browse public discussion categories.",
+};
 
 export default async function ForumsPage() {
   const session = await auth();
