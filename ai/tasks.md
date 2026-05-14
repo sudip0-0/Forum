@@ -259,7 +259,7 @@ Definition of done:
 ### POL-001 — SEO Metadata and Sitemap
 
 **Owner:** agent-frontend  
-**Status:** 🔲 Not Started
+**Status:** ✅ Done
 
 **Acceptance Criteria**
 - Thread pages have title and description metadata.
@@ -281,7 +281,7 @@ Definition of done:
 ### POL-003 — Empty, Loading, and Error States
 
 **Owner:** agent-frontend  
-**Status:** 🔲 Not Started
+**Status:** ✅ Done
 
 **Acceptance Criteria**
 - Lists show empty states.
