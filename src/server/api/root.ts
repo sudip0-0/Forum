@@ -5,6 +5,7 @@ import { threadRouter } from "@/server/api/routers/thread";
 import { postRouter } from "@/server/api/routers/post";
 import { userRouter } from "@/server/api/routers/user";
 import { searchRouter } from "@/server/api/routers/search";
+import { moderationRouter } from "@/server/api/routers/moderation";
 
 export const appRouter = router({
   health: healthRouter,
@@ -13,6 +14,7 @@ export const appRouter = router({
   post: postRouter,
   user: userRouter,
   search: searchRouter,
+  moderation: moderationRouter,
 });
 
 export type AppRouter = typeof appRouter;

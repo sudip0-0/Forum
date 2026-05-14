@@ -311,17 +311,23 @@ Input:
 
 ```ts
 z.object({
-  postId: z.string().optional(),
-  threadId: z.string().optional(),
+  postId: z.string().min(1).optional(),
+  threadId: z.string().min(1).optional(),
   reason: z.enum(["SPAM", "HARASSMENT", "OFF_TOPIC", "DUPLICATE", "OTHER"]),
   note: z.string().max(1000).optional(),
+}).refine((data) => (data.postId ? !data.threadId : !!data.threadId), {
+  message: "Must provide exactly one of postId or threadId.",
 })
 ```
 
 Rules:
 
-- Must include either postId or threadId
-- Prevent duplicate open report from same user for same content
+- User must be logged in (UNAUTHORIZED for guests)
+- Must provide exactly one of postId or threadId (BAD_REQUEST if both, BAD_REQUEST if neither)
+- Validates that the target post/thread exists and is not deleted (NOT_FOUND)
+- Catches Prisma unique constraint violation (P2002) on `@@unique([reporterId, postId])` or `@@unique([reporterId, threadId])` and returns CONFLICT
+- Creates report with status OPEN
+- Returns the created report object
 
 ### `moderation.listQueue`
 

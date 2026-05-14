@@ -3,6 +3,7 @@ import { appRouter } from "@/server/api/root";
 import { auth } from "@/server/auth/config";
 import { db } from "@/server/db/prisma";
 import { Markdown } from "@/components/forum/markdown";
+import { ReportForm } from "@/components/forum/report-form";
 import { ReplyForm } from "./client";
 
 interface PostWithAuthor {
@@ -31,6 +32,7 @@ function PostItem({
   categorySlug,
   threadSlug,
   canReply,
+  isLoggedIn,
 }: {
   post: PostWithAuthor;
   tree: Map<string | null, PostWithAuthor[]>;
@@ -39,6 +41,7 @@ function PostItem({
   categorySlug: string;
   threadSlug: string;
   canReply: boolean;
+  isLoggedIn: boolean;
 }) {
   const children = tree.get(post.id) ?? [];
 
@@ -49,6 +52,16 @@ function PostItem({
           <span className="font-medium">{post.author.displayName ?? post.author.username}</span>
           <span>·</span>
           <span>{new Date(post.createdAt).toLocaleString()}</span>
+          {isLoggedIn && (
+            <span className="ml-auto">
+              <ReportForm
+                targetId={post.id}
+                targetType="post"
+                categorySlug={categorySlug}
+                threadSlug={threadSlug}
+              />
+            </span>
+          )}
         </div>
         <div className="mt-2 text-sm"><Markdown content={post.content} /></div>
         {canReply && depth < 3 && (
@@ -79,6 +92,7 @@ function PostItem({
               categorySlug={categorySlug}
               threadSlug={threadSlug}
               canReply={canReply}
+              isLoggedIn={isLoggedIn}
             />
           ))}
         </div>
@@ -121,14 +135,25 @@ export default async function ThreadDetailPage({
   const tree = buildTree(posts as PostWithAuthor[]);
   const topLevelPosts = tree.get(null) ?? [];
   const canReply = !!session?.user && !thread.isLocked;
+  const isLoggedIn = !!session?.user;
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
       <h1 className="text-2xl font-semibold">{thread.title}</h1>
-      <div className="mt-1 flex gap-2 text-xs text-muted-foreground">
+      <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
         <span>{thread.author.displayName ?? thread.author.username}</span>
         <span>·</span>
         <span>{new Date(thread.createdAt).toLocaleString()}</span>
+        {isLoggedIn && (
+          <span className="ml-auto">
+            <ReportForm
+              targetId={thread.id}
+              targetType="thread"
+              categorySlug={categorySlug}
+              threadSlug={threadSlug}
+            />
+          </span>
+        )}
       </div>
 
       <div className="mt-8 space-y-4">
@@ -142,6 +167,7 @@ export default async function ThreadDetailPage({
             categorySlug={categorySlug}
             threadSlug={threadSlug}
             canReply={canReply}
+            isLoggedIn={isLoggedIn}
           />
         ))}
       </div>

@@ -226,7 +226,7 @@ Definition of done:
 ### MOD-001 — Report Content
 
 **Owner:** agent-backend + agent-frontend  
-**Status:** 🔲 Not Started
+**Status:** ✅ Done
 
 **Acceptance Criteria**
 - Member can report post/thread.

@@ -19,7 +19,8 @@
 | Category CRUD | Done — public listing, admin CRUD, tRPC router with tests |
 | Thread CRUD | Done — thread router, post router, category thread list, thread detail, reply form, 21 tests |
 | Core forum | Done — all CORE tasks complete |
-| Tests | 88 tests (schema, utils, auth, validators, tRPC, categories, threads, posts, markdown, users, search) |
+| Moderation | MOD-001 done — report content with 14 tests (includes self-report prevention) |
+| Tests | 102 tests (schema, utils, auth, validators, tRPC, categories, threads, posts, markdown, users, search, moderation) |
 | Staging deploy | Not started |
 
 ## 2. Current Sprint
@@ -90,9 +91,10 @@
 - CORE-004 implemented: Markdown renderer (react-markdown + remark-gfm), MarkdownEditor with Write/Preview toggle, XSS sanitization tests, thread detail uses Markdown rendering.
 - CORE-005 implemented: user router (getPublicProfile, updateProfile), profile page at `/u/[username]` with recent threads and edit form.
 - CORE-006 implemented: search router with PostgreSQL full-text search, search page at `/search?q=`.
+- MOD-001 implemented: moderation.report mutation (member-only), XOR validation for postId/threadId, existence check for target content, duplicate detection via Prisma P2002 catch, ReportForm client component with reason dropdown and optional note, report buttons on thread and each post visible only to logged-in users, 12 tests.
 
 ### In Progress
-- MOD-001 is next (Report Content).
+- MOD-002 is next (Moderation Queue).
 
 ### Blockers
 - None.
@@ -107,29 +109,12 @@
 ### Test Results
 - `pnpm lint` passed (0 errors, 0 warnings).
 - `pnpm typecheck` passed.
-- `pnpm test` passed (88 tests total, 12 files).
+- `pnpm test` passed (100 tests total, 13 files).
 - `pnpm build` passed (requires `NODE_ENV=production`).
 
 ### Next Steps
-- Proceed with MOD-001 (Report Content).
+- Proceed with MOD-002 (Moderation Queue).
 - Add Meilisearch, Redis real-time, R2 uploads, and advanced engagement after core forum works.
-- Pinned ESLint and TypeScript to versions compatible with the resolved Next.js ESLint config.
-- Set Turbopack root to the project directory because parent lockfiles exist outside this repo.
-- Meilisearch is included behind a Compose profile so default local infrastructure starts only PostgreSQL and Redis.
-- Prisma is pinned to 6.19.3 because Prisma 7 requires a newer config/client setup that does not match the project docs or standard `DATABASE_URL` workflow.
-- Local Docker Postgres uses host port `5433` because a separate PostgreSQL process is already listening on host port `5432`.
-- Use JWT sessions (not database adapter) for NextAuth v5 MVP; credentials provider sufficient.
-- Use bcryptjs (12 rounds for production, 10 for seed) instead of Argon2 to avoid native build friction on Windows.
-- NextAuth v5 JWT module augmentation (`next-auth/jwt`) unavailable; use Record<string, unknown> casts in callbacks.
-
-### Test Results
-- `pnpm lint` passed (CORE-001: 0 errors, 0 warnings).
-- `pnpm typecheck` passed.
-- `pnpm test` passed (50 tests total, +21 category tests).
-- `pnpm build` passed (requires `NODE_ENV=production`).
-
-### Next Steps
-- Proceed with CORE-002 (Thread Creation and Category Thread List).
 
 ## 5. Blocker Log
 
@@ -171,6 +156,7 @@ Full records are in `decisions.md`.
 | CORE-004 | 2026-05-14 | - | Markdown renderer, MarkdownEditor with preview, XSS tests, updated thread/reply forms |
 | CORE-005 | 2026-05-14 | - | User router, profile page at /u/[username], edit form, 4 tests |
 | CORE-006 | 2026-05-14 | - | Search router (PostgreSQL full-text), search page at /search, 4 tests |
+| MOD-001 | 2026-05-14 | - | Moderation router (report procedure), ReportForm client component, report buttons on thread detail, 12 tests |
 
 ## 9. Metrics
 

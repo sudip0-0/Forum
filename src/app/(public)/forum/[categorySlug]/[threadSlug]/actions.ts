@@ -39,3 +39,23 @@ export async function createReply(
     return { error: (e as { message?: string }).message ?? "Failed to create reply." };
   }
 }
+
+export async function reportContent(
+  categorySlug: string,
+  threadSlug: string,
+  input: {
+    postId?: string;
+    threadId?: string;
+    reason: "SPAM" | "HARASSMENT" | "OFF_TOPIC" | "DUPLICATE" | "OTHER";
+    note?: string;
+  },
+) {
+  try {
+    const caller = await createCaller();
+    await caller.moderation.report(input);
+    revalidatePath(`/forum/${categorySlug}/${threadSlug}`);
+    return { success: true };
+  } catch (e: unknown) {
+    return { error: (e as { message?: string }).message ?? "Failed to submit report." };
+  }
+}
