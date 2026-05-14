@@ -6,6 +6,7 @@ import { postRouter } from "@/server/api/routers/post";
 import { userRouter } from "@/server/api/routers/user";
 import { searchRouter } from "@/server/api/routers/search";
 import { moderationRouter } from "@/server/api/routers/moderation";
+import type { inferRouterOutputs } from "@trpc/server";
 
 export const appRouter = router({
   health: healthRouter,
@@ -18,3 +19,4 @@ export const appRouter = router({
 });
 
 export type AppRouter = typeof appRouter;
+export type AppRouterOutputs = inferRouterOutputs<AppRouter>;

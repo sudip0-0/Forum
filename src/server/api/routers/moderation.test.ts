@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Post, Thread, Report } from "@prisma/client";
+import type { Post, Thread, Report, User } from "@prisma/client";
 import { appRouter } from "@/server/api/root";
 import type { TrpcContext } from "@/server/api/trpc";
 
@@ -13,6 +13,26 @@ const memberSession: TrpcContext["session"] = {
     email: "member@example.com",
     name: "Member",
     role: "MEMBER",
+  },
+  expires: new Date(Date.now() + 3600000).toISOString(),
+};
+
+const moderatorSession: TrpcContext["session"] = {
+  user: {
+    id: "mod-1",
+    email: "mod@example.com",
+    name: "Mod",
+    role: "MODERATOR",
+  },
+  expires: new Date(Date.now() + 3600000).toISOString(),
+};
+
+const adminSession: TrpcContext["session"] = {
+  user: {
+    id: "admin-1",
+    email: "admin@example.com",
+    name: "Admin",
+    role: "ADMIN",
   },
   expires: new Date(Date.now() + 3600000).toISOString(),
 };
@@ -316,6 +336,561 @@ describe("moderation router", () => {
       await expect(
         caller.moderation.report({ threadId: "thread-1", reason: "SPAM" }),
       ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    });
+  });
+
+  describe("listQueue", () => {
+    it("allows moderator to list open reports", async () => {
+      const db = {
+        report: {
+          findMany: vi.fn().mockResolvedValue([
+            makeReport({
+              id: "r1",
+              postId: "post-1",
+              reason: "SPAM",
+              status: "OPEN",
+            }),
+          ]),
+        },
+      };
+
+      const caller = createCaller({
+        db: db as never,
+        session: moderatorSession,
+      });
+      const result = await caller.moderation.listQueue({ limit: 20 });
+
+      expect(result.reports).toHaveLength(1);
+      expect(result.reports[0].status).toBe("OPEN");
+    });
+
+    it("allows admin to list open reports", async () => {
+      const db = {
+        report: {
+          findMany: vi.fn().mockResolvedValue([]),
+        },
+      };
+
+      const caller = createCaller({ db: db as never, session: adminSession });
+      const result = await caller.moderation.listQueue({ limit: 20 });
+
+      expect(result.reports).toHaveLength(0);
+    });
+
+    it("rejects member from viewing queue", async () => {
+      const db = { report: { findMany: vi.fn() } };
+
+      const caller = createCaller({
+        db: db as never,
+        session: memberSession,
+      });
+      await expect(
+        caller.moderation.listQueue({ limit: 20 }),
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+
+    it("rejects guest from viewing queue", async () => {
+      const db = { report: { findMany: vi.fn() } };
+
+      const caller = createCaller({ db: db as never, session: null });
+      await expect(
+        caller.moderation.listQueue({ limit: 20 }),
+      ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    });
+  });
+
+  describe("resolve", () => {
+    function makeReportForResolve() {
+      return {
+        id: "report-1",
+        status: "OPEN",
+        postId: "post-1",
+        threadId: null,
+        post: { id: "post-1", threadId: "thread-1" },
+        thread: null,
+      };
+    }
+
+    it("allows moderator to dismiss a report", async () => {
+      const db = {
+        report: {
+          findUnique: vi.fn().mockResolvedValue(makeReportForResolve()),
+          update: vi.fn().mockResolvedValue({}),
+        },
+        post: { findUnique: vi.fn().mockResolvedValue({ authorId: "user-1" }) },
+        moderationLog: { create: vi.fn().mockResolvedValue({}) },
+        $transaction: vi
+          .fn()
+          .mockImplementation(async (fn: (tx: unknown) => Promise<void>) => {
+            await fn(db);
+          }),
+      };
+
+      const caller = createCaller({
+        db: db as never,
+        session: moderatorSession,
+      });
+      const result = await caller.moderation.resolve({
+        reportId: "report-1",
+        action: "DISMISS",
+        reason: "Not a violation",
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it("allows admin to resolve a report", async () => {
+      const db = {
+        report: {
+          findUnique: vi.fn().mockResolvedValue(makeReportForResolve()),
+          update: vi.fn().mockResolvedValue({}),
+        },
+        post: { findUnique: vi.fn().mockResolvedValue({ authorId: "user-1" }) },
+        moderationLog: { create: vi.fn().mockResolvedValue({}) },
+        $transaction: vi
+          .fn()
+          .mockImplementation(async (fn: (tx: unknown) => Promise<void>) => {
+            await fn(db);
+          }),
+      };
+
+      const caller = createCaller({ db: db as never, session: adminSession });
+      const result = await caller.moderation.resolve({
+        reportId: "report-1",
+        action: "DISMISS",
+        reason: "Not a violation",
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it("rejects resolve by member", async () => {
+      const db = { report: { findUnique: vi.fn() } };
+
+      const caller = createCaller({
+        db: db as never,
+        session: memberSession,
+      });
+      await expect(
+        caller.moderation.resolve({
+          reportId: "report-1",
+          action: "DISMISS",
+          reason: "Not a violation",
+        }),
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+
+    it("rejects resolve by guest", async () => {
+      const db = { report: { findUnique: vi.fn() } };
+
+      const caller = createCaller({ db: db as never, session: null });
+      await expect(
+        caller.moderation.resolve({
+          reportId: "report-1",
+          action: "DISMISS",
+          reason: "Not a violation",
+        }),
+      ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    });
+
+    it("rejects resolve of non-existent report", async () => {
+      const db = {
+        report: { findUnique: vi.fn().mockResolvedValue(null) },
+      };
+
+      const caller = createCaller({
+        db: db as never,
+        session: moderatorSession,
+      });
+      await expect(
+        caller.moderation.resolve({
+          reportId: "nonexistent",
+          action: "DISMISS",
+          reason: "Not a violation",
+        }),
+      ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    });
+
+    it("rejects resolve of already resolved report", async () => {
+      const db = {
+        report: {
+          findUnique: vi.fn().mockResolvedValue({
+            id: "report-1",
+            status: "RESOLVED",
+            postId: null,
+            threadId: null,
+            post: null,
+            thread: null,
+          }),
+        },
+      };
+
+      const caller = createCaller({
+        db: db as never,
+        session: moderatorSession,
+      });
+      await expect(
+        caller.moderation.resolve({
+          reportId: "report-1",
+          action: "DISMISS",
+          reason: "Already handled",
+        }),
+      ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    });
+
+    it("soft-deletes post via SOFT_DELETE_POST action", async () => {
+      const db = {
+        report: {
+          findUnique: vi.fn().mockResolvedValue({
+            id: "report-1",
+            status: "OPEN",
+            postId: "post-1",
+            threadId: null,
+            post: { id: "post-1", threadId: "thread-1" },
+            thread: null,
+          }),
+          update: vi.fn().mockResolvedValue({}),
+        },
+        post: {
+          findUnique: vi.fn().mockResolvedValue({ authorId: "user-1" }),
+          update: vi.fn().mockResolvedValue({}),
+        },
+        moderationLog: { create: vi.fn().mockResolvedValue({}) },
+        $transaction: vi
+          .fn()
+          .mockImplementation(async (fn: (tx: unknown) => Promise<void>) => {
+            await fn(db);
+          }),
+      };
+
+      const caller = createCaller({
+        db: db as never,
+        session: moderatorSession,
+      });
+      const result = await caller.moderation.resolve({
+        reportId: "report-1",
+        action: "SOFT_DELETE_POST",
+        reason: "Inappropriate content",
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it("locks thread via LOCK_THREAD action", async () => {
+      const db = {
+        report: {
+          findUnique: vi.fn().mockResolvedValue({
+            id: "report-1",
+            status: "OPEN",
+            postId: null,
+            threadId: "thread-1",
+            post: null,
+            thread: { id: "thread-1", categoryId: "cat-1" },
+          }),
+          update: vi.fn().mockResolvedValue({}),
+        },
+        thread: {
+          findUnique: vi.fn().mockResolvedValue({ authorId: "user-1" }),
+          update: vi.fn().mockResolvedValue({}),
+        },
+        moderationLog: { create: vi.fn().mockResolvedValue({}) },
+        $transaction: vi
+          .fn()
+          .mockImplementation(async (fn: (tx: unknown) => Promise<void>) => {
+            await fn(db);
+          }),
+      };
+
+      const caller = createCaller({
+        db: db as never,
+        session: moderatorSession,
+      });
+      const result = await caller.moderation.resolve({
+        reportId: "report-1",
+        action: "LOCK_THREAD",
+        reason: "Discussion getting heated",
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it("creates moderation log on resolve", async () => {
+      const db = {
+        report: {
+          findUnique: vi.fn().mockResolvedValue({
+            id: "report-1",
+            status: "OPEN",
+            postId: "post-1",
+            threadId: null,
+            post: { id: "post-1", threadId: "thread-1" },
+            thread: null,
+          }),
+          update: vi.fn().mockResolvedValue({}),
+        },
+        post: {
+          findUnique: vi.fn().mockResolvedValue({ authorId: "user-1" }),
+          update: vi.fn().mockResolvedValue({}),
+        },
+        moderationLog: { create: vi.fn().mockResolvedValue({}) },
+        $transaction: vi
+          .fn()
+          .mockImplementation(async (fn: (tx: unknown) => Promise<void>) => {
+            await fn(db);
+          }),
+      };
+
+      const caller = createCaller({
+        db: db as never,
+        session: moderatorSession,
+      });
+      await caller.moderation.resolve({
+        reportId: "report-1",
+        action: "SOFT_DELETE_POST",
+        reason: "Inappropriate",
+      });
+
+      expect(db.moderationLog.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("rejects SOFT_DELETE_POST on thread-only report", async () => {
+      const db = {
+        report: {
+          findUnique: vi.fn().mockResolvedValue({
+            id: "report-1",
+            status: "OPEN",
+            postId: null,
+            threadId: "thread-1",
+            post: null,
+            thread: { id: "thread-1", categoryId: "cat-1" },
+          }),
+        },
+      };
+
+      const caller = createCaller({ db: db as never, session: moderatorSession });
+      await expect(
+        caller.moderation.resolve({ reportId: "report-1", action: "SOFT_DELETE_POST", reason: "Bad content" }),
+      ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    });
+
+    it("rejects SOFT_DELETE_THREAD on post-only report", async () => {
+      const db = {
+        report: {
+          findUnique: vi.fn().mockResolvedValue({
+            id: "report-1",
+            status: "OPEN",
+            postId: "post-1",
+            threadId: null,
+            post: { id: "post-1", threadId: "thread-1" },
+            thread: null,
+          }),
+        },
+      };
+
+      const caller = createCaller({ db: db as never, session: moderatorSession });
+      await expect(
+        caller.moderation.resolve({ reportId: "report-1", action: "SOFT_DELETE_THREAD", reason: "Bad content" }),
+      ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    });
+
+    it("rejects LOCK_THREAD on post-only report", async () => {
+      const db = {
+        report: {
+          findUnique: vi.fn().mockResolvedValue({
+            id: "report-1",
+            status: "OPEN",
+            postId: "post-1",
+            threadId: null,
+            post: { id: "post-1", threadId: "thread-1" },
+            thread: null,
+          }),
+        },
+      };
+
+      const caller = createCaller({ db: db as never, session: moderatorSession });
+      await expect(
+        caller.moderation.resolve({ reportId: "report-1", action: "LOCK_THREAD", reason: "Bad content" }),
+      ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    });
+  });
+
+  describe("listUsers", () => {
+    it("allows admin to list users", async () => {
+      const users = [
+        {
+          id: "user-1",
+          username: "alice",
+          displayName: "Alice",
+          email: "alice@example.com",
+          role: "MEMBER",
+          createdAt: new Date(),
+        } as User,
+      ];
+      const db = { user: { findMany: vi.fn().mockResolvedValue(users) } };
+
+      const caller = createCaller({ db: db as never, session: adminSession });
+      const result = await caller.moderation.listUsers({ limit: 20 });
+
+      expect(result.users).toHaveLength(1);
+      expect(result.users[0].username).toBe("alice");
+    });
+
+    it("rejects member from listing users", async () => {
+      const db = { user: { findMany: vi.fn() } };
+
+      const caller = createCaller({
+        db: db as never,
+        session: memberSession,
+      });
+      await expect(
+        caller.moderation.listUsers({ limit: 20 }),
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+
+    it("rejects moderator from listing users", async () => {
+      const db = { user: { findMany: vi.fn() } };
+
+      const caller = createCaller({
+        db: db as never,
+        session: moderatorSession,
+      });
+      await expect(
+        caller.moderation.listUsers({ limit: 20 }),
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+
+    it("rejects guest from listing users", async () => {
+      const db = { user: { findMany: vi.fn() } };
+
+      const caller = createCaller({ db: db as never, session: null });
+      await expect(
+        caller.moderation.listUsers({ limit: 20 }),
+      ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    });
+  });
+
+  describe("changeRole", () => {
+    it("allows admin to change user role", async () => {
+      const db = {
+        user: {
+          findUnique: vi.fn().mockResolvedValue({
+            id: "user-1",
+            role: "MEMBER",
+          }),
+          update: vi.fn().mockResolvedValue({}),
+          count: vi.fn().mockResolvedValue(2),
+        },
+        moderationLog: { create: vi.fn().mockResolvedValue({}) },
+        $transaction: vi
+          .fn()
+          .mockImplementation(async (fn: (tx: unknown) => Promise<void>) => {
+            await fn(db);
+          }),
+      };
+
+      const caller = createCaller({ db: db as never, session: adminSession });
+      const result = await caller.moderation.changeRole({
+        userId: "user-1",
+        role: "MODERATOR",
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it("rejects change to same role", async () => {
+      const db = {
+        user: {
+          findUnique: vi.fn().mockResolvedValue({
+            id: "user-1",
+            role: "MEMBER",
+          }),
+        },
+      };
+
+      const caller = createCaller({ db: db as never, session: adminSession });
+      await expect(
+        caller.moderation.changeRole({
+          userId: "user-1",
+          role: "MEMBER",
+        }),
+      ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    });
+
+    it("prevents demoting the last admin", async () => {
+      const db = {
+        user: {
+          findUnique: vi.fn().mockResolvedValue({
+            id: "admin-1",
+            role: "ADMIN",
+          }),
+          count: vi.fn().mockResolvedValue(1),
+        },
+      };
+
+      const caller = createCaller({ db: db as never, session: adminSession });
+      await expect(
+        caller.moderation.changeRole({
+          userId: "admin-1",
+          role: "MEMBER",
+        }),
+      ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    });
+
+    it("rejects role change by moderator", async () => {
+      const db = { user: { findUnique: vi.fn() } };
+
+      const caller = createCaller({
+        db: db as never,
+        session: moderatorSession,
+      });
+      await expect(
+        caller.moderation.changeRole({
+          userId: "user-1",
+          role: "MODERATOR",
+        }),
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+
+    it("rejects role change by member", async () => {
+      const db = { user: { findUnique: vi.fn() } };
+
+      const caller = createCaller({
+        db: db as never,
+        session: memberSession,
+      });
+      await expect(
+        caller.moderation.changeRole({
+          userId: "user-1",
+          role: "MODERATOR",
+        }),
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+
+    it("rejects role change by guest", async () => {
+      const db = { user: { findUnique: vi.fn() } };
+
+      const caller = createCaller({ db: db as never, session: null });
+      await expect(
+        caller.moderation.changeRole({
+          userId: "user-1",
+          role: "MODERATOR",
+        }),
+      ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    });
+
+    it("returns NOT_FOUND for non-existent user", async () => {
+      const db = {
+        user: {
+          findUnique: vi.fn().mockResolvedValue(null),
+        },
+      };
+
+      const caller = createCaller({ db: db as never, session: adminSession });
+      await expect(
+        caller.moderation.changeRole({
+          userId: "nonexistent",
+          role: "MODERATOR",
+        }),
+      ).rejects.toMatchObject({ code: "NOT_FOUND" });
     });
   });
 });

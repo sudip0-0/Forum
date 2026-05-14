@@ -19,8 +19,8 @@
 | Category CRUD | Done — public listing, admin CRUD, tRPC router with tests |
 | Thread CRUD | Done — thread router, post router, category thread list, thread detail, reply form, 21 tests |
 | Core forum | Done — all CORE tasks complete |
-| Moderation | MOD-001 done — report content with 14 tests (includes self-report prevention) |
-| Tests | 102 tests (schema, utils, auth, validators, tRPC, categories, threads, posts, markdown, users, search, moderation) |
+| Moderation | MOD-001/MOD-002/MOD-003 done — report, queue, resolve, user management, action-target validation |
+| Tests | 129 tests (schema, utils, auth, validators, tRPC, categories, threads, posts, markdown, users, search, moderation) |
 | Staging deploy | Not started |
 
 ## 2. Current Sprint
@@ -91,10 +91,12 @@
 - CORE-004 implemented: Markdown renderer (react-markdown + remark-gfm), MarkdownEditor with Write/Preview toggle, XSS sanitization tests, thread detail uses Markdown rendering.
 - CORE-005 implemented: user router (getPublicProfile, updateProfile), profile page at `/u/[username]` with recent threads and edit form.
 - CORE-006 implemented: search router with PostgreSQL full-text search, search page at `/search?q=`.
-- MOD-001 implemented: moderation.report mutation (member-only), XOR validation for postId/threadId, existence check for target content, duplicate detection via Prisma P2002 catch, ReportForm client component with reason dropdown and optional note, report buttons on thread and each post visible only to logged-in users, 12 tests.
+- MOD-001 implemented: moderation.report mutation (member-only), XOR validation for postId/threadId, existence check for target content, duplicate detection via Prisma P2002 catch, ReportForm client component with reason dropdown and optional note, report buttons on thread and each post visible only to logged-in users, 14 tests (including self-report prevention).
+- MOD-002 implemented: moderation.listQueue (moderator query), moderation.resolve (moderator mutation with DISMISS/SOFT_DELETE_POST/SOFT_DELETE_THREAD/LOCK_THREAD actions), transaction-based resolution with ModerationLog creation, moderation queue page at /admin/mod, 14 tests.
+- MOD-003 implemented: moderation.listUsers (admin query), moderation.changeRole (admin mutation with last-admin protection and ModerationLog), user management page at /admin/users, 12 tests.
 
 ### In Progress
-- MOD-002 is next (Moderation Queue).
+- POL-001 is next (SEO Metadata and Sitemap).
 
 ### Blockers
 - None.
@@ -109,12 +111,11 @@
 ### Test Results
 - `pnpm lint` passed (0 errors, 0 warnings).
 - `pnpm typecheck` passed.
-- `pnpm test` passed (100 tests total, 13 files).
+- `pnpm test` passed (126 tests total, 13 files).
 - `pnpm build` passed (requires `NODE_ENV=production`).
 
 ### Next Steps
-- Proceed with MOD-002 (Moderation Queue).
-- Add Meilisearch, Redis real-time, R2 uploads, and advanced engagement after core forum works.
+- Proceed with POL-001 (SEO Metadata and Sitemap).
 
 ## 5. Blocker Log
 
@@ -157,6 +158,8 @@ Full records are in `decisions.md`.
 | CORE-005 | 2026-05-14 | - | User router, profile page at /u/[username], edit form, 4 tests |
 | CORE-006 | 2026-05-14 | - | Search router (PostgreSQL full-text), search page at /search, 4 tests |
 | MOD-001 | 2026-05-14 | - | Moderation router (report procedure), ReportForm client component, report buttons on thread detail, 12 tests |
+| MOD-002 | 2026-05-14 | - | Moderation queue (listQueue, resolve), admin/mod page, 14 resolve/queue tests |
+| MOD-003 | 2026-05-14 | - | Admin user management (listUsers, changeRole), admin/users page, 12 user mgmt tests |
 
 ## 9. Metrics
 

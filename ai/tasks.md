@@ -236,7 +236,7 @@ Definition of done:
 ### MOD-002 — Moderation Queue
 
 **Owner:** agent-backend + agent-frontend  
-**Status:** 🔲 Not Started
+**Status:** ✅ Done
 
 **Acceptance Criteria**
 - Moderator can view reports.

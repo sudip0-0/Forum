@@ -331,11 +331,23 @@ Rules:
 
 ### `moderation.listQueue`
 
-**Type:** moderator query
+**Type:** moderator query (MODERATOR or ADMIN)
+
+Input:
+
+```ts
+z.object({
+  cursor: z.string().optional(),
+  limit: z.number().min(1).max(50).default(20),
+})
+```
+
+Returns: Paginated OPEN reports with reporter info and target post/thread info, ordered by createdAt desc.
 
 Rules:
 
 - Moderator or admin only
+- Cursor-based pagination
 
 ### `moderation.resolve`
 
@@ -345,7 +357,7 @@ Input:
 
 ```ts
 z.object({
-  reportId: z.string(),
+  reportId: z.string().min(1),
   action: z.enum(["DISMISS", "SOFT_DELETE_POST", "SOFT_DELETE_THREAD", "LOCK_THREAD"]),
   reason: z.string().min(3).max(1000),
 })
@@ -353,10 +365,58 @@ z.object({
 
 Rules:
 
-- Update report status
-- Apply moderation action
-- Create audit log
-- Use transaction
+- Moderator or admin only
+- Sets report status: DISMISS → DISMISSED, others → RESOLVED
+- Sets resolvedAt timestamp
+- Uses $transaction for: report update + ModerationLog create + moderation action
+- Moderation actions:
+  - DISMISS: no content change
+  - SOFT_DELETE_POST: sets post.isDeleted = true
+  - SOFT_DELETE_THREAD: sets thread.isDeleted = true
+  - LOCK_THREAD: sets thread.isLocked = true
+- Rejects already-resolved reports (BAD_REQUEST)
+- Returns NOT_FOUND if report does not exist
+
+### `moderation.listUsers`
+
+**Type:** admin query (ADMIN only)
+
+Input:
+
+```ts
+z.object({
+  cursor: z.string().optional(),
+  limit: z.number().min(1).max(50).default(20),
+})
+```
+
+Returns: Paginated user list with id, username, displayName, email, role, createdAt. Ordered by createdAt desc.
+
+Rules:
+
+- Admin only
+
+### `moderation.changeRole`
+
+**Type:** admin mutation
+
+Input:
+
+```ts
+z.object({
+  userId: z.string().min(1),
+  role: z.enum(["MEMBER", "MODERATOR", "ADMIN"]),
+})
+```
+
+Rules:
+
+- Admin only
+- Cannot demote the last admin (counts admins, rejects if count ≤ 1 and target is admin being demoted)
+- Creates a ModerationLog entry with ROLE_CHANGE action and previous/new role metadata
+- Uses $transaction for: user update + ModerationLog create
+- Returns BAD_REQUEST if user already has the target role
+- Returns NOT_FOUND if user does not exist
 ```
 
 ## Error Codes
