@@ -1,4 +1,5 @@
 import { PrismaClient, ReportReason, UserRole } from "@prisma/client";
+import bcryptjs from "bcryptjs";
 
 const prisma = new PrismaClient();
 
@@ -10,9 +11,8 @@ function slugify(value: string) {
     .replace(/^-+|-+$/g, "");
 }
 
-const demoPasswordHash = "dev-only-password-hash-placeholder";
-
 async function main() {
+  const demoPasswordHash = await bcryptjs.hash("password123", 10);
   await prisma.moderationLog.deleteMany();
   await prisma.report.deleteMany();
   await prisma.post.deleteMany();

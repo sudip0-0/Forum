@@ -31,15 +31,17 @@ appRouter
 
 **Type:** public query
 
-Input:
+Input: none
 
-```ts
-z.object({
-  parentSlug: z.string().optional(),
-})
-```
+Returns public categories (`isPublic: true`) sorted by `sortOrder` ascending.
 
-Returns public categories sorted by `sortOrder`.
+### `category.listAll`
+
+**Type:** admin query
+
+Input: none
+
+Returns all categories (including hidden) sorted by `sortOrder` ascending. Admin only.
 
 ### `category.create`
 
@@ -51,15 +53,79 @@ Input:
 z.object({
   name: z.string().min(2).max(100),
   description: z.string().max(500).optional(),
-  parentId: z.string().optional(),
   isPublic: z.boolean().default(true),
+  sortOrder: z.number().int().min(0).default(0),
 })
 ```
 
 Rules:
 
 - Admin only
-- Slug must be unique
+- Slug auto-generated from name
+- Slug must be unique (returns CONFLICT if taken)
+
+### `category.update`
+
+**Type:** admin mutation
+
+Input:
+
+```ts
+z.object({
+  id: z.string().min(1),
+  name: z.string().min(2).max(100).optional(),
+  slug: z.string().min(1).max(150).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
+  description: z.string().max(500).nullable().optional(),
+  isPublic: z.boolean().optional(),
+  sortOrder: z.number().int().min(0).optional(),
+})
+```
+
+Rules:
+
+- Admin only
+- If slug is changed, uniqueness is enforced (CONFLICT)
+- If name is changed without explicit slug, slug is re-derived from name
+- Returns NOT_FOUND if category does not exist
+
+### `category.reorder`
+
+**Type:** admin mutation
+
+Input:
+
+```ts
+z.object({
+  items: z.array(z.object({
+    id: z.string().min(1),
+    sortOrder: z.number().int().min(0),
+  })).min(1),
+})
+```
+
+Rules:
+
+- Admin only
+- Updates all items in a transaction
+- Returns updated category list sorted by `sortOrder`
+
+### `category.softDelete`
+
+**Type:** admin mutation
+
+Input:
+
+```ts
+z.object({
+  id: z.string().min(1),
+})
+```
+
+Rules:
+
+- Admin only
+- Sets `isPublic: false` (hides from public listing)
+- Returns NOT_FOUND if category does not exist
 
 ## threadRouter
 

@@ -114,7 +114,7 @@ Definition of done:
 ### INF-004 — tRPC Base Setup
 
 **Owner:** agent-backend  
-**Status:** 🔲 Not Started  
+**Status:** ✅ Done  
 **Goal:** Add typed API layer.
 
 **Scope**
@@ -133,7 +133,7 @@ Definition of done:
 ### INF-005 — Auth Foundation
 
 **Owner:** agent-security + agent-backend + agent-frontend  
-**Status:** 🔲 Not Started  
+**Status:** ✅ Done  
 **Goal:** Implement email/password auth.
 
 **Scope**
@@ -157,7 +157,7 @@ Definition of done:
 ### CORE-001 — Category Listing and Admin Category CRUD
 
 **Owner:** agent-backend + agent-frontend  
-**Status:** 🔲 Not Started
+**Status:** ✅ Done
 
 **Acceptance Criteria**
 - Guest sees public categories.
