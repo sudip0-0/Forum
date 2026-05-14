@@ -71,8 +71,8 @@ export function ReportForm({
           </div>
         )}
         <div className="space-y-3">
-          <div>
-            <label className="mb-1 block text-xs text-muted-foreground">
+          <div >
+            <label className="mb-1 block text-xs text-muted-foreground" >
               Reason
             </label>
             <select
