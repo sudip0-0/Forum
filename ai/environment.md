@@ -22,14 +22,9 @@ Optional later:
 pnpm install
 cp .env.example .env
 docker compose up -d
-pnpm dev
-```
-
-After local services are running, initialize the database:
-
-```bash
 pnpm db:migrate
 pnpm db:seed
+pnpm dev
 ```
 
 ## Recommended Scripts

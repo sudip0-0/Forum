@@ -34,7 +34,7 @@ Definition of done:
 ### INF-001 — Create Next.js Project Scaffold
 
 **Owner:** agent-devops  
-**Status:** ⏳ Review  
+**Status:** ✅ Done  
 **Goal:** Create a clean Next.js TypeScript app with project tooling.
 
 **Scope**
@@ -70,7 +70,7 @@ Definition of done:
 ### INF-002 — Add Local Infrastructure
 
 **Owner:** agent-devops  
-**Status:** ⏳ Review  
+**Status:** ✅ Done  
 **Goal:** Add local services for PostgreSQL and optional Redis/Meilisearch.
 
 **Scope**
@@ -88,7 +88,7 @@ Definition of done:
 ### INF-003 — Prisma Schema and Seed
 
 **Owner:** agent-backend  
-**Status:** ⏳ Review  
+**Status:** ✅ Done  
 **Goal:** Create the MVP database schema and seed demo data.
 
 **Scope**

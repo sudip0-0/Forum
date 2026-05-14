@@ -13,7 +13,7 @@
 | Architecture | Build-ready architecture drafted |
 | Task roadmap | Ordered roadmap created |
 | Local repo | Confirmed |
-| App scaffold | Implemented |
+| App scaffold | Done |
 | Database migration | Implemented and applied locally |
 | Auth | Not started |
 | Core forum | Not started |
@@ -29,9 +29,9 @@
 
 | Task | Owner | Status | Notes |
 |---|---|---|---|
-| INF-001 | agent-devops | Review | Reviewer changes applied and checks pass |
-| INF-002 | agent-devops | Review | Docker Compose starts Postgres and Redis successfully |
-| INF-003 | agent-backend | Review | Prisma schema, migration, and seed verified locally |
+| INF-001 | agent-devops | Done | Scaffold reviewed and verified |
+| INF-002 | agent-devops | Done | Docker Compose starts Postgres and Redis successfully |
+| INF-003 | agent-backend | Done | Prisma schema, migration, and seed verified locally |
 | INF-004 | agent-backend | Not Started | tRPC setup |
 | INF-005 | agent-security/backend/frontend | Not Started | Auth foundation |
 
@@ -74,10 +74,10 @@
 - Added INF-003 Prisma schema, database scripts, seed script, and schema contract tests.
 - Remapped Docker Postgres to host port `5433` to avoid an existing local PostgreSQL process on `5432`.
 - Applied initial Prisma migration and seeded local development data.
+- Reviewer re-check completed for INF-001 through INF-003; all required checks passed.
 
 ### In Progress
-- INF-001 is ready for reviewer re-inspection.
-- INF-002 and INF-003 are ready for reviewer inspection.
+- INF-004 is next.
 
 ### Blockers
 - None for INF-001 through INF-003.
@@ -104,9 +104,9 @@
 - `DATABASE_URL=postgresql://forum:forum@localhost:5433/forum_dev pnpm prisma migrate dev --name init` passed.
 - `DATABASE_URL=postgresql://forum:forum@localhost:5433/forum_dev pnpm db:seed` passed.
 - Seed verification found 7 users, 5 categories, 20 threads, 80 posts, 2 reports, and 1 moderation log.
+- Re-review check pass confirmed `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `docker compose config`, `docker compose up -d`, `pnpm prisma validate`, `pnpm prisma migrate status`, and `pnpm db:seed`.
 
 ### Next Steps
-- Reviewer should re-inspect INF-001 fixes and inspect INF-002/INF-003.
 - Start INF-004 after reviewer approval.
 
 ## 5. Blocker Log
@@ -132,15 +132,15 @@ Full records are in `decisions.md`.
 
 | Task | Implementation Summary | Reviewer | Status |
 |---|---|---|---|
-| INF-001 | Next.js project scaffold implemented; reviewer changes applied with passing checks | reviewer | Awaiting re-review |
-| INF-002 | Local infrastructure files added; Compose config valid; Postgres and Redis healthy | reviewer | Awaiting review |
-| INF-003 | Prisma schema, migration, and seed added; validate/generate/migrate/seed pass | reviewer | Awaiting review |
+| None | - | - | - |
 
 ## 8. Completed Tasks
 
 | Task | Date | Commit | Notes |
 |---|---|---|---|
-| None | - | - | - |
+| INF-001 | 2026-05-14 | - | Next.js scaffold, tooling, Tailwind, shadcn/ui button, and checks verified |
+| INF-002 | 2026-05-14 | - | Docker Compose local infrastructure verified with Postgres on `5433` and Redis on `6379` |
+| INF-003 | 2026-05-14 | - | Prisma schema, migration, seed, and seed counts verified |
 
 ## 9. Metrics
 
