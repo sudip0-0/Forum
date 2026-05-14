@@ -168,7 +168,7 @@ Definition of done:
 ### CORE-002 — Thread Creation and Category Thread List
 
 **Owner:** agent-backend + agent-frontend  
-**Status:** 🔲 Not Started
+**Status:** ✅ Done
 
 **Acceptance Criteria**
 - Member can create a thread.
@@ -180,7 +180,7 @@ Definition of done:
 ### CORE-003 — Thread Detail and Replies
 
 **Owner:** agent-backend + agent-frontend  
-**Status:** 🔲 Not Started
+**Status:** ✅ Done
 
 **Acceptance Criteria**
 - Thread page shows original post and replies.

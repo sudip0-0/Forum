@@ -1,0 +1,109 @@
+import { z } from "zod";
+import { TRPCError } from "@trpc/server";
+import { publicProcedure, protectedProcedure, router } from "@/server/api/trpc";
+
+const listByThreadSchema = z.object({
+  threadId: z.string().min(1),
+  cursor: z.string().optional(),
+  limit: z.number().min(1).max(100).default(50),
+});
+
+const createSchema = z.object({
+  threadId: z.string().min(1),
+  parentId: z.string().optional(),
+  content: z.string().min(1).max(20000),
+});
+
+export const postRouter = router({
+  listByThread: publicProcedure
+    .input(listByThreadSchema)
+    .query(async ({ ctx, input }) => {
+      const where: Record<string, unknown> = {
+        threadId: input.threadId,
+        isDeleted: false,
+      };
+
+      if (input.cursor) {
+        where.id = { gt: input.cursor };
+      }
+
+      const posts = await ctx.db.post.findMany({
+        where,
+        orderBy: { createdAt: "asc" },
+        take: input.limit + 1,
+        include: { author: { select: { id: true, username: true, displayName: true } } },
+      });
+
+      let nextCursor: string | undefined;
+      if (posts.length > input.limit) {
+        nextCursor = posts.pop()!.id;
+      }
+
+      return { posts, nextCursor };
+    }),
+
+  create: protectedProcedure
+    .input(createSchema)
+    .mutation(async ({ ctx, input }) => {
+      const thread = await ctx.db.thread.findUnique({
+        where: { id: input.threadId },
+      });
+
+      if (!thread || thread.isDeleted) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Thread not found." });
+      }
+
+      if (thread.isLocked) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Thread is locked." });
+      }
+
+      if (input.parentId) {
+        const parent = await ctx.db.post.findUnique({
+          where: { id: input.parentId },
+        });
+
+        if (!parent || parent.threadId !== input.threadId) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid parent post." });
+        }
+
+        // Check nesting depth (max 3 levels)
+        let depth = 1;
+        let currentParentId: string | null = parent.parentId;
+        while (currentParentId && depth < 3) {
+          const ancestor = await ctx.db.post.findUnique({
+            where: { id: currentParentId },
+            select: { parentId: true },
+          });
+          if (!ancestor) break;
+          depth++;
+          currentParentId = ancestor.parentId;
+        }
+
+        if (depth >= 3) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Maximum reply nesting depth (3 levels) exceeded.",
+          });
+        }
+      }
+
+      const post = await ctx.db.post.create({
+        data: {
+          threadId: input.threadId,
+          authorId: ctx.session.user.id,
+          parentId: input.parentId ?? null,
+          content: input.content,
+        },
+      });
+
+      await ctx.db.thread.update({
+        where: { id: input.threadId },
+        data: {
+          replyCount: { increment: 1 },
+          lastActivityAt: new Date(),
+        },
+      });
+
+      return post;
+    }),
+});

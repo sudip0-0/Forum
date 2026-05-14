@@ -17,8 +17,9 @@
 | Database migration | Implemented and applied locally |
 | Auth | Email/password auth with NextAuth v5, bcryptjs hashing, login/register/logout |
 | Category CRUD | Done — public listing, admin CRUD, tRPC router with tests |
+| Thread CRUD | Done — thread router, post router, category thread list, thread detail, reply form, 21 tests |
 | Core forum | In progress |
-| Tests | 50 tests (schema, utils, auth, validators, tRPC, categories) |
+| Tests | 71 tests (schema, utils, auth, validators, tRPC, categories, threads, posts) |
 | Staging deploy | Not started |
 
 ## 2. Current Sprint
@@ -31,6 +32,8 @@
 | Task | Owner | Status | Notes |
 |---|---|---|---|
 | CORE-001 | agent-backend+frontend | Done | Category tRPC router, admin CRUD page, public listing page, 21 tests |
+| CORE-002 | agent-backend+frontend | Done | Thread router (listByCategory, getBySlug, create), category thread list page, new thread page, 12 tests |
+| CORE-003 | agent-backend+frontend | Done | Post router (listByThread, create), thread detail page with nested replies, reply form, 9 tests |
 |---|---|---|---|
 | INF-001 | agent-devops | Done | Scaffold reviewed and verified |
 | INF-002 | agent-devops | Done | Docker Compose starts Postgres and Redis successfully |
@@ -79,15 +82,28 @@
 - Applied initial Prisma migration and seeded local development data.
 - Reviewer re-check completed for INF-001 through INF-003; all required checks passed.
 - CORE-001 implemented: category tRPC router (6 procedures), admin CRUD page at `/admin/categories`, public listing at `/forums`, 21 tests, all checks pass.
+- CORE-002 implemented: thread router (listByCategory, getBySlug, create), category thread list page at `/forum/[categorySlug]`, new thread page at `/forum/[categorySlug]/new`, 12 tests.
+- CORE-003 implemented: post router (listByThread, create), thread detail page at `/forum/[categorySlug]/[threadSlug]` with nested replies up to 3 levels, reply form, 9 tests.
 
 ### In Progress
-- CORE-002 is next (Thread Creation and Category Thread List).
+- CORE-004 is next (Markdown Editor and Renderer).
 
 ### Blockers
-- None for CORE-001. Build requires `NODE_ENV=production` to avoid NextAuth client-side pre-render error (pre-existing).
+- None for CORE-002/CORE-003.
 
 ### Decisions
-- Build MVP first with PostgreSQL search.
+- Thread creation uses sequential creates (thread then post) rather than interactive $transaction to avoid Prisma type issues.
+- Slug collision handled by appending Date.now().toString(36) suffix.
+- Post nesting depth validated by walking parent chain (max 3 levels).
+
+### Test Results
+- `pnpm lint` passed (0 errors, 0 warnings).
+- `pnpm typecheck` passed.
+- `pnpm test` passed (71 tests total, +12 thread tests, +9 post tests).
+- `pnpm build` passed (requires `NODE_ENV=production`).
+
+### Next Steps
+- Proceed with CORE-004 (Markdown Editor and Renderer).
 - Add Meilisearch, Redis real-time, R2 uploads, and advanced engagement after core forum works.
 - Pinned ESLint and TypeScript to versions compatible with the resolved Next.js ESLint config.
 - Set Turbopack root to the project directory because parent lockfiles exist outside this repo.
@@ -142,6 +158,8 @@ Full records are in `decisions.md`.
 | INF-004 | 2026-05-14 | - | tRPC root router, context, public/protected/role procedures, error formatter, health router, API route handler |
 | INF-005 | 2026-05-14 | - | NextAuth v5 credentials provider, bcryptjs password hashing, login/register/logout pages, protected /admin page, seed uses real hashes |
 | CORE-001 | 2026-05-14 | - | Category tRPC router (6 procedures), admin CRUD at /admin/categories, public listing at /forums, 21 tests |
+| CORE-002 | 2026-05-14 | - | Thread router (listByCategory, getBySlug, create), category thread list page, new thread page, 12 tests |
+| CORE-003 | 2026-05-14 | - | Post router (listByThread, create), thread detail page with nested replies, reply form, 9 tests |
 
 ## 9. Metrics
 

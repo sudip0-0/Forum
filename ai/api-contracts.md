@@ -137,7 +137,7 @@ Input:
 
 ```ts
 z.object({
-  categorySlug: z.string(),
+  categorySlug: z.string().min(1),
   sort: z.enum(["latest", "newest", "unanswered"]).default("latest"),
   cursor: z.string().optional(),
   limit: z.number().min(1).max(50).default(20),
@@ -146,8 +146,27 @@ z.object({
 
 Rules:
 
-- Exclude deleted threads
-- Exclude non-public category threads for guests
+- Returns threads for a public category, sorted by `lastActivityAt` (latest), `createdAt` (newest), or filtered to `replyCount: 0` (unanswered)
+- Excludes soft-deleted threads
+- Returns NOT_FOUND if category is missing or not public
+- Cursor-based pagination
+
+### `thread.getBySlug`
+
+**Type:** public query
+
+Input:
+
+```ts
+z.object({
+  slug: z.string().min(1),
+})
+```
+
+Rules:
+
+- Returns thread with author and category info
+- Returns NOT_FOUND if thread is missing or soft-deleted
 
 ### `thread.create`
 
@@ -157,19 +176,19 @@ Input:
 
 ```ts
 z.object({
-  categoryId: z.string(),
+  categoryId: z.string().min(1),
   title: z.string().min(5).max(150),
   content: z.string().min(10).max(20000),
-  tags: z.array(z.string().min(1).max(50)).max(5).default([]),
 })
 ```
 
 Rules:
 
-- User must be logged in
-- Category must allow posting
-- Thread and first post must be created in one transaction
-- Slug collision must be handled
+- User must be logged in (UNAUTHORIZED)
+- Category must exist (NOT_FOUND)
+- Category must not be locked (FORBIDDEN)
+- Slug auto-generated from title; collision appends timestamp suffix
+- Creates thread and first post (sequential creates)
 
 ## postRouter
 
@@ -181,11 +200,18 @@ Input:
 
 ```ts
 z.object({
-  threadSlug: z.string(),
+  threadId: z.string().min(1),
   cursor: z.string().optional(),
   limit: z.number().min(1).max(100).default(50),
 })
 ```
+
+Rules:
+
+- Returns posts ordered by `createdAt` ascending
+- Excludes soft-deleted posts
+- Includes author info
+- Cursor-based pagination
 
 ### `post.create`
 
@@ -195,7 +221,7 @@ Input:
 
 ```ts
 z.object({
-  threadId: z.string(),
+  threadId: z.string().min(1),
   parentId: z.string().optional(),
   content: z.string().min(1).max(20000),
 })
@@ -203,10 +229,12 @@ z.object({
 
 Rules:
 
-- User must be logged in
-- Thread must not be locked
-- Parent reply depth cannot exceed 3
-- Content must be sanitized before render
+- User must be logged in (UNAUTHORIZED)
+- Thread must exist and not be deleted (NOT_FOUND)
+- Thread must not be locked (FORBIDDEN)
+- If parentId provided, validates parent belongs to same thread
+- Parent reply depth cannot exceed 3 levels (BAD_REQUEST)
+- Increments thread replyCount and updates lastActivityAt
 
 ## userRouter
 
