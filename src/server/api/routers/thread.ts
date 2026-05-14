@@ -53,14 +53,11 @@ export const threadRouter = router({
         where.replyCount = 0;
       }
 
-      if (input.cursor) {
-        where.id = { lt: input.cursor };
-      }
-
       const threads = await ctx.db.thread.findMany({
         where,
-        orderBy,
+        orderBy: [orderBy, { id: "desc" as const }],
         take: input.limit + 1,
+        ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
         include: { author: { select: { id: true, username: true, displayName: true } } },
       });
 
@@ -79,11 +76,11 @@ export const threadRouter = router({
         where: { slug: input.slug },
         include: {
           author: { select: { id: true, username: true, displayName: true } },
-          category: { select: { id: true, name: true, slug: true } },
+          category: { select: { id: true, name: true, slug: true, isPublic: true } },
         },
       });
 
-      if (!thread || thread.isDeleted) {
+      if (!thread || thread.isDeleted || !thread.category.isPublic) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Thread not found." });
       }
 
@@ -111,21 +108,25 @@ export const threadRouter = router({
         slug = `${slug}-${Date.now().toString(36)}`;
       }
 
-      const thread = await ctx.db.thread.create({
-        data: {
-          categoryId: input.categoryId,
-          authorId: ctx.session.user.id,
-          title: input.title,
-          slug,
-        },
-      });
+      const thread = await ctx.db.$transaction(async (tx) => {
+        const t = await tx.thread.create({
+          data: {
+            categoryId: input.categoryId,
+            authorId: ctx.session.user.id,
+            title: input.title,
+            slug,
+          },
+        });
 
-      await ctx.db.post.create({
-        data: {
-          threadId: thread.id,
-          authorId: ctx.session.user.id,
-          content: input.content,
-        },
+        await tx.post.create({
+          data: {
+            threadId: t.id,
+            authorId: ctx.session.user.id,
+            content: input.content,
+          },
+        });
+
+        return t;
       });
 
       return thread;

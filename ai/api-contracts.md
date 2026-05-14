@@ -245,22 +245,37 @@ Rules:
 Input:
 
 ```ts
-z.object({ username: z.string() })
+z.object({ username: z.string().min(1) })
 ```
 
-Return:
+Returns:
 
-- username
-- display name
-- image
-- bio
-- public activity
+- username, displayName, image, bio, createdAt
+- Recent 10 threads (non-deleted) with title, slug, category info
 
-Never return:
+Never returns: email, passwordHash, session data.
 
-- email
-- password hash
-- session data
+Rules:
+
+- Returns NOT_FOUND if user does not exist
+
+### `user.updateProfile`
+
+**Type:** member mutation
+
+Input:
+
+```ts
+z.object({
+  displayName: z.string().max(50).optional(),
+  bio: z.string().max(500).optional(),
+})
+```
+
+Rules:
+
+- User must be logged in (UNAUTHORIZED)
+- Updates the authenticated user's own profile only
 
 ## searchRouter
 
@@ -280,9 +295,11 @@ z.object({
 
 Rules:
 
-- Exclude deleted content
-- Return thread-level results
-- MVP can use PostgreSQL full-text search
+- Uses PostgreSQL full-text search (to_tsvector/to_tsquery) on thread title and post content
+- Excludes soft-deleted threads and posts
+- Returns thread-level results with title, slug, author, category info
+- Cursor-based pagination
+- Guest can search (public query)
 
 ## moderationRouter
 

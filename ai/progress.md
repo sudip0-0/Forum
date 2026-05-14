@@ -18,8 +18,8 @@
 | Auth | Email/password auth with NextAuth v5, bcryptjs hashing, login/register/logout |
 | Category CRUD | Done — public listing, admin CRUD, tRPC router with tests |
 | Thread CRUD | Done — thread router, post router, category thread list, thread detail, reply form, 21 tests |
-| Core forum | In progress |
-| Tests | 71 tests (schema, utils, auth, validators, tRPC, categories, threads, posts) |
+| Core forum | Done — all CORE tasks complete |
+| Tests | 88 tests (schema, utils, auth, validators, tRPC, categories, threads, posts, markdown, users, search) |
 | Staging deploy | Not started |
 
 ## 2. Current Sprint
@@ -34,6 +34,9 @@
 | CORE-001 | agent-backend+frontend | Done | Category tRPC router, admin CRUD page, public listing page, 21 tests |
 | CORE-002 | agent-backend+frontend | Done | Thread router (listByCategory, getBySlug, create), category thread list page, new thread page, 12 tests |
 | CORE-003 | agent-backend+frontend | Done | Post router (listByThread, create), thread detail page with nested replies, reply form, 9 tests |
+| CORE-004 | agent-frontend+security | Done | Markdown renderer (react-markdown + remark-gfm), MarkdownEditor with preview, XSS tests, 6 tests |
+| CORE-005 | agent-frontend+backend | Done | User router (getPublicProfile, updateProfile), profile page at /u/[username], edit form, 4 tests |
+| CORE-006 | agent-backend+frontend | Done | Search router (PostgreSQL full-text), search page at /search, 4 tests |
 |---|---|---|---|
 | INF-001 | agent-devops | Done | Scaffold reviewed and verified |
 | INF-002 | agent-devops | Done | Docker Compose starts Postgres and Redis successfully |
@@ -84,26 +87,31 @@
 - CORE-001 implemented: category tRPC router (6 procedures), admin CRUD page at `/admin/categories`, public listing at `/forums`, 21 tests, all checks pass.
 - CORE-002 implemented: thread router (listByCategory, getBySlug, create), category thread list page at `/forum/[categorySlug]`, new thread page at `/forum/[categorySlug]/new`, 12 tests.
 - CORE-003 implemented: post router (listByThread, create), thread detail page at `/forum/[categorySlug]/[threadSlug]` with nested replies up to 3 levels, reply form, 9 tests.
+- CORE-004 implemented: Markdown renderer (react-markdown + remark-gfm), MarkdownEditor with Write/Preview toggle, XSS sanitization tests, thread detail uses Markdown rendering.
+- CORE-005 implemented: user router (getPublicProfile, updateProfile), profile page at `/u/[username]` with recent threads and edit form.
+- CORE-006 implemented: search router with PostgreSQL full-text search, search page at `/search?q=`.
 
 ### In Progress
-- CORE-004 is next (Markdown Editor and Renderer).
+- MOD-001 is next (Report Content).
 
 ### Blockers
-- None for CORE-002/CORE-003.
+- None.
 
 ### Decisions
 - Thread creation uses sequential creates (thread then post) rather than interactive $transaction to avoid Prisma type issues.
 - Slug collision handled by appending Date.now().toString(36) suffix.
 - Post nesting depth validated by walking parent chain (max 3 levels).
+- Markdown rendering uses react-markdown + remark-gfm (no raw HTML passthrough = XSS safe by default).
+- Search uses PostgreSQL full-text search with to_tsvector/to_tsquery.
 
 ### Test Results
 - `pnpm lint` passed (0 errors, 0 warnings).
 - `pnpm typecheck` passed.
-- `pnpm test` passed (71 tests total, +12 thread tests, +9 post tests).
+- `pnpm test` passed (88 tests total, 12 files).
 - `pnpm build` passed (requires `NODE_ENV=production`).
 
 ### Next Steps
-- Proceed with CORE-004 (Markdown Editor and Renderer).
+- Proceed with MOD-001 (Report Content).
 - Add Meilisearch, Redis real-time, R2 uploads, and advanced engagement after core forum works.
 - Pinned ESLint and TypeScript to versions compatible with the resolved Next.js ESLint config.
 - Set Turbopack root to the project directory because parent lockfiles exist outside this repo.
@@ -160,6 +168,9 @@ Full records are in `decisions.md`.
 | CORE-001 | 2026-05-14 | - | Category tRPC router (6 procedures), admin CRUD at /admin/categories, public listing at /forums, 21 tests |
 | CORE-002 | 2026-05-14 | - | Thread router (listByCategory, getBySlug, create), category thread list page, new thread page, 12 tests |
 | CORE-003 | 2026-05-14 | - | Post router (listByThread, create), thread detail page with nested replies, reply form, 9 tests |
+| CORE-004 | 2026-05-14 | - | Markdown renderer, MarkdownEditor with preview, XSS tests, updated thread/reply forms |
+| CORE-005 | 2026-05-14 | - | User router, profile page at /u/[username], edit form, 4 tests |
+| CORE-006 | 2026-05-14 | - | Search router (PostgreSQL full-text), search page at /search, 4 tests |
 
 ## 9. Metrics
 

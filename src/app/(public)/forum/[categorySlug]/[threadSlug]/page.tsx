@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { appRouter } from "@/server/api/root";
 import { auth } from "@/server/auth/config";
 import { db } from "@/server/db/prisma";
+import { Markdown } from "@/components/forum/markdown";
 import { ReplyForm } from "./client";
 
 interface PostWithAuthor {
@@ -49,7 +50,7 @@ function PostItem({
           <span>·</span>
           <span>{new Date(post.createdAt).toLocaleString()}</span>
         </div>
-        <p className="mt-2 whitespace-pre-wrap text-sm">{post.content}</p>
+        <div className="mt-2 text-sm"><Markdown content={post.content} /></div>
         {canReply && depth < 3 && (
           <details className="mt-2">
             <summary className="cursor-pointer text-xs text-muted-foreground hover:underline">

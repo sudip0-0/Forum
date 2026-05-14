@@ -53,7 +53,7 @@ describe("thread router", () => {
 
   describe("getBySlug", () => {
     it("returns thread with author info", async () => {
-      const thread = { id: "t1", slug: "hello", isDeleted: false, author: { id: "u1", username: "user1", displayName: null }, category: { id: "c1", name: "General", slug: "general" } };
+      const thread = { id: "t1", slug: "hello", isDeleted: false, author: { id: "u1", username: "user1", displayName: null }, category: { id: "c1", name: "General", slug: "general", isPublic: true } };
       const db = {
         thread: { findUnique: vi.fn().mockResolvedValue(thread) },
       };
@@ -65,7 +65,16 @@ describe("thread router", () => {
 
     it("returns NOT_FOUND for deleted thread", async () => {
       const db = {
-        thread: { findUnique: vi.fn().mockResolvedValue({ id: "t1", slug: "hello", isDeleted: true }) },
+        thread: { findUnique: vi.fn().mockResolvedValue({ id: "t1", slug: "hello", isDeleted: true, category: { id: "c1", name: "General", slug: "general", isPublic: true } }) },
+      };
+
+      const caller = createCaller({ db: db as never, session: null });
+      await expect(caller.thread.getBySlug({ slug: "hello" })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    });
+
+    it("returns NOT_FOUND for thread in hidden category", async () => {
+      const db = {
+        thread: { findUnique: vi.fn().mockResolvedValue({ id: "t1", slug: "hello", isDeleted: false, category: { id: "c1", name: "Hidden", slug: "hidden", isPublic: false } }) },
       };
 
       const caller = createCaller({ db: db as never, session: null });
@@ -76,10 +85,15 @@ describe("thread router", () => {
   describe("create", () => {
     it("creates thread and first post in transaction", async () => {
       const thread = { id: "t1", slug: "my-thread", title: "My Thread" };
+      const txMock = {
+        thread: { create: vi.fn().mockResolvedValue(thread) },
+        post: { create: vi.fn() },
+      };
       const db = {
         category: { findUnique: vi.fn().mockResolvedValue({ id: "cat-1", isLocked: false }) },
-        thread: { findUnique: vi.fn().mockResolvedValue(null), create: vi.fn().mockResolvedValue(thread) },
+        thread: { findUnique: vi.fn().mockResolvedValue(null) },
         post: { create: vi.fn() },
+        $transaction: vi.fn().mockImplementation((fn) => fn(txMock)),
       };
 
       const caller = createCaller({ db: db as never, session: memberSession });
@@ -90,16 +104,22 @@ describe("thread router", () => {
       });
 
       expect(result.slug).toBe("my-thread");
-      expect(db.thread.create).toHaveBeenCalled();
-      expect(db.post.create).toHaveBeenCalled();
+      expect(db.$transaction).toHaveBeenCalled();
+      expect(txMock.thread.create).toHaveBeenCalled();
+      expect(txMock.post.create).toHaveBeenCalled();
     });
 
     it("appends suffix on slug collision", async () => {
       const thread = { id: "t1", slug: "my-thread-abc", title: "My Thread" };
+      const txMock = {
+        thread: { create: vi.fn().mockResolvedValue(thread) },
+        post: { create: vi.fn() },
+      };
       const db = {
         category: { findUnique: vi.fn().mockResolvedValue({ id: "cat-1", isLocked: false }) },
-        thread: { findUnique: vi.fn().mockResolvedValue({ id: "existing" }), create: vi.fn().mockResolvedValue(thread) },
+        thread: { findUnique: vi.fn().mockResolvedValue({ id: "existing" }) },
         post: { create: vi.fn() },
+        $transaction: vi.fn().mockImplementation((fn) => fn(txMock)),
       };
 
       const caller = createCaller({ db: db as never, session: memberSession });
@@ -115,8 +135,8 @@ describe("thread router", () => {
     it("rejects when category is locked", async () => {
       const db = {
         category: { findUnique: vi.fn().mockResolvedValue({ id: "cat-1", isLocked: true }) },
-        thread: { findUnique: vi.fn(), create: vi.fn() },
-        post: { create: vi.fn() },
+        thread: { findUnique: vi.fn() },
+        $transaction: vi.fn(),
       };
 
       const caller = createCaller({ db: db as never, session: memberSession });
@@ -128,8 +148,8 @@ describe("thread router", () => {
     it("rejects when category not found", async () => {
       const db = {
         category: { findUnique: vi.fn().mockResolvedValue(null) },
-        thread: { findUnique: vi.fn(), create: vi.fn() },
-        post: { create: vi.fn() },
+        thread: { findUnique: vi.fn() },
+        $transaction: vi.fn(),
       };
 
       const caller = createCaller({ db: db as never, session: memberSession });
@@ -141,8 +161,8 @@ describe("thread router", () => {
     it("rejects guest (UNAUTHORIZED)", async () => {
       const db = {
         category: { findUnique: vi.fn() },
-        thread: { findUnique: vi.fn(), create: vi.fn() },
-        post: { create: vi.fn() },
+        thread: { findUnique: vi.fn() },
+        $transaction: vi.fn(),
       };
 
       const caller = createCaller({ db: db as never, session: null });
@@ -154,8 +174,8 @@ describe("thread router", () => {
     it("rejects short title", async () => {
       const db = {
         category: { findUnique: vi.fn() },
-        thread: { findUnique: vi.fn(), create: vi.fn() },
-        post: { create: vi.fn() },
+        thread: { findUnique: vi.fn() },
+        $transaction: vi.fn(),
       };
 
       const caller = createCaller({ db: db as never, session: memberSession });
@@ -167,8 +187,8 @@ describe("thread router", () => {
     it("rejects short content", async () => {
       const db = {
         category: { findUnique: vi.fn() },
-        thread: { findUnique: vi.fn(), create: vi.fn() },
-        post: { create: vi.fn() },
+        thread: { findUnique: vi.fn() },
+        $transaction: vi.fn(),
       };
 
       const caller = createCaller({ db: db as never, session: memberSession });

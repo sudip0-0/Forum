@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { MarkdownEditor } from "@/components/forum/markdown-editor";
 import { createThread } from "./actions";
 
 export function NewThreadForm({
@@ -40,12 +41,11 @@ export function NewThreadForm({
         onChange={(e) => setTitle(e.target.value)}
         disabled={isPending}
       />
-      <textarea
-        className="w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-        placeholder="Write your post content..."
-        rows={8}
+      <MarkdownEditor
         value={content}
-        onChange={(e) => setContent(e.target.value)}
+        onChange={setContent}
+        placeholder="Write your post content (Markdown supported)..."
+        rows={8}
         disabled={isPending}
       />
       <Button onClick={handleSubmit} disabled={isPending || !title.trim() || !content.trim()}>

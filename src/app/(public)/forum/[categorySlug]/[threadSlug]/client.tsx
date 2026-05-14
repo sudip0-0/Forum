@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { MarkdownEditor } from "@/components/forum/markdown-editor";
 import { createReply } from "./actions";
 
 export function ReplyForm({
@@ -45,12 +46,11 @@ export function ReplyForm({
           {error}
         </div>
       )}
-      <textarea
-        className="w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-        placeholder="Write a reply..."
-        rows={4}
+      <MarkdownEditor
         value={content}
-        onChange={(e) => setContent(e.target.value)}
+        onChange={setContent}
+        placeholder="Write a reply (Markdown supported)..."
+        rows={4}
         disabled={isPending}
       />
       <Button onClick={handleSubmit} disabled={isPending || !content.trim()}>

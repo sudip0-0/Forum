@@ -192,7 +192,7 @@ Definition of done:
 ### CORE-004 — Markdown Editor and Renderer
 
 **Owner:** agent-frontend + agent-security  
-**Status:** 🔲 Not Started
+**Status:** ✅ Done
 
 **Acceptance Criteria**
 - User can write Markdown.
@@ -203,7 +203,7 @@ Definition of done:
 ### CORE-005 — User Profiles
 
 **Owner:** agent-frontend + agent-backend  
-**Status:** 🔲 Not Started
+**Status:** ✅ Done
 
 **Acceptance Criteria**
 - `/u/[username]` shows profile and public activity.
@@ -213,7 +213,7 @@ Definition of done:
 ### CORE-006 — Basic Search
 
 **Owner:** agent-backend + agent-frontend  
-**Status:** 🔲 Not Started
+**Status:** ✅ Done
 
 **Acceptance Criteria**
 - Search page accepts query param.

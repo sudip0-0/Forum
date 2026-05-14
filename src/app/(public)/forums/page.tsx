@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { appRouter } from "@/server/api/root";
 import { auth } from "@/server/auth/config";
 import { db } from "@/server/db/prisma";
@@ -36,9 +37,10 @@ export default async function ForumsPage() {
       ) : (
         <div className="mt-8 grid gap-3">
           {categories.map((cat) => (
-            <article
+            <Link
               key={cat.id}
-              className="rounded-lg border px-4 py-3 transition-colors hover:bg-accent/50"
+              href={`/forum/${cat.slug}`}
+              className="block rounded-lg border px-4 py-3 transition-colors hover:bg-accent/50"
             >
               <h2 className="text-sm font-medium">{cat.name}</h2>
               {cat.description && (
@@ -46,10 +48,7 @@ export default async function ForumsPage() {
                   {cat.description}
                 </p>
               )}
-              <span className="mt-2 inline-block text-xs text-muted-foreground">
-                {cat.slug}
-              </span>
-            </article>
+            </Link>
           ))}
         </div>
       )}

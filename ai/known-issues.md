@@ -7,8 +7,12 @@
 | KI-001 | Medium | Scope | Original product scope includes too many post-MVP features | Open | coordinator | Keep MVP frozen |
 | KI-002 | Medium | Architecture | Real-time approach must be aligned before implementation | Open | architect | Use no real-time in MVP, SSE later |
 | KI-003 | Medium | Search | Meilisearch adds infrastructure complexity | Open | backend | Start with PostgreSQL search |
-| KI-004 | High | Security | Markdown rendering can introduce XSS | Open | security | Add sanitization and tests |
+| KI-004 | High | Security | Markdown rendering can introduce XSS | Resolved | security | react-markdown escapes all raw HTML by default |
 | KI-005 | Medium | Progress | Existing progress logs may imply implementation already happened | Open | coordinator | Verify repo state before marking tasks done |
+| KI-008 | Low | Code | `slugify` helper duplicated in category.ts and thread.ts | Open | backend | Extract to src/lib/slug.ts in next refactor |
+| KI-009 | Low | Code | `createCaller` helper duplicated in 4 server action files | Open | backend | Extract to shared utility in next refactor |
+| KI-010 | Low | Architecture | Category softDelete conflates visibility with deletion (isPublic=false) | Open | architect | Document as intentional or add isDeleted field to Category |
+| KI-011 | Low | Search | No GIN indexes on tsvector columns — search slow at scale | Open | backend | Add migration with GIN indexes before public launch |
 
 ## Deferred Features
 
