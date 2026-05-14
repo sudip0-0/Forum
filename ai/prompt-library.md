@@ -50,10 +50,9 @@ Read:
 - ai/agent-rules.md
 
 Task ID:
-[PASTE TASK ID]
+INF-001 — Create Next.js Project Scaffold
 
-Task contract:
-[PASTE TASK CONTRACT]
+
 
 Instructions:
 1. Inspect relevant files before editing.
