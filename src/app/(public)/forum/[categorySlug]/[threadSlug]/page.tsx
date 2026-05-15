@@ -11,6 +11,8 @@ import { ThreadViewTracker } from "@/components/forum/thread-view-tracker";
 import { Breadcrumbs } from "@/components/navigation/breadcrumbs";
 import { TagPill } from "@/components/forum/tag-pill";
 import { isModeratorOrAbove } from "@/server/auth/permissions";
+import { Pin, Lock, Eye } from "lucide-react";
+import { ThreadFilters } from "@/components/forum/thread-filters";
 
 export async function generateMetadata({ params }: { params: Promise<{ categorySlug: string; threadSlug: string }> }): Promise<Metadata> {
   const { threadSlug } = await params;
@@ -24,8 +26,15 @@ export async function generateMetadata({ params }: { params: Promise<{ categoryS
   }
 }
 
-export default async function ThreadDetailPage({ params }: { params: Promise<{ categorySlug: string; threadSlug: string }> }) {
+export default async function ThreadDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ categorySlug: string; threadSlug: string }>;
+  searchParams: Promise<{ postSort?: "oldest" | "newest" | "reactions"; repliesOnly?: string }>;
+}) {
   const { categorySlug: forumSlug, threadSlug } = await params;
+  const sp = await searchParams;
   const session = await auth();
   const caller = appRouter.createCaller({
     db,
@@ -41,7 +50,12 @@ export default async function ThreadDetailPage({ params }: { params: Promise<{ c
     notFound();
   }
 
-  const { posts } = await caller.post.listByThread({ threadId: thread.id, limit: 100 });
+  const { posts } = await caller.post.listByThread({
+    threadId: thread.id,
+    limit: 100,
+    sort: sp.postSort ?? "oldest",
+    repliesOnly: sp.repliesOnly === "1" || undefined,
+  });
   const canReply = !!session?.user && !thread.isLocked;
   const isLoggedIn = !!session?.user;
   const canModerate = isModeratorOrAbove(session?.user?.role);
@@ -56,39 +70,91 @@ export default async function ThreadDetailPage({ params }: { params: Promise<{ c
   ];
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-10">
+    <div className="mx-auto max-w-4xl px-6 py-8">
       <ThreadViewTracker threadId={thread.id} />
 
-      <Breadcrumbs items={breadcrumbItems} className="mb-2" />
+      <Breadcrumbs items={breadcrumbItems} className="mb-6" />
 
-      <h1 className="text-2xl font-semibold">{thread.title}</h1>
-      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-        <span>{thread.author.displayName ?? thread.author.username}</span>
-        <span>·</span>
-        <span>{new Date(thread.createdAt).toLocaleString()}</span>
-        <span>·</span>
-        <span>{thread.viewCount} views</span>
-        {isLoggedIn && <span className="ml-auto"><ReportForm targetId={thread.id} targetType="thread" categorySlug={forumSlug} threadSlug={threadSlug} /></span>}
-      </div>
-      <div className="mt-3">
-        <ReactionButtons targetId={thread.id} targetType="thread" reactions={thread.reactions} currentUserId={session?.user?.id} />
-      </div>
-      {thread.tags.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {thread.tags.map((tag) => (
-            <TagPill key={tag.id} tag={tag} />
-          ))}
+      {/* ── Thread Header ── */}
+      <article className="border-b-2 border-border pb-6 mb-8">
+        <div className="flex items-start gap-3 mb-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {thread.isPinned && (
+              <span className="badge-lime flex items-center gap-1">
+                <Pin className="h-3 w-3" />
+                Pinned
+              </span>
+            )}
+            {thread.isLocked && (
+              <span className="badge-amber flex items-center gap-1">
+                <Lock className="h-3 w-3" />
+                Locked
+              </span>
+            )}
+          </div>
+        </div>
+
+        <h1 className="heading-xl mb-3">{thread.title}</h1>
+
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <span className="font-semibold text-foreground">
+            {thread.author.displayName ?? thread.author.username}
+          </span>
+          <span className="text-border">·</span>
+          <span>{new Date(thread.createdAt).toLocaleDateString()}</span>
+          <span className="text-border">·</span>
+          <span className="flex items-center gap-1">
+            <Eye className="h-3 w-3" />
+            {thread.viewCount} views
+          </span>
+          <span className="text-border">·</span>
+          <span>{posts.length} posts</span>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-4">
+          <ReactionButtons
+            targetId={thread.id}
+            targetType="thread"
+            reactions={thread.reactions}
+            currentUserId={session?.user?.id}
+          />
+          {isLoggedIn && (
+            <ReportForm
+              targetId={thread.id}
+              targetType="thread"
+              categorySlug={forumSlug}
+              threadSlug={threadSlug}
+            />
+          )}
+        </div>
+
+        <div className="mt-4 flex justify-end">
+          <ThreadFilters forumSlug={forumSlug} threadSlug={threadSlug} />
+        </div>
+
+        {thread.tags.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {thread.tags.map((tag) => (
+              <TagPill key={tag.id} tag={tag} />
+            ))}
+          </div>
+        )}
+      </article>
+
+      {/* ── Moderation Controls ── */}
+      {canModerate && (
+        <div className="mb-8">
+          <ThreadModerationControls
+            threadId={thread.id}
+            isLocked={thread.isLocked}
+            isPinned={thread.isPinned}
+            currentForumId={thread.forum.id}
+            forums={moderationForums}
+          />
         </div>
       )}
-      {canModerate && (
-        <ThreadModerationControls
-          threadId={thread.id}
-          isLocked={thread.isLocked}
-          isPinned={thread.isPinned}
-          currentForumId={thread.forum.id}
-          forums={moderationForums}
-        />
-      )}
+
+      {/* ── Conversation ── */}
       <ThreadConversation
         posts={posts}
         threadId={thread.id}
@@ -98,7 +164,12 @@ export default async function ThreadDetailPage({ params }: { params: Promise<{ c
         canReply={canReply}
         isLoggedIn={isLoggedIn}
       />
-      {thread.isLocked && <p className="mt-8 text-sm text-muted-foreground">This thread is locked. No new replies can be posted.</p>}
-    </main>
+
+      {thread.isLocked && (
+        <div className="mt-8 rounded-md border-2 border-warning bg-warning/5 px-4 py-3 text-sm text-warning font-medium">
+          This thread is locked. No new replies can be posted.
+        </div>
+      )}
+    </div>
   );
 }

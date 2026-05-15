@@ -5,6 +5,8 @@ import { checkRateLimit, RL_REPLY, assertNotSuspended } from "@/server/api/rate-
 
 const listByThreadSchema = z.object({
   threadId: z.string().min(1),
+  sort: z.enum(["oldest", "newest", "reactions"]).default("oldest"),
+  repliesOnly: z.boolean().optional(),
   cursor: z.string().optional(),
   limit: z.number().min(1).max(100).default(50),
 });
@@ -22,6 +24,7 @@ export const postRouter = router({
       const where: Record<string, unknown> = {
         threadId: input.threadId,
         isDeleted: false,
+        ...(input.repliesOnly ? { parentId: { not: null } } : {}),
       };
 
       if (input.cursor) {
@@ -30,7 +33,12 @@ export const postRouter = router({
 
       const posts = await ctx.db.post.findMany({
         where,
-        orderBy: { createdAt: "asc" },
+        orderBy:
+          input.sort === "newest"
+            ? [{ createdAt: "desc" }, { id: "desc" }]
+            : input.sort === "reactions"
+              ? [{ reactions: { _count: "desc" } }, { createdAt: "asc" }, { id: "asc" }]
+              : [{ createdAt: "asc" }, { id: "asc" }],
         take: input.limit + 1,
         include: {
           author: {
@@ -67,6 +75,17 @@ export const postRouter = router({
     .mutation(async ({ ctx, input }) => {
       checkRateLimit(ctx.session.user.id, RL_REPLY);
       assertNotSuspended(ctx.session.user);
+
+      const author = await ctx.db.user.findUnique({
+        where: { id: ctx.session.user.id },
+        select: { id: true },
+      });
+      if (!author) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Your session has expired. Please sign in again.",
+        });
+      }
 
       const thread = await ctx.db.thread.findUnique({
         where: { id: input.threadId },

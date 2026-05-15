@@ -1,23 +1,30 @@
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
-interface AdminHeaderProps {
+export function AdminHeader({
+  title,
+  description,
+  backHref,
+  backLabel = "Dashboard",
+}: {
   title: string;
   description?: string;
   backHref: string;
   backLabel?: string;
-}
-
-export function AdminHeader({ title, description, backHref, backLabel = "Dashboard" }: AdminHeaderProps) {
+}) {
   return (
-    <div className="mb-6">
+    <div className="border-b-2 border-border pb-4 mb-8">
       <Link
         href={backHref}
-        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-2"
+        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:no-underline mb-3"
       >
-        <span aria-hidden="true">&larr;</span> Back to {backLabel}
+        <ArrowLeft className="h-3 w-3" />
+        Back to {backLabel}
       </Link>
-      <h1 className="text-2xl font-semibold">{title}</h1>
-      {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+      <h1 className="heading-lg">{title}</h1>
+      {description && (
+        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+      )}
     </div>
   );
 }

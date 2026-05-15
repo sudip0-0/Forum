@@ -13,8 +13,11 @@ const EMOJIS = [
 type Emoji = (typeof EMOJIS)[number][0];
 
 function reactionLabel(reaction: string | null) {
-  if (reaction === "LIKE") return "LIKED";
-  return reaction ?? "Like";
+  if (reaction === "LIKE") return "Liked";
+  if (reaction === "HELPFUL") return "Helpful";
+  if (reaction === "LAUGH") return "Haha";
+  if (reaction === "INSIGHTFUL") return "Insightful";
+  return "React";
 }
 
 export function ReactionButtons({
@@ -51,34 +54,45 @@ export function ReactionButtons({
 
   return (
     <div className="group relative inline-flex items-center">
-      <button
-        type="button"
-        disabled={isPending || !currentUserId}
-        onClick={() => react("LIKE")}
-        className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm transition-colors ${
-          activeReaction ? "text-primary" : "text-muted-foreground hover:text-foreground"
-        }`}
-      >
-        <span>{EMOJIS.find(([emoji]) => emoji === (activeReaction ?? "LIKE"))?.[1]}</span>
-        <span>{reactionLabel(activeReaction)}</span>
-      </button>
-      <div className="invisible absolute bottom-full left-0 z-10 pb-2 opacity-0 transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
-        <div className="flex gap-1 rounded-full border bg-background p-1 shadow-lg">
-          {EMOJIS.map(([emoji, label]) => (
-            <button
-              key={emoji}
-              type="button"
-              disabled={isPending || !currentUserId}
-              onClick={() => react(emoji)}
-              className={`rounded-full px-2 py-1 text-base hover:bg-accent ${activeReaction === emoji ? "bg-accent" : ""}`}
-              aria-label={emoji.toLowerCase()}
-            >
-              {label}
-            </button>
-          ))}
+      <div className="inline-flex items-center gap-0.5 rounded-sm border-2 border-border bg-background shadow-[1px_1px_0px_var(--border)]">
+        <button
+          type="button"
+          disabled={isPending || !currentUserId}
+          onClick={() => react("LIKE")}
+          className={`inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-semibold transition-all hover:bg-accent disabled:opacity-40 ${
+            activeReaction ? "text-primary bg-primary/10" : "text-muted-foreground"
+          }`}
+          title={activeReaction ? `Remove ${reactionLabel(activeReaction)}` : "React"}
+        >
+          <span>{activeReaction ? EMOJIS.find(([e]) => e === activeReaction)?.[1] : "👍"}</span>
+          <span>{reactionLabel(activeReaction)}</span>
+        </button>
+
+        {/* Popover with all reactions */}
+        <div className="hidden group-hover:flex group-focus-within:flex absolute bottom-full left-0 z-10 pb-2">
+          <div className="flex gap-0.5 rounded-sm border-2 border-border bg-card p-1 shadow-[2px_2px_0px_var(--border)]">
+            {EMOJIS.map(([emoji, label]) => (
+              <button
+                key={emoji}
+                type="button"
+                disabled={isPending || !currentUserId}
+                onClick={() => react(emoji)}
+                className={`rounded-sm px-2 py-1 text-base transition-all hover:bg-accent disabled:opacity-40 ${
+                  activeReaction === emoji ? "bg-accent ring-2 ring-primary" : ""
+                }`}
+                aria-label={emoji.toLowerCase()}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
-      {items.length > 0 && <span className="ml-1 text-xs text-muted-foreground">{items.length}</span>}
+      {items.length > 0 && (
+        <span className="ml-1.5 font-mono text-xs text-muted-foreground">
+          {items.length}
+        </span>
+      )}
     </div>
   );
 }

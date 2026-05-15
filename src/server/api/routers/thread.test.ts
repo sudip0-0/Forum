@@ -200,6 +200,20 @@ describe("thread router", () => {
         expect.objectContaining({ orderBy: expect.arrayContaining([{ reactions: { _count: "desc" } }]) }),
       );
     });
+
+    it("keeps pinned threads ahead of the requested sort order", async () => {
+      const db = {
+        forum: { findUnique: vi.fn().mockResolvedValue(publicForum) },
+        thread: { findMany: vi.fn().mockResolvedValue([]) },
+      };
+      const caller = createCaller({ db: db as never, session: null });
+      await caller.thread.listByForum({ forumSlug: "general-discussion", sort: "latest", direction: "desc" });
+      expect(db.thread.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: [{ isPinned: "desc" }, { lastActivityAt: "desc" }, { id: "desc" }],
+        }),
+      );
+    });
   });
 
   describe("incrementView", () => {

@@ -10,6 +10,7 @@ import {
   softDeleteCategory,
   reorderCategories,
 } from "./actions";
+import { Plus, ArrowUp, ArrowDown, Eye, EyeOff, Edit3, Trash2 } from "lucide-react";
 
 export function AdminCategoryList({ categories }: { categories: Category[] }) {
   const router = useRouter();
@@ -108,7 +109,7 @@ export function AdminCategoryList({ categories }: { categories: Category[] }) {
       const result = await reorderCategories(payload);
       if (result.error) {
         setError(result.error);
-        setItems(items); // revert
+        setItems(items);
       }
     });
   }
@@ -124,7 +125,7 @@ export function AdminCategoryList({ categories }: { categories: Category[] }) {
       const result = await reorderCategories(payload);
       if (result.error) {
         setError(result.error);
-        setItems(items); // revert
+        setItems(items);
       }
     });
   }
@@ -144,25 +145,28 @@ export function AdminCategoryList({ categories }: { categories: Category[] }) {
   }
 
   return (
-    <div className="mt-8 space-y-6">
+    <div className="mt-6 space-y-6">
       {error && (
-        <div className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div className="rounded-xl border-2 border-destructive/30 bg-destructive/10 px-5 py-3 text-sm font-medium text-destructive">
           {error}
         </div>
       )}
 
-      <div className="rounded-lg border p-4">
-        <h2 className="text-sm font-medium">New Category</h2>
-        <div className="mt-3 flex flex-wrap gap-3">
+      <div className="rounded-xl border-2 border-border bg-card p-5 shadow-brutal-sm">
+        <h2 className="flex items-center gap-2 text-sm font-semibold">
+          <Plus className="h-4 w-4 text-primary" />
+          New Category
+        </h2>
+        <div className="mt-4 flex flex-wrap gap-3">
           <input
-            className="min-w-0 flex-1 rounded-md border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+            className="input min-w-0 flex-1 rounded-lg border-2 border-border bg-background px-3 py-2 text-sm transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             placeholder="Category name"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             disabled={isPending}
           />
           <input
-            className="min-w-0 flex-1 rounded-md border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+            className="input min-w-0 flex-1 rounded-lg border-2 border-border bg-background px-3 py-2 text-sm transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             placeholder="Description (optional)"
             value={newDesc}
             onChange={(e) => setNewDesc(e.target.value)}
@@ -175,16 +179,16 @@ export function AdminCategoryList({ categories }: { categories: Category[] }) {
       </div>
 
       {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No categories yet.</p>
+        <p className="py-12 text-center text-sm text-muted-foreground">No categories yet.</p>
       ) : (
-        <ul className="divide-y rounded-lg border">
+        <ul className="divide-y divide-border/50 overflow-hidden rounded-xl border-2 border-border">
           {items.map((cat, index) => (
-            <li key={cat.id} className="px-4 py-3">
+            <li key={cat.id} className="bg-card px-5 py-4 transition-colors hover:bg-muted/20">
               {editId === cat.id ? (
                 <div className="space-y-3">
                   <div className="flex flex-wrap gap-2">
                     <input
-                      className="min-w-0 flex-1 rounded-md border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                      className="input min-w-0 flex-1 rounded-lg border-2 border-border bg-background px-3 py-2 text-sm transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       placeholder="Name"
                       value={editForm.name}
                       onChange={(e) =>
@@ -193,7 +197,7 @@ export function AdminCategoryList({ categories }: { categories: Category[] }) {
                       disabled={isPending}
                     />
                     <input
-                      className="min-w-0 flex-1 rounded-md border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                      className="input min-w-0 flex-1 rounded-lg border-2 border-border bg-background px-3 py-2 text-sm transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       placeholder="Slug"
                       value={editForm.slug}
                       onChange={(e) =>
@@ -203,7 +207,7 @@ export function AdminCategoryList({ categories }: { categories: Category[] }) {
                     />
                   </div>
                   <input
-                    className="w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                    className="input w-full rounded-lg border-2 border-border bg-background px-3 py-2 text-sm transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                     placeholder="Description"
                     value={editForm.description}
                     onChange={(e) =>
@@ -222,46 +226,51 @@ export function AdminCategoryList({ categories }: { categories: Category[] }) {
                 </div>
               ) : (
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <span className="text-sm font-medium">{cat.name}</span>
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      /{cat.slug}
-                    </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold">{cat.name}</span>
+                      <span className="text-xs text-muted-foreground/70">
+                        /{cat.slug}
+                      </span>
+                      <span
+                        className={`badge ${
+                          cat.isPublic
+                            ? "badge-green"
+                            : "badge-neutral"
+                        }`}
+                      >
+                        {cat.isPublic ? "Visible" : "Hidden"}
+                      </span>
+                    </div>
                     {cat.description && (
-                      <p className="mt-1 text-xs text-muted-foreground">
+                      <p className="mt-0.5 text-xs text-muted-foreground/70">
                         {cat.description}
                       </p>
                     )}
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <Button
                       size="sm"
-                      variant="outline"
+                      variant="ghost"
                       onClick={() => handleMoveUp(index)}
                       disabled={isPending || index === 0}
                       aria-label="Move up"
+                      className="h-8 w-8 p-0"
                     >
-                      ↑
+                      <ArrowUp className="h-3.5 w-3.5" />
                     </Button>
                     <Button
                       size="sm"
-                      variant="outline"
+                      variant="ghost"
                       onClick={() => handleMoveDown(index)}
                       disabled={isPending || index === items.length - 1}
                       aria-label="Move down"
+                      className="h-8 w-8 p-0"
                     >
-                      ↓
+                      <ArrowDown className="h-3.5 w-3.5" />
                     </Button>
-                    <span
-                      className={`rounded px-2 py-0.5 text-xs font-medium ${
-                        cat.isPublic
-                          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                          : "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400"
-                      }`}
-                    >
-                      {cat.isPublic ? "Visible" : "Hidden"}
-                    </span>
                     <Button size="sm" variant="outline" onClick={() => startEdit(cat)}>
+                      <Edit3 className="h-3.5 w-3.5" />
                       Edit
                     </Button>
                     <Button
@@ -270,15 +279,20 @@ export function AdminCategoryList({ categories }: { categories: Category[] }) {
                       onClick={() => handleToggleVisibility(cat)}
                       disabled={isPending}
                     >
-                      {cat.isPublic ? "Hide" : "Show"}
+                      {cat.isPublic ? (
+                        <><EyeOff className="h-3.5 w-3.5" /> Hide</>
+                      ) : (
+                        <><Eye className="h-3.5 w-3.5" /> Show</>
+                      )}
                     </Button>
-                    {cat.isPublic && (
+                    {!cat.isPublic && (
                       <Button
                         size="sm"
                         variant="destructive"
                         onClick={() => handleSoftDelete(cat.id)}
                         disabled={isPending}
                       >
+                        <Trash2 className="h-3.5 w-3.5" />
                         Delete
                       </Button>
                     )}

@@ -7,6 +7,7 @@ import { db } from "@/server/db/prisma";
 import { Breadcrumbs } from "@/components/navigation/breadcrumbs";
 import { TagPill } from "@/components/forum/tag-pill";
 import { ForumFilters } from "@/components/forum/forum-filters";
+import { MessageSquare, Plus, Pin, Lock } from "lucide-react";
 
 export async function generateMetadata({ params }: { params: Promise<{ categorySlug: string }> }): Promise<Metadata> {
   const { categorySlug: forumSlug } = await params;
@@ -79,60 +80,106 @@ export default async function ForumThreadListPage({
   ];
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-10">
-      <Breadcrumbs items={breadcrumbItems} className="mb-2" />
+    <div className="mx-auto max-w-5xl px-6 py-8">
+      <Breadcrumbs items={breadcrumbItems} className="mb-4" />
 
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-4 page-header">
         <div>
-          <h1 className="text-2xl font-semibold">{forum.name}</h1>
+          <h1 className="heading-xl">{forum.name}</h1>
           {forum.description && <p className="mt-1 text-sm text-muted-foreground">{forum.description}</p>}
         </div>
         {session?.user && !forum.isLocked && (
-          <Link href={`/forum/${forumSlug}/new`} className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
+          <Link
+            href={`/forum/${forumSlug}/new`}
+            className="inline-flex items-center gap-2 rounded-md border-2 border-border bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-[3px_3px_0px_var(--border)] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_var(--border)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none hover:no-underline"
+          >
+            <Plus className="h-4 w-4" />
             New Thread
           </Link>
         )}
       </div>
 
-      <div className="mt-4">
-        <ForumFilters forumSlug={forumSlug} />
-      </div>
+      <ForumFilters forumSlug={forumSlug} />
 
       {threads.length === 0 ? (
-        <p className="mt-8 text-sm text-muted-foreground">No threads yet.</p>
+        <div className="empty-state mt-6">
+          <div className="empty-state-icon">
+            <MessageSquare className="h-10 w-10" />
+          </div>
+          <p className="empty-state-title">No threads yet</p>
+          <p className="empty-state-text">
+            Be the first to start a discussion in this forum.
+          </p>
+          {session?.user && !forum.isLocked && (
+            <Link
+              href={`/forum/${forumSlug}/new`}
+              className="mt-4 inline-flex items-center gap-1.5 rounded-md border-2 border-border bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[2px_2px_0px_var(--border)] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_var(--border)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none hover:no-underline"
+            >
+              <Plus className="h-4 w-4" />
+              Create Thread
+            </Link>
+          )}
+        </div>
       ) : (
-        <ul className="mt-4 divide-y rounded-lg border">
-          {threads.map((thread) => (
-            <li key={thread.id} className="px-4 py-3">
-              <div className="flex items-start gap-2">
-                {thread.isPinned && (
-                  <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">Pinned</span>
-                )}
-                {thread.isLocked && (
-                  <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Locked</span>
-                )}
-              </div>
-              <Link href={`/forum/${forumSlug}/${thread.slug}`} className="block hover:underline">
-                <span className="text-sm font-medium">{thread.title}</span>
-              </Link>
-              <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                <span>{thread.author.displayName ?? thread.author.username}</span>
-                <span>{thread.replyCount} replies</span>
-                <span>{thread.viewCount} views</span>
-                <span>{thread._count.reactions} reactions</span>
-                <span>{new Date(thread.lastActivityAt).toLocaleDateString()}</span>
-              </div>
-              {thread.tags.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {thread.tags.map((tag) => (
-                    <TagPill key={tag.id} tag={tag} />
-                  ))}
+        <div className="section-panel mt-6">
+          <div className="divide-y divide-border">
+            {threads.map((thread) => (
+              <div key={thread.id} className="row-dense">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    {(thread.isPinned || thread.isLocked) && (
+                      <span className="flex items-center gap-1">
+                        {thread.isPinned && (
+                          <span className="badge-lime flex items-center gap-1">
+                            <Pin className="h-3 w-3" />
+                            Pinned
+                          </span>
+                        )}
+                        {thread.isLocked && (
+                          <span className="badge-amber flex items-center gap-1">
+                            <Lock className="h-3 w-3" />
+                            Locked
+                          </span>
+                        )}
+                      </span>
+                    )}
+                  </div>
+                  <Link
+                    href={`/forum/${forumSlug}/${thread.slug}`}
+                    className="text-sm font-semibold hover:text-link hover:no-underline leading-snug"
+                  >
+                    {thread.title}
+                  </Link>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                    <span>{thread.author.displayName ?? thread.author.username}</span>
+                    <span className="text-border">·</span>
+                    <span>{thread.replyCount} replies</span>
+                    <span className="text-border">·</span>
+                    <span>{thread.viewCount} views</span>
+                    <span className="text-border">·</span>
+                    <span>{thread._count.reactions} reactions</span>
+                    <span className="text-border">·</span>
+                    <span>{new Date(thread.lastActivityAt).toLocaleDateString()}</span>
+                  </div>
+                  {thread.tags.length > 0 && (
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {thread.tags.map((tag) => (
+                        <TagPill key={tag.id} tag={tag} />
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-            </li>
-          ))}
-        </ul>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
-    </main>
+
+      {forum.isLocked && (
+        <div className="mt-6 rounded-md border-2 border-warning bg-warning/5 px-4 py-3 text-sm text-warning font-medium">
+          This forum is locked. No new threads or replies can be posted.
+        </div>
+      )}
+    </div>
   );
 }

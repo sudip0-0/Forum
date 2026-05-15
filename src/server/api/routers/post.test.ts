@@ -43,6 +43,7 @@ describe("post router", () => {
     it("creates a reply and increments replyCount", async () => {
       const post = { id: "p2", threadId: "t1", content: "Reply", parentId: null };
       const db = {
+        user: { findUnique: vi.fn().mockResolvedValue({ id: "member-1" }) },
         thread: { findUnique: vi.fn().mockResolvedValue({ id: "t1", isDeleted: false, isLocked: false, forum: visibleForum }), update: vi.fn() },
         post: { create: vi.fn().mockResolvedValue(post) },
       };
@@ -58,6 +59,7 @@ describe("post router", () => {
 
     it("rejects when thread is locked", async () => {
       const db = {
+        user: { findUnique: vi.fn().mockResolvedValue({ id: "member-1" }) },
         thread: { findUnique: vi.fn().mockResolvedValue({ id: "t1", isDeleted: false, isLocked: true, forum: visibleForum }), update: vi.fn() },
         post: { create: vi.fn() },
       };
@@ -68,6 +70,7 @@ describe("post router", () => {
 
     it("rejects when thread not found", async () => {
       const db = {
+        user: { findUnique: vi.fn().mockResolvedValue({ id: "member-1" }) },
         thread: { findUnique: vi.fn().mockResolvedValue(null), update: vi.fn() },
         post: { create: vi.fn() },
       };
@@ -78,6 +81,7 @@ describe("post router", () => {
 
     it("rejects when thread is deleted", async () => {
       const db = {
+        user: { findUnique: vi.fn().mockResolvedValue({ id: "member-1" }) },
         thread: { findUnique: vi.fn().mockResolvedValue({ id: "t1", isDeleted: true, isLocked: false, forum: visibleForum }), update: vi.fn() },
         post: { create: vi.fn() },
       };
@@ -88,6 +92,7 @@ describe("post router", () => {
 
     it("rejects guest (UNAUTHORIZED)", async () => {
       const db = {
+        user: { findUnique: vi.fn().mockResolvedValue({ id: "member-1" }) },
         thread: { findUnique: vi.fn(), update: vi.fn() },
         post: { create: vi.fn() },
       };
@@ -99,6 +104,7 @@ describe("post router", () => {
     it("allows replies that reference earlier messages without nesting limits", async () => {
       const post = { id: "p-new", threadId: "t1", content: "Reply", parentId: "p2" };
       const db = {
+        user: { findUnique: vi.fn().mockResolvedValue({ id: "member-1" }) },
         thread: { findUnique: vi.fn().mockResolvedValue({ id: "t1", isDeleted: false, isLocked: false, forum: visibleForum }), update: vi.fn() },
         post: {
           create: vi.fn().mockResolvedValue(post),
@@ -113,6 +119,7 @@ describe("post router", () => {
 
     it("rejects empty content", async () => {
       const db = {
+        user: { findUnique: vi.fn().mockResolvedValue({ id: "member-1" }) },
         thread: { findUnique: vi.fn(), update: vi.fn() },
         post: { create: vi.fn() },
       };
@@ -123,6 +130,7 @@ describe("post router", () => {
 
     it("rejects replies beneath a locked parent category", async () => {
       const db = {
+        user: { findUnique: vi.fn().mockResolvedValue({ id: "member-1" }) },
         thread: {
           findUnique: vi.fn().mockResolvedValue({
             id: "t1",
@@ -150,6 +158,19 @@ describe("post router", () => {
       };
       const caller = createCaller({ db: db as never, session: suspendedSession });
       await expect(caller.post.create({ threadId: "t1", content: "Reply" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+
+    it("rejects stale sessions before attempting to create a reply", async () => {
+      const db = {
+        user: { findUnique: vi.fn().mockResolvedValue(null) },
+        thread: { findUnique: vi.fn() },
+        post: { create: vi.fn() },
+      };
+      const caller = createCaller({ db: db as never, session: memberSession });
+      await expect(caller.post.create({ threadId: "t1", content: "Reply" })).rejects.toMatchObject({
+        code: "UNAUTHORIZED",
+      });
+      expect(db.post.create).not.toHaveBeenCalled();
     });
   });
 });

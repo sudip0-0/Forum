@@ -1,5 +1,7 @@
 "use client";
 
+import { Clock } from "lucide-react";
+
 function actionLabel(action: string): string {
   const labels: Record<string, string> = {
     DISMISS: "Dismissed report",
@@ -19,13 +21,13 @@ function actionLabel(action: string): string {
   return labels[action] ?? action;
 }
 
-function actionColor(action: string): string {
-  if (action.startsWith("SOFT_DELETE") || action === "SUSPEND_USER") return "text-red-600 dark:text-red-400";
-  if (action.startsWith("RESTORE") || action === "UNSUSPEND_USER") return "text-green-600 dark:text-green-400";
-  if (action.startsWith("LOCK") || action.startsWith("PIN")) return "text-amber-600 dark:text-amber-400";
-  if (action.startsWith("UNLOCK") || action.startsWith("UNPIN")) return "text-blue-600 dark:text-blue-400";
-  if (action === "DISMISS") return "text-neutral-500";
-  return "text-neutral-700 dark:text-neutral-300";
+function actionBadge(action: string): string {
+  if (action.startsWith("SOFT_DELETE") || action === "SUSPEND_USER") return "badge-red";
+  if (action.startsWith("RESTORE") || action === "UNSUSPEND_USER") return "badge-green";
+  if (action.startsWith("LOCK") || action.startsWith("PIN")) return "badge-amber";
+  if (action.startsWith("UNLOCK") || action.startsWith("UNPIN")) return "badge-blue";
+  if (action === "DISMISS") return "badge-orange";
+  return "badge-blue";
 }
 
 export interface HistoryLog {
@@ -42,38 +44,40 @@ export interface HistoryLog {
 export function ModerationHistoryList({ logs }: { logs: HistoryLog[] }) {
   if (logs.length === 0) {
     return (
-      <p className="mt-8 text-sm text-muted-foreground">
-        No moderation actions recorded yet.
-      </p>
+      <div className="empty-state mt-6">
+        <div className="empty-state-icon">
+          <Clock className="h-10 w-10" />
+        </div>
+        <p className="empty-state-title">No history yet</p>
+        <p className="empty-state-text">No moderation actions have been recorded yet.</p>
+      </div>
     );
   }
 
   return (
-    <div className="mt-8 rounded-lg border overflow-x-auto">
+    <div className="mt-6 overflow-x-auto rounded-sm border-2 border-border shadow-[2px_2px_0px_var(--border)]">
       <table className="w-full min-w-[700px]">
         <thead>
-          <tr className="border-b text-left text-xs font-medium text-muted-foreground">
-            <th className="px-4 py-2">Moderator</th>
-            <th className="px-4 py-2">Action</th>
-            <th className="px-4 py-2">Target</th>
-            <th className="px-4 py-2">Reason</th>
-            <th className="px-4 py-2">Date</th>
+          <tr className="border-b-2 border-border bg-muted/50 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            <th className="px-4 py-3">Moderator</th>
+            <th className="px-4 py-3">Action</th>
+            <th className="px-4 py-3">Target</th>
+            <th className="px-4 py-3">Reason</th>
+            <th className="px-4 py-3">Date</th>
           </tr>
         </thead>
         <tbody>
           {logs.map((log) => (
-            <tr key={log.id} className="border-t text-sm">
-              <td className="px-4 py-3">
-                <span className="font-medium">
-                  {log.moderator.displayName ?? log.moderator.username}
-                </span>
+            <tr key={log.id} className="border-t border-border text-sm hover:bg-muted/20 transition-colors">
+              <td className="px-4 py-3 font-medium">
+                {log.moderator.displayName ?? log.moderator.username}
               </td>
               <td className="px-4 py-3">
-                <span className={`font-medium ${actionColor(log.action)}`}>
+                <span className={actionBadge(log.action)}>
                   {actionLabel(log.action)}
                 </span>
               </td>
-              <td className="px-4 py-3 text-muted-foreground text-xs">
+              <td className="px-4 py-3 text-xs text-muted-foreground max-w-[200px] truncate">
                 {log.targetUser?.username
                   ? `@${log.targetUser.username}`
                   : log.thread?.title
@@ -82,10 +86,10 @@ export function ModerationHistoryList({ logs }: { logs: HistoryLog[] }) {
                       ? `Post: ${log.post.content.slice(0, 60)}...`
                       : "-"}
               </td>
-              <td className="px-4 py-3 text-muted-foreground max-w-[200px] truncate">
+              <td className="px-4 py-3 text-xs text-muted-foreground max-w-[200px] truncate">
                 {log.reason ?? "-"}
               </td>
-              <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+              <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap font-mono">
                 {new Date(log.createdAt).toLocaleString()}
               </td>
             </tr>

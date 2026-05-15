@@ -6,6 +6,17 @@ import { appRouter } from "@/server/api/root";
 import { db } from "@/server/db/prisma";
 import type { TrpcContext } from "@/server/api/trpc";
 
+function friendlyActionError(error: unknown, fallback: string) {
+  const message = (error as { message?: string }).message ?? "";
+  if (message.includes("Your session has expired")) return message;
+  if (message.includes("UNAUTHORIZED")) return "Please sign in again to continue.";
+  if (message.includes("Foreign key constraint")) return "We could not post your reply because your session is no longer valid. Please sign in again.";
+  if (message.includes("Thread is locked")) return "This thread is locked and is no longer accepting replies.";
+  if (message.includes("Posting is locked")) return "Posting is currently locked in this forum.";
+  if (message.includes("Invalid parent post")) return "The message you replied to is no longer available.";
+  return fallback;
+}
+
 async function createCaller() {
   const session = await auth();
   const ctx: TrpcContext = session?.user
@@ -36,7 +47,7 @@ export async function createReply(
     revalidatePath(`/forum/${categorySlug}/${threadSlug}`);
     return { success: true };
   } catch (e: unknown) {
-    return { error: (e as { message?: string }).message ?? "Failed to create reply." };
+    return { error: friendlyActionError(e, "We could not post your reply. Please try again.") };
   }
 }
 
@@ -71,6 +82,6 @@ export async function reportContent(
     revalidatePath(`/forum/${categorySlug}/${threadSlug}`);
     return { success: true };
   } catch (e: unknown) {
-    return { error: (e as { message?: string }).message ?? "Failed to submit report." };
+    return { error: friendlyActionError(e, "We could not submit your report. Please try again.") };
   }
 }

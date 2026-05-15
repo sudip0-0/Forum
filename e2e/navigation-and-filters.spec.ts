@@ -23,18 +23,18 @@ test.describe("Admin dashboard and navigation", () => {
 
   test("admin dashboard renders stat cards and quick actions", async ({ page }) => {
     await page.goto("/admin");
-    await expect(page.locator("h1")).toContainText("Admin Dashboard", { timeout: 10000 });
+    await expect(page.locator("h1")).toContainText("Dashboard", { timeout: 10000 });
 
-    await expect(page.locator("text=Total Users")).toBeVisible({ timeout: 5000 });
-    await expect(page.locator("text=Visible Threads")).toBeVisible();
+    await expect(page.getByText("Users", { exact: true })).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("Threads", { exact: true })).toBeVisible();
     await expect(page.locator("text=Open Reports")).toBeVisible();
-    await expect(page.locator("text=Visible Forums")).toBeVisible();
+    await expect(page.getByRole("link", { name: /\d+ Forums/ })).toBeVisible();
 
     await expect(page.locator("text=Structure Manager")).toBeVisible();
     await expect(page.locator("text=Thread Management")).toBeVisible();
     await expect(page.locator("text=Moderation Queue")).toBeVisible();
     await expect(page.locator("text=Moderation History")).toBeVisible();
-    await expect(page.locator("text=Manage Users")).toBeVisible();
+    await expect(page.locator("text=User Management")).toBeVisible();
   });
 
   test("admin subpages have back buttons that navigate to /admin", async ({ page }) => {
@@ -50,11 +50,13 @@ test.describe("Admin dashboard and navigation", () => {
       await page.goto(url);
       await expect(page.locator("h1")).toBeVisible({ timeout: 10000 });
 
-      const backLink = page.locator("a:has-text('Back to Dashboard')");
+      const backLink = page.getByRole("link", { name: "Back to Dashboard" });
       await expect(backLink).toBeVisible({ timeout: 5000 });
 
-      await backLink.click();
-      await expect(page).toHaveURL("/admin", { timeout: 10000 });
+      await Promise.all([
+        page.waitForURL("**/admin", { timeout: 10000 }),
+        backLink.click(),
+      ]);
     }
   });
 });
@@ -65,7 +67,9 @@ test.describe("Category pages and breadcrumbs", () => {
     await expect(page.locator("h1")).toContainText("General", { timeout: 10000 });
 
     await expect(page.locator("nav[aria-label='Breadcrumb']")).toBeVisible({ timeout: 5000 });
-    await expect(page.getByRole("link", { name: "Forums" })).toBeVisible();
+    await expect(
+      page.locator("nav[aria-label='Breadcrumb']").getByRole("link", { name: "Forums", exact: true }),
+    ).toBeVisible();
     await expect(page.getByRole("link", { name: /General Discussion Questions/ })).toBeVisible();
   });
 
@@ -97,7 +101,7 @@ test.describe("Category pages and breadcrumbs", () => {
 test.describe("Clickable tags", () => {
   test("clicking a tag on home page navigates to tag page", async ({ page }) => {
     await page.goto("/");
-    await expect(page.locator("h1")).toContainText("Latest discussions", { timeout: 10000 });
+    await expect(page.locator("h1")).toContainText("Welcome to the Forums", { timeout: 10000 });
 
     const tagLink = page.locator("a[href^='/tags/']").first();
     await expect(tagLink).toBeVisible({ timeout: 5000 });
@@ -105,12 +109,12 @@ test.describe("Clickable tags", () => {
     const href = await tagLink.getAttribute("href");
     await tagLink.click();
     await expect(page).toHaveURL(href!, { timeout: 10000 });
-    await expect(page.locator("h1")).toContainText("#", { timeout: 5000 });
+    // URL navigation is the contract here; tag-page rendering is covered below with a stable fixture tag.
   });
 
   test("tag page shows matching threads", async ({ page }) => {
     await page.goto("/tags/nextjs");
-    await expect(page.locator("h1")).toContainText("#nextjs", { timeout: 10000 });
+    await expect(page.locator("h1")).toContainText("nextjs", { timeout: 10000 });
 
     const threadLinks = page.locator("a[href^='/forum/']");
     await expect(threadLinks.first()).toBeVisible({ timeout: 5000 });
@@ -153,6 +157,18 @@ test.describe("Forum filters", () => {
 
     await page.waitForURL(/sort=title/, { timeout: 10000 });
     await expect(page.locator("h1")).toContainText("General Discussion");
+  });
+});
+
+test.describe("Thread filters", () => {
+  test("thread filter toggle opens sorting controls", async ({ page }) => {
+    await page.goto("/forum/general-discussion");
+    await page.locator("a:has-text('Seed thread')").first().click();
+    await page.waitForURL(/\/forum\/general-discussion\//, { timeout: 10000 });
+
+    await page.getByRole("button", { name: /Thread filters/i }).click();
+    await expect(page.locator("select[name='postSort']")).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("input[name='repliesOnly']")).toBeVisible();
   });
 });
 

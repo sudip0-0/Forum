@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { SlidersHorizontal } from "lucide-react";
 
 const SORT_OPTIONS = [
   { value: "latest", label: "Last message" },
@@ -9,10 +10,10 @@ const SORT_OPTIONS = [
   { value: "title", label: "Title" },
   { value: "replies", label: "Replies" },
   { value: "views", label: "Views" },
-  { value: "reactions", label: "Reaction count" },
+  { value: "reactions", label: "First message reaction score" },
 ];
 
-const WINDOW_OPTIONS = [
+const TIME_WINDOWS = [
   { value: "", label: "Any time" },
   { value: "1", label: "1 day" },
   { value: "7", label: "7 days" },
@@ -20,131 +21,125 @@ const WINDOW_OPTIONS = [
   { value: "30", label: "30 days" },
 ];
 
-const DIRECTION_OPTIONS = [
-  { value: "desc", label: "Descending" },
-  { value: "asc", label: "Ascending" },
-];
-
-interface ForumFiltersProps {
-  forumSlug: string;
-}
-
-export function ForumFilters({ forumSlug }: ForumFiltersProps) {
+export function ForumFilters({ forumSlug }: { forumSlug: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
 
-  const currentSort = searchParams.get("sort") ?? "latest";
-  const currentDirection = searchParams.get("direction") ?? "desc";
-  const currentPinned = searchParams.get("pinnedOnly") === "1";
-  const currentTag = searchParams.get("tagSlug") ?? "";
-  const currentAuthor = searchParams.get("authorUsername") ?? "";
-  const currentWindow = searchParams.get("updatedWithinDays") ?? "";
-  const currentUnanswered = searchParams.get("unanswered") === "1";
+  const sort = searchParams.get("sort") || "latest";
+  const direction = searchParams.get("direction") || "desc";
+  const tagSlug = searchParams.get("tagSlug") || "";
+  const authorUsername = searchParams.get("authorUsername") || "";
+  const updatedWithinDays = searchParams.get("updatedWithinDays") || "";
+  const pinnedOnly = searchParams.get("pinnedOnly") === "1";
+  const unanswered = searchParams.get("unanswered") === "1";
+  const hasActiveFilters = !!(tagSlug || authorUsername || updatedWithinDays || pinnedOnly || unanswered);
 
-  const hasActiveFilters =
-    currentPinned || currentTag || currentAuthor || currentWindow || currentUnanswered;
-
-  function applyFilters(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const formData = new FormData(form);
-
+  function applyFilters(formData: FormData) {
     const params = new URLSearchParams();
     params.set("sort", (formData.get("sort") as string) || "latest");
     params.set("direction", (formData.get("direction") as string) || "desc");
-
-    if (formData.get("pinnedOnly") === "1") params.set("pinnedOnly", "1");
-    if (formData.get("tagSlug")) params.set("tagSlug", formData.get("tagSlug") as string);
-    if (formData.get("authorUsername")) params.set("authorUsername", formData.get("authorUsername") as string);
-    if (formData.get("updatedWithinDays")) params.set("updatedWithinDays", formData.get("updatedWithinDays") as string);
-    if (formData.get("unanswered") === "1") params.set("unanswered", "1");
-
+    const tag = formData.get("tagSlug") as string;
+    const author = formData.get("authorUsername") as string;
+    const timeWindow = formData.get("updatedWithinDays") as string;
+    if (tag) params.set("tagSlug", tag);
+    if (author) params.set("authorUsername", author);
+    if (timeWindow) params.set("updatedWithinDays", timeWindow);
+    if (formData.get("pinnedOnly") === "on") params.set("pinnedOnly", "1");
+    if (formData.get("unanswered") === "on") params.set("unanswered", "1");
     router.push(`/forum/${forumSlug}?${params.toString()}`);
-  }
-
-  function clearFilters() {
-    router.push(`/forum/${forumSlug}?sort=latest&direction=desc`);
+    setOpen(false);
   }
 
   return (
-    <div className="mb-4">
+    <div className="relative flex justify-end">
       <button
         type="button"
-        onClick={() => setOpen(!open)}
-        className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs ${hasActiveFilters ? "bg-accent" : ""}`}
+        onClick={() => setOpen((value) => !value)}
+        className={`inline-flex items-center gap-1.5 rounded-sm border-2 px-3 py-1.5 text-xs font-semibold shadow-[1px_1px_0px_var(--border)] ${
+          hasActiveFilters ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:bg-accent"
+        }`}
       >
-        {hasActiveFilters && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
+        <SlidersHorizontal className="h-3.5 w-3.5" />
         Filters
-        <span className="text-muted-foreground">{open ? "\u25b2" : "\u25bc"}</span>
       </button>
+
       {open && (
-        <form onSubmit={applyFilters} className="mt-3 rounded-lg border p-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <label className="block">
-              <span className="text-xs text-muted-foreground">Sort by</span>
-              <select name="sort" defaultValue={currentSort} className="mt-1 block w-full rounded-md border px-2 py-1.5 text-xs">
-                {SORT_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
+        <form
+          action={applyFilters}
+          className="absolute right-0 top-full z-20 mt-2 w-full max-w-md rounded-sm border-2 border-border bg-card shadow-[4px_4px_0px_var(--border)]"
+        >
+          <div className="border-b border-border px-5 py-4">
+            <p className="text-base font-semibold">Show only:</p>
+          </div>
+          <div className="space-y-4 px-5 py-4">
+            <label className="flex items-center gap-3 text-sm">
+              <input type="checkbox" name="pinnedOnly" defaultChecked={pinnedOnly} />
+              Featured threads
+            </label>
+            <label className="flex items-center gap-3 text-sm">
+              <input type="checkbox" name="unanswered" defaultChecked={unanswered} />
+              Unanswered threads
             </label>
             <label className="block">
-              <span className="text-xs text-muted-foreground">Direction</span>
-              <select name="direction" defaultValue={currentDirection} className="mt-1 block w-full rounded-md border px-2 py-1.5 text-xs">
-                {DIRECTION_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </label>
-            <label className="block">
-              <span className="text-xs text-muted-foreground">Updated within</span>
-              <select name="updatedWithinDays" defaultValue={currentWindow} className="mt-1 block w-full rounded-md border px-2 py-1.5 text-xs">
-                {WINDOW_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </label>
-            <label className="block">
-              <span className="text-xs text-muted-foreground">Tag</span>
+              <span className="text-sm font-medium">Prefix / tag:</span>
               <input
-                type="text"
                 name="tagSlug"
-                defaultValue={currentTag}
-                placeholder="Filter by tag..."
-                className="mt-1 block w-full rounded-md border px-2 py-1.5 text-xs"
+                defaultValue={tagSlug}
+                className="mt-2 w-full rounded-sm border-2 border-border bg-background px-3 py-2 text-sm"
+                placeholder="Prefixes..."
               />
             </label>
             <label className="block">
-              <span className="text-xs text-muted-foreground">Started by</span>
+              <span className="text-sm font-medium">Started by:</span>
               <input
-                type="text"
                 name="authorUsername"
-                defaultValue={currentAuthor}
-                placeholder="Author username..."
-                className="mt-1 block w-full rounded-md border px-2 py-1.5 text-xs"
+                defaultValue={authorUsername}
+                className="mt-2 w-full rounded-sm border-2 border-border bg-background px-3 py-2 text-sm"
               />
             </label>
-            <div className="flex flex-col gap-2 justify-end">
-              <label className="flex items-center gap-2 text-xs">
-                <input type="checkbox" name="pinnedOnly" value="1" defaultChecked={currentPinned} />
-                Pinned / Featured only
-              </label>
-              <label className="flex items-center gap-2 text-xs">
-                <input type="checkbox" name="unanswered" value="1" defaultChecked={currentUnanswered} />
-                Unanswered
-              </label>
+            <label className="block">
+              <span className="text-sm font-medium">Last updated:</span>
+              <select
+                name="updatedWithinDays"
+                defaultValue={updatedWithinDays}
+                className="mt-2 w-full rounded-sm border-2 border-border bg-background px-3 py-2 text-sm"
+              >
+                {TIME_WINDOWS.map((window) => (
+                  <option key={window.value} value={window.value}>{window.label}</option>
+                ))}
+              </select>
+            </label>
+            <div>
+              <span className="text-sm font-medium">Sort by:</span>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <select
+                  name="sort"
+                  defaultValue={sort}
+                  className="w-full rounded-sm border-2 border-border bg-background px-3 py-2 text-sm"
+                >
+                  {SORT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+                <select
+                  name="direction"
+                  defaultValue={direction}
+                  className="w-full rounded-sm border-2 border-border bg-background px-3 py-2 text-sm"
+                >
+                  <option value="desc">Descending</option>
+                  <option value="asc">Ascending</option>
+                </select>
+              </div>
             </div>
           </div>
-          <div className="mt-4 flex items-center gap-2">
-            <button type="submit" className="rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground hover:bg-primary/90">
+          <div className="flex justify-end border-t border-border px-5 py-3">
+            <button
+              type="submit"
+              className="rounded-sm border-2 border-border bg-primary px-6 py-2 text-sm font-semibold text-primary-foreground shadow-[2px_2px_0px_var(--border)]"
+            >
               Filter
             </button>
-            {hasActiveFilters && (
-              <button type="button" onClick={clearFilters} className="rounded-md border px-3 py-1.5 text-xs hover:bg-muted">
-                Clear filters
-              </button>
-            )}
           </div>
         </form>
       )}

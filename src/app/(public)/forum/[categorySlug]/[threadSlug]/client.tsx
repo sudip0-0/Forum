@@ -8,6 +8,7 @@ import { MarkdownEditor } from "@/components/forum/markdown-editor";
 import { ReactionButtons } from "@/components/forum/reaction-buttons";
 import { ReportForm } from "@/components/forum/report-form";
 import { createReply } from "./actions";
+import { MessageSquare, Reply } from "lucide-react";
 
 type PostItem = {
   id: string;
@@ -29,7 +30,24 @@ type PostItem = {
 };
 
 function initials(name: string) {
-  return name.slice(0, 1).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
+
+function getColorForUser(userId: string) {
+  const colors = [
+    "bg-primary/15 text-primary",
+    "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+    "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+    "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
+    "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+    "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300",
+  ];
+  let hash = 0;
+  for (let i = 0; i < userId.length; i++) {
+    hash = ((hash << 5) - hash) + userId.charCodeAt(i);
+    hash |= 0;
+  }
+  return colors[Math.abs(hash) % colors.length];
 }
 
 export function ThreadConversation({
@@ -60,56 +78,108 @@ export function ThreadConversation({
 
   return (
     <>
-      <div className="mt-8 space-y-4">
+      {/* ── Conversation Thread ── */}
+      <div className="space-y-6">
         {posts.map((post, index) => (
-          <article key={post.id} id={`post-${post.id}`} className="overflow-hidden rounded-lg border bg-card">
-            <div className="grid md:grid-cols-[180px_minmax(0,1fr)]">
-              <aside className="border-b bg-muted/20 p-4 md:border-b-0 md:border-r">
-                <div className="flex items-center gap-3 md:flex-col md:items-start">
+          <article
+            key={post.id}
+            id={`post-${post.id}`}
+            className="card-elevated overflow-hidden"
+          >
+            <div className="flex flex-col sm:flex-row">
+              {/* ── Author Rail ── */}
+              <aside className="sm:w-44 shrink-0 border-b sm:border-b-0 sm:border-r-2 border-border bg-muted/30 p-4">
+                <div className="flex items-center gap-3 sm:flex-col sm:items-start sm:gap-2">
                   {post.author.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={post.author.image} alt="" className="h-14 w-14 rounded-full object-cover md:h-20 md:w-20" />
+                    <img
+                      src={post.author.image}
+                      alt=""
+                      className="h-10 w-10 shrink-0 rounded-full border-2 border-border object-cover sm:h-14 sm:w-14"
+                    />
                   ) : (
-                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/15 text-xl font-semibold text-primary md:h-20 md:w-20 md:text-3xl">
+                    <div
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-border text-sm font-bold sm:h-14 sm:w-14 sm:text-lg ${getColorForUser(post.author.id)}`}
+                    >
                       {initials(post.author.displayName ?? post.author.username)}
                     </div>
                   )}
-                  <div>
-                    <div className="font-medium">{post.author.displayName ?? post.author.username}</div>
-                    <div className="text-xs text-muted-foreground">@{post.author.username}</div>
-                    <div className="mt-2 text-xs text-muted-foreground">Joined {new Date(post.author.createdAt).toLocaleDateString()}</div>
-                    <div className="text-xs text-muted-foreground">{post.author._count.posts} posts</div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold leading-tight">
+                      {post.author.displayName ?? post.author.username}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      @{post.author.username}
+                    </div>
+                    <div className="mt-2 hidden text-xs text-muted-foreground sm:block">
+                      <div>Joined {new Date(post.author.createdAt).toLocaleDateString()}</div>
+                      <div>{post.author._count.posts} posts</div>
+                    </div>
                   </div>
                 </div>
               </aside>
-              <div className="flex min-h-44 flex-col p-4">
-                <div className="flex items-start gap-3 text-xs text-muted-foreground">
-                  <span>{new Date(post.createdAt).toLocaleString()}</span>
-                  <span className="ml-auto">#{index + 1}</span>
+
+              {/* ── Message Content ── */}
+              <div className="flex min-h-32 flex-1 flex-col p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>{new Date(post.createdAt).toLocaleString()}</span>
+                  </div>
+                  <span className="shrink-0 rounded-sm border border-border bg-background px-1.5 py-0.5 font-mono text-xs text-muted-foreground shadow-[1px_1px_0px_var(--border)]">
+                    #{index + 1}
+                  </span>
                 </div>
+
                 {post.parent && (
-                  <a href={`#post-${post.parent.id}`} className="mt-3 text-xs text-primary hover:underline">
+                  <a
+                    href={`#post-${post.parent.id}`}
+                    className="mt-3 inline-flex items-center gap-1.5 rounded-sm border border-border bg-muted/50 px-2.5 py-1 text-xs text-muted-foreground hover:text-link hover:border-link hover:no-underline transition-colors"
+                  >
+                    <Reply className="h-3 w-3" />
                     Replied to @{post.parent.author.displayName ?? post.parent.author.username}
                   </a>
                 )}
-                <div className="mt-4 flex-1 text-sm">
+
+                <div className="mt-4 flex-1 text-sm leading-relaxed prose prose-sm max-w-none">
                   <Markdown content={post.content} />
                 </div>
-                <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t pt-3">
+
+                <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
                   <ReactionButtons
                     targetId={post.id}
                     targetType="post"
                     reactions={post.reactions}
                     currentUserId={currentUserId}
                   />
-                  <div className="flex items-center gap-4 text-sm">
-                    {isLoggedIn && <ReportForm targetId={post.id} targetType="post" categorySlug={categorySlug} threadSlug={threadSlug} />}
+                  <div className="flex items-center gap-2">
+                    {isLoggedIn && (
+                      <ReportForm
+                        targetId={post.id}
+                        targetType="post"
+                        categorySlug={categorySlug}
+                        threadSlug={threadSlug}
+                      />
+                    )}
                     {canReply && (
-                      <button type="button" onClick={() => replyTo(post)} className="text-muted-foreground hover:text-foreground">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => replyTo(post)}
+                        className="text-xs gap-1"
+                      >
+                        <Reply className="h-3 w-3" />
                         Reply
-                      </button>
+                      </Button>
                     )}
                   </div>
+                </div>
+
+                {/* Mobile metadata */}
+                <div className="mt-3 flex gap-3 text-xs text-muted-foreground sm:hidden">
+                  <span>Joined {new Date(post.author.createdAt).toLocaleDateString()}</span>
+                  <span>·</span>
+                  <span>{post.author._count.posts} posts</span>
                 </div>
               </div>
             </div>
@@ -117,6 +187,7 @@ export function ThreadConversation({
         ))}
       </div>
 
+      {/* ── Reply Composer ── */}
       {canReply && (
         <ReplyComposer
           textareaRef={composerRef}
@@ -170,36 +241,70 @@ function ReplyComposer({
   }
 
   return (
-    <section id="reply-composer" className="mt-8 rounded-lg border bg-card p-4">
-      <div className="flex gap-4">
-        <div className="hidden sm:block">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/15 text-xl font-semibold text-primary">R</div>
+    <section
+      id="reply-composer"
+      className="mt-10 rounded-md border-2 border-border bg-card shadow-[3px_3px_0px_var(--border)]"
+    >
+      <div className="border-b-2 border-border bg-muted/30 px-5 py-3">
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <MessageSquare className="h-4 w-4 text-primary" />
+          {replyTarget ? "Post a Reply" : "Join the Discussion"}
         </div>
-        <div className="min-w-0 flex-1">
-          {replyTarget && (
-            <div className="mb-3 flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2 text-xs">
-              <span>Replying to @{replyTarget.author.displayName ?? replyTarget.author.username}</span>
-              <button type="button" onClick={onClearReplyTarget} className="text-muted-foreground hover:text-foreground">
-                Cancel
-              </button>
+      </div>
+
+      <div className="p-5">
+        <div className="flex gap-4">
+          <div className="hidden sm:block">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-border bg-primary/15 text-base font-bold text-primary shadow-[1px_1px_0px_var(--border)]">
+              {typeof window !== "undefined" ? JSON.parse(localStorage.getItem("initials") ?? '"R"') : "R"}
             </div>
-          )}
-          {error && <div className="mb-3 rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>}
-          <MarkdownEditor
-            value={content}
-            onChange={setContent}
-            placeholder="Write your reply here..."
-            rows={7}
-            disabled={isPending}
-            textareaId="thread-reply-textarea"
-            textareaName="content"
-            textareaTestId="reply-content"
-            textareaRef={textareaRef}
-          />
-          <div className="mt-3 flex justify-end">
-            <Button onClick={handleSubmit} disabled={isPending || !content.trim()}>
-              Post reply
-            </Button>
+          </div>
+          <div className="min-w-0 flex-1">
+            {replyTarget && (
+              <div className="mb-3 flex items-center justify-between rounded-sm border-2 border-border bg-muted/50 px-3 py-2 text-xs font-medium">
+                <span className="flex items-center gap-1.5">
+                  <Reply className="h-3 w-3" />
+                  Replying to @{replyTarget.author.displayName ?? replyTarget.author.username}
+                </span>
+                <button
+                  type="button"
+                  onClick={onClearReplyTarget}
+                  className="rounded-sm px-1.5 py-0.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+
+            {error && (
+              <div className="mb-3 rounded-sm border-2 border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive font-medium">
+                {error}
+              </div>
+            )}
+
+            <MarkdownEditor
+              value={content}
+              onChange={setContent}
+              placeholder="Write your reply here... (Markdown supported)"
+              rows={6}
+              disabled={isPending}
+              textareaId="thread-reply-textarea"
+              textareaName="content"
+              textareaTestId="reply-content"
+              textareaRef={textareaRef}
+            />
+
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <p className="text-xs text-muted-foreground">
+                Markdown formatting supported
+              </p>
+              <Button
+                onClick={handleSubmit}
+                disabled={isPending || !content.trim()}
+              >
+                {isPending ? "Posting..." : "Post Reply"}
+              </Button>
+            </div>
           </div>
         </div>
       </div>

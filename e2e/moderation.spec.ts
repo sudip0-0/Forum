@@ -12,11 +12,10 @@ test.describe("Moderation flows", () => {
     await page.getByText(/Seed thread/).first().click();
     await page.waitForURL(/\/forum\/general-discussion\//, { timeout: 10000 });
 
-    const details = page.locator("details", { hasText: "Report" }).first();
-    await details.click();
-    await details.getByLabel("Report reason").selectOption("SPAM");
-    await details.getByLabel("Report note").fill("E2E test report");
-    await details.getByText("Submit Report").click();
+    await page.getByRole("button", { name: "Report this content" }).first().click();
+    await page.getByLabel("Report reason").selectOption("SPAM");
+    await page.getByLabel("Report note").fill("E2E test report");
+    await page.getByRole("button", { name: "Submit Report" }).click();
 
     await page.click('button:has-text("Logout")');
     await page.goto("/login");

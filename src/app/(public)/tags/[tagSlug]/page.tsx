@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/server/db/prisma";
 import { appRouter } from "@/server/api/root";
 import { TagPill } from "@/components/forum/tag-pill";
+import { Hash, ArrowLeft } from "lucide-react";
 
 const SORT_OPTIONS = [
   { value: "latest", label: "Last message" },
@@ -41,73 +42,108 @@ export default async function TagPage({
   const { threads, tag } = data;
 
   return (
-    <main className="mx-auto max-w-4xl px-6 py-10">
-      <Link href="/forums" className="text-xs text-muted-foreground hover:text-foreground">
-        &larr; Forums
+    <div className="mx-auto max-w-4xl px-6 py-8">
+      <Link
+        href="/forums"
+        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:no-underline mb-4"
+      >
+        <ArrowLeft className="h-3 w-3" />
+        Forums
       </Link>
 
-      <div className="mt-2 flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-semibold">#{tag.name}</h1>
-        <span className="text-xs text-muted-foreground">
-          {threads.length} threads
-        </span>
+      <div className="page-header">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="heading-xl flex items-center gap-2">
+            <Hash className="h-6 w-6 text-primary" />
+            {tag.name}
+          </h1>
+          <span className="badge-orange">{threads.length} thread{threads.length !== 1 ? "s" : ""}</span>
+        </div>
       </div>
 
-      <div className="mt-6 flex flex-wrap gap-2">
-        {SORT_OPTIONS.map((opt) => (
+      {/* Sort & Filter */}
+      <div className="filter-panel mb-6">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mr-1">
+            Sort:
+          </span>
+          {SORT_OPTIONS.map((opt) => (
+            <Link
+              key={opt.value}
+              href={`/tags/${tagSlug}?sort=${opt.value}&direction=${direction}`}
+              className={`rounded-sm border-2 px-3 py-1.5 text-xs font-semibold transition-all hover:no-underline ${
+                sort === opt.value
+                  ? "bg-primary text-primary-foreground border-primary shadow-[2px_2px_0px_var(--border)]"
+                  : "bg-background text-foreground border-border shadow-[1px_1px_0px_var(--border)] hover:bg-accent"
+              }`}
+            >
+              {opt.label}
+            </Link>
+          ))}
+          <span className="mx-1 text-border">|</span>
           <Link
-            key={opt.value}
-            href={`/tags/${tagSlug}?sort=${opt.value}&direction=${direction}`}
-            className={`rounded-md border px-3 py-1.5 text-xs ${sort === opt.value ? "bg-accent" : ""}`}
+            href={`/tags/${tagSlug}?sort=${sort}&direction=${direction === "asc" ? "desc" : "asc"}`}
+            className={`rounded-sm border-2 px-3 py-1.5 text-xs font-semibold transition-all hover:no-underline ${
+              "bg-background text-foreground border-border shadow-[1px_1px_0px_var(--border)] hover:bg-accent"
+            }`}
           >
-            {opt.label}
+            {direction === "asc" ? "Ascending ↑" : "Descending ↓"}
           </Link>
-        ))}
-        <Link
-          href={`/tags/${tagSlug}?sort=${sort}&direction=${direction === "asc" ? "desc" : "asc"}`}
-          className="rounded-md border px-3 py-1.5 text-xs"
-        >
-          {direction === "asc" ? "Ascending" : "Descending"}
-        </Link>
+        </div>
       </div>
 
       {threads.length === 0 ? (
-        <p className="mt-8 text-sm text-muted-foreground">No threads with this tag yet.</p>
+        <div className="empty-state">
+          <div className="empty-state-icon">
+            <Hash className="h-10 w-10" />
+          </div>
+          <p className="empty-state-title">No threads with this tag</p>
+          <p className="empty-state-text">Threads tagged with &ldquo;{tag.name}&rdquo; will appear here.</p>
+        </div>
       ) : (
-        <ul className="mt-6 divide-y rounded-lg border">
-          {threads.map((thread) => (
-            <li key={thread.id} className="px-4 py-3">
-              <Link
-                href={`/forum/${thread.forum.slug}/${thread.slug}`}
-                className="block text-sm font-medium hover:underline"
-              >
-                {thread.title}
-              </Link>
-              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                <span>{thread.author.displayName ?? thread.author.username}</span>
-                <span>{thread.replyCount} replies</span>
-                <span>{thread.viewCount} views</span>
-                <span>{thread._count.reactions} reactions</span>
-                <span>{new Date(thread.lastActivityAt).toLocaleDateString()}</span>
-                <span>
-                  in{" "}
-                  <Link href={`/forum/${thread.forum.slug}`} className="hover:text-foreground hover:underline">
-                    {thread.forum.name}
+        <div className="section-panel">
+          <div className="divide-y divide-border">
+            {threads.map((thread) => (
+              <div key={thread.id} className="row-dense">
+                <div className="flex-1 min-w-0">
+                  <Link
+                    href={`/forum/${thread.forum.slug}/${thread.slug}`}
+                    className="text-sm font-semibold hover:text-link hover:no-underline leading-snug"
+                  >
+                    {thread.title}
                   </Link>
-                </span>
-              </div>
-              {thread.tags.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {thread.tags.map((t) => (
-                    <TagPill key={t.id} tag={t} />
-                  ))}
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                    <span>{thread.author.displayName ?? thread.author.username}</span>
+                    <span className="text-border">·</span>
+                    <span>{thread.replyCount} replies</span>
+                    <span className="text-border">·</span>
+                    <span>{thread.viewCount} views</span>
+                    <span className="text-border">·</span>
+                    <span>{thread._count.reactions} reactions</span>
+                    <span className="text-border">·</span>
+                    <span>{new Date(thread.lastActivityAt).toLocaleDateString()}</span>
+                    <span className="text-border">·</span>
+                    <span>
+                      in{" "}
+                      <Link href={`/forum/${thread.forum.slug}`} className="hover:text-foreground hover:underline">
+                        {thread.forum.name}
+                      </Link>
+                    </span>
+                  </div>
+                  {thread.tags.length > 0 && (
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {thread.tags.map((t) => (
+                        <TagPill key={t.id} tag={t} />
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-            </li>
-          ))}
-        </ul>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
-    </main>
+    </div>
   );
 }
 

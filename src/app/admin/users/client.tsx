@@ -5,24 +5,22 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { changeUserRole, toggleSuspension } from "./actions";
 import type { AppRouterOutputs } from "@/server/api/root";
+import { ShieldCheck, Shield, UserCheck } from "lucide-react";
 
 type UserItem = AppRouterOutputs["moderation"]["listUsers"]["users"][number];
 
 const ROLE_OPTIONS = ["MEMBER", "MODERATOR", "ADMIN"] as const;
 
-function roleBadge(role: string) {
-  const colors: Record<string, string> = {
-    ADMIN:
-      "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-    MODERATOR:
-      "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-    MEMBER:
-      "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400",
+function RoleBadge({ role }: { role: string }) {
+  const config: Record<string, { className: string; icon: typeof Shield }> = {
+    ADMIN: { className: "badge-red", icon: ShieldCheck },
+    MODERATOR: { className: "badge-blue", icon: Shield },
+    MEMBER: { className: "badge-orange", icon: UserCheck },
   };
+  const { className, icon: Icon } = config[role] ?? config.MEMBER;
   return (
-    <span
-      className={`rounded px-2 py-0.5 text-xs font-medium ${colors[role] ?? colors.MEMBER}`}
-    >
+    <span className={`${className} gap-1`}>
+      <Icon className="h-3 w-3" />
       {role}
     </span>
   );
@@ -75,31 +73,33 @@ function UserRow({ user }: { user: UserItem }) {
   }
 
   return (
-    <tr className="border-t">
+    <tr className="border-t border-border/50 transition-colors hover:bg-muted/20">
       <td className="px-4 py-3 text-sm">
-        <div className="font-medium">
+        <div className="font-medium text-foreground">
           {user.displayName ?? user.username}
         </div>
-        <div className="text-xs text-muted-foreground">@{user.username}</div>
+        <div className="text-xs text-muted-foreground/70">@{user.username}</div>
         {user.isSuspended && (
-          <span className="inline-block mt-1 rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900 dark:text-red-300">
+          <span className="badge-red mt-1 inline-flex">
             Suspended
           </span>
         )}
       </td>
-      <td className="px-4 py-3 text-sm text-muted-foreground max-w-[200px] truncate">
+      <td className="max-w-[200px] truncate px-4 py-3 text-sm text-muted-foreground/70">
         {user.email}
       </td>
-      <td className="px-4 py-3">{roleBadge(user.role)}</td>
-      <td className="px-4 py-3 text-xs text-muted-foreground">
+      <td className="px-4 py-3">
+        <RoleBadge role={user.role} />
+      </td>
+      <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground/70">
         {new Date(user.createdAt).toLocaleDateString()}
       </td>
       <td className="px-4 py-3 text-right">
-        <div className="flex items-center gap-2 justify-end">
+        <div className="flex items-center gap-2 justify-end flex-wrap">
           {showChange ? (
             <>
               <select
-                className="rounded-md border bg-background px-2 py-1 text-sm"
+                className="input h-9 rounded-md border border-border bg-background px-2 py-1 text-sm"
                 value={newRole}
                 onChange={(e) => setNewRole(e.target.value)}
                 disabled={isPending}
@@ -138,6 +138,15 @@ function UserRow({ user }: { user: UserItem }) {
               Change Role
             </Button>
           )}
+          <input
+            aria-label={`Suspension reason for ${user.username}`}
+            data-testid={`suspension-reason-${user.username}`}
+            className="input h-9 w-36 rounded-md border border-border bg-background px-2 py-1 text-sm"
+            placeholder="Reason required"
+            value={suspensionReason}
+            onChange={(e) => setSuspensionReason(e.target.value)}
+            disabled={isPending}
+          />
           <Button
             size="sm"
             variant={user.isSuspended ? "default" : "outline"}
@@ -146,17 +155,8 @@ function UserRow({ user }: { user: UserItem }) {
           >
             {user.isSuspended ? "Unsuspend" : "Suspend"}
           </Button>
-          <input
-            aria-label={`Suspension reason for ${user.username}`}
-            data-testid={`suspension-reason-${user.username}`}
-            className="w-44 rounded-md border px-2 py-1 text-sm"
-            placeholder="Reason required"
-            value={suspensionReason}
-            onChange={(e) => setSuspensionReason(e.target.value)}
-            disabled={isPending}
-          />
           {error && (
-            <span className="text-xs text-destructive">{error}</span>
+            <span className="w-full text-xs text-destructive">{error}</span>
           )}
         </div>
       </td>
@@ -166,15 +166,15 @@ function UserRow({ user }: { user: UserItem }) {
 
 export function UserList({ users }: { users: UserItem[] }) {
   return (
-    <div className="mt-8 rounded-lg border overflow-x-auto">
-      <table className="w-full min-w-[700px]">
+    <div className="admin-card overflow-x-auto">
+      <table className="w-full min-w-[750px]">
         <thead>
-          <tr className="border-b text-left text-xs font-medium text-muted-foreground">
-            <th className="px-4 py-2">User</th>
-            <th className="px-4 py-2">Email</th>
-            <th className="px-4 py-2">Role</th>
-            <th className="px-4 py-2">Joined</th>
-            <th className="px-4 py-2 text-right">Actions</th>
+          <tr className="border-b border-border/50 text-left text-xs font-medium text-muted-foreground/70">
+            <th className="px-4 py-3">User</th>
+            <th className="px-4 py-3">Email</th>
+            <th className="px-4 py-3">Role</th>
+            <th className="px-4 py-3">Joined</th>
+            <th className="px-4 py-3 text-right">Actions</th>
           </tr>
         </thead>
         <tbody>

@@ -23,6 +23,7 @@ export const userRouter = router({
           displayName: true,
           image: true,
           bio: true,
+          role: true,
           createdAt: true,
           threads: {
             where: { isDeleted: false },

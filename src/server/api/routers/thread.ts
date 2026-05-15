@@ -78,7 +78,7 @@ export const threadRouter = router({
         ...(input.updatedWithinDays ? { lastActivityAt: { gte: new Date(Date.now() - input.updatedWithinDays * 86400000) } } : {}),
         ...(input.unanswered || input.sort === "unanswered" ? { replyCount: 0 } : {}),
       };
-      const orderBy: Prisma.ThreadOrderByWithRelationInput[] =
+      const requestedOrderBy: Prisma.ThreadOrderByWithRelationInput[] =
         input.sort === "newest"
           ? [{ createdAt: input.direction }]
           : input.sort === "oldest"
@@ -95,7 +95,7 @@ export const threadRouter = router({
 
       const threads = await ctx.db.thread.findMany({
         where,
-        orderBy: [...orderBy, { id: "desc" }],
+        orderBy: [{ isPinned: "desc" }, ...requestedOrderBy, { id: "desc" }],
         take: input.limit + 1,
         ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
         include: {

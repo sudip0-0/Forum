@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { getCsrfToken, signIn } from "next-auth/react";
 import { registerUser } from "@/server/auth/actions";
 import { Button } from "@/components/ui/button";
+import { UserPlus } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -29,7 +30,6 @@ export default function RegisterPage() {
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
 
-    // Prime Auth.js' CSRF cookie before attempting the immediate post-registration sign-in.
     await getCsrfToken();
     const signInResult = await signIn("credentials", {
       email,
@@ -48,101 +48,113 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6">
-      <h1 className="text-2xl font-semibold">Create an account</h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Join the forum to start discussions.
-      </p>
-
-      <form action={handleSubmit} className="mt-8 space-y-4">
-        <div>
-          <label htmlFor="username" className="block text-sm font-medium">
-            Username
-          </label>
-          <input
-            id="username"
-            name="username"
-            type="text"
-            required
-            minLength={3}
-            maxLength={30}
-            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-          />
-          {fieldErrors.username && (
-            <p className="mt-1 text-sm text-destructive">
-              {fieldErrors.username[0]}
-            </p>
-          )}
-        </div>
-
-        <div>
-          <label htmlFor="displayName" className="block text-sm font-medium">
-            Display name{" "}
-            <span className="text-muted-foreground">(optional)</span>
-          </label>
-          <input
-            id="displayName"
-            name="displayName"
-            type="text"
-            maxLength={50}
-            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium">
-            Email
-          </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            required
-            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-          />
-          {fieldErrors.email && (
-            <p className="mt-1 text-sm text-destructive">
-              {fieldErrors.email[0]}
-            </p>
-          )}
-        </div>
-
-        <div>
-          <label htmlFor="password" className="block text-sm font-medium">
-            Password
-          </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            required
-            minLength={8}
-            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-          />
-          {fieldErrors.password && (
-            <p className="mt-1 text-sm text-destructive">
-              {fieldErrors.password[0]}
-            </p>
-          )}
-        </div>
-
-        {error && (
-          <div className="rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            {error}
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-background via-muted/10 to-background p-6">
+      <div className="w-full max-w-sm">
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl border-2 border-border bg-primary shadow-brutal-sm">
+            <UserPlus className="h-6 w-6 text-primary-foreground" />
           </div>
-        )}
+          <h1 className="text-2xl font-bold tracking-tight">Create an account</h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            Join the forum to start discussions.
+          </p>
+        </div>
 
-        <Button type="submit" disabled={loading} className="w-full">
-          {loading ? "Creating account..." : "Create account"}
-        </Button>
-      </form>
+        <div className="rounded-xl border-2 border-border bg-card p-6 shadow-brutal-sm">
+          <form action={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="username" className="mb-1.5 block text-sm font-medium">
+                Username
+              </label>
+              <input
+                id="username"
+                name="username"
+                type="text"
+                required
+                minLength={3}
+                maxLength={30}
+                className="input w-full rounded-lg border-2 border-border bg-background px-3 py-2.5 text-sm transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                placeholder="your_username"
+              />
+              {fieldErrors.username && (
+                <p className="mt-1 text-sm text-destructive">
+                  {fieldErrors.username[0]}
+                </p>
+              )}
+            </div>
 
-      <p className="mt-4 text-center text-sm text-muted-foreground">
-        Already have an account?{" "}
-        <a href="/login" className="underline underline-offset-4">
-          Sign in
-        </a>
-      </p>
-    </main>
+            <div>
+              <label htmlFor="displayName" className="mb-1.5 block text-sm font-medium">
+                Display name <span className="text-muted-foreground">(optional)</span>
+              </label>
+              <input
+                id="displayName"
+                name="displayName"
+                type="text"
+                maxLength={50}
+                className="input w-full rounded-lg border-2 border-border bg-background px-3 py-2.5 text-sm transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                placeholder="Your display name"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="email" className="mb-1.5 block text-sm font-medium">
+                Email
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                required
+                className="input w-full rounded-lg border-2 border-border bg-background px-3 py-2.5 text-sm transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                placeholder="you@example.com"
+              />
+              {fieldErrors.email && (
+                <p className="mt-1 text-sm text-destructive">
+                  {fieldErrors.email[0]}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="password" className="mb-1.5 block text-sm font-medium">
+                Password
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                required
+                minLength={8}
+                className="input w-full rounded-lg border-2 border-border bg-background px-3 py-2.5 text-sm transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                placeholder="Min. 8 characters"
+              />
+              {fieldErrors.password && (
+                <p className="mt-1 text-sm text-destructive">
+                  {fieldErrors.password[0]}
+                </p>
+              )}
+            </div>
+
+            {error && (
+              <div className="rounded-lg border-2 border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">
+                {error}
+              </div>
+            )}
+
+            <Button type="submit" disabled={loading} className="w-full">
+              {loading ? "Creating account..." : "Create account"}
+            </Button>
+          </form>
+        </div>
+
+        <p className="mt-6 text-center text-sm text-muted-foreground">
+          Already have an account?{" "}
+          <a href="/login" className="font-medium text-primary underline-offset-4 hover:underline">
+            Sign in
+          </a>
+        </p>
+      </div>
+    </div>
   );
 }

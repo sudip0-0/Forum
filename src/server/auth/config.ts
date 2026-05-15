@@ -10,12 +10,14 @@ declare module "next-auth" {
   interface User {
     role: UserRole;
     isSuspended: boolean;
+    username: string;
   }
   interface Session {
     user: {
       id: string;
       role: UserRole;
       isSuspended: boolean;
+      username: string;
     } & import("next-auth").DefaultSession["user"];
   }
 }
@@ -57,6 +59,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           id: user.id,
           email: user.email,
           name: user.displayName ?? user.username,
+          username: user.username,
           role: user.role,
           isSuspended: user.isSuspended,
         };
@@ -69,6 +72,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         (token as Record<string, unknown>).id = user.id;
         (token as Record<string, unknown>).role = user.role;
         (token as Record<string, unknown>).isSuspended = user.isSuspended;
+        (token as Record<string, unknown>).username = user.username;
       }
       return token;
     },
@@ -77,6 +81,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = (token as Record<string, unknown>).id as string;
         session.user.role = (token as Record<string, unknown>).role as UserRole;
         session.user.isSuspended = (token as Record<string, unknown>).isSuspended as boolean;
+        session.user.username = (token as Record<string, unknown>).username as string;
       }
       return session;
     },
