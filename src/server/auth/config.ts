@@ -3,16 +3,19 @@ import Credentials from "next-auth/providers/credentials";
 import type { UserRole } from "@prisma/client";
 import { db } from "@/server/db/prisma";
 import { verifyPassword } from "@/server/auth/password";
+import { checkRateLimit, RL_LOGIN } from "@/server/api/rate-limit";
 import { z } from "zod";
 
 declare module "next-auth" {
   interface User {
     role: UserRole;
+    isSuspended: boolean;
   }
   interface Session {
     user: {
       id: string;
       role: UserRole;
+      isSuspended: boolean;
     } & import("next-auth").DefaultSession["user"];
   }
 }
@@ -35,6 +38,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const { email, password } = parsed.data;
 
+        try {
+          checkRateLimit(`login:${email}`, RL_LOGIN);
+        } catch {
+          return null;
+        }
+
         const user = await db.user.findUnique({
           where: { email },
         });
@@ -49,6 +58,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           name: user.displayName ?? user.username,
           role: user.role,
+          isSuspended: user.isSuspended,
         };
       },
     }),
@@ -58,6 +68,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         (token as Record<string, unknown>).id = user.id;
         (token as Record<string, unknown>).role = user.role;
+        (token as Record<string, unknown>).isSuspended = user.isSuspended;
       }
       return token;
     },
@@ -65,6 +76,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         session.user.id = (token as Record<string, unknown>).id as string;
         session.user.role = (token as Record<string, unknown>).role as UserRole;
+        session.user.isSuspended = (token as Record<string, unknown>).isSuspended as boolean;
       }
       return session;
     },

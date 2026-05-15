@@ -1,8 +1,10 @@
 "use server";
 
+import { headers } from "next/headers";
 import { db } from "@/server/db/prisma";
 import { hashPassword } from "@/server/auth/password";
 import { registerSchema } from "@/lib/validators";
+import { checkRateLimit, RL_REGISTER } from "@/server/api/rate-limit";
 
 export interface RegisterResult {
   success: boolean;
@@ -14,6 +16,18 @@ export async function registerUser(
   _prev: RegisterResult | null,
   formData: FormData,
 ): Promise<RegisterResult> {
+  const headersList = await headers();
+  const forwarded = headersList.get("x-forwarded-for");
+  const clientIp = forwarded ? forwarded.split(",")[0].trim() : "127.0.0.1";
+
+  try {
+    checkRateLimit(`register:${clientIp}`, RL_REGISTER);
+  } catch {
+    return {
+      success: false,
+      error: "Too many registration attempts. Please try again later.",
+    };
+  }
   const raw = {
     username: formData.get("username"),
     email: formData.get("email"),

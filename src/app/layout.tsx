@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ClientShell } from "@/components/layout/client-shell";
 import "@/styles/globals.css";
-import { SessionProvider } from "@/components/layout/session-provider";
-import { Header } from "@/components/layout/header";
 
 export const metadata: Metadata = {
   title: "Forum",
@@ -27,10 +26,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
-        <SessionProvider>
-          <Header />
-          {children}
-        </SessionProvider>
+        <ClientShell>{children}</ClientShell>
       </body>
     </html>
   );

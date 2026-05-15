@@ -76,6 +76,8 @@ export function ReportForm({
               Reason
             </label>
             <select
+              name="reason"
+              aria-label="Report reason"
               className="w-full rounded-md border bg-background px-2 py-1.5 text-sm"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
@@ -96,6 +98,8 @@ export function ReportForm({
               Note (optional)
             </label>
             <textarea
+              name="note"
+              aria-label="Report note"
               className="w-full rounded-md border bg-background px-2 py-1.5 text-sm"
               rows={2}
               value={note}

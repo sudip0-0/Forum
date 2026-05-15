@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { changeUserRole } from "./actions";
+import { changeUserRole, toggleSuspension } from "./actions";
 import type { AppRouterOutputs } from "@/server/api/root";
 
 type UserItem = AppRouterOutputs["moderation"]["listUsers"]["users"][number];
@@ -32,6 +32,7 @@ function UserRow({ user }: { user: UserItem }) {
   const router = useRouter();
   const [showChange, setShowChange] = useState(false);
   const [newRole, setNewRole] = useState<string>(user.role);
+  const [suspensionReason, setSuspensionReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -52,6 +53,27 @@ function UserRow({ user }: { user: UserItem }) {
     });
   }
 
+  function handleSuspendToggle() {
+    if (suspensionReason.trim().length < 3) {
+      setError("A reason is required.");
+      return;
+    }
+    setError(null);
+    startTransition(async () => {
+      const result = await toggleSuspension({
+        userId: user.id,
+        isSuspended: !user.isSuspended,
+        reason: suspensionReason.trim(),
+      });
+      if (result.error) {
+        setError(result.error);
+      } else {
+        setSuspensionReason("");
+        router.refresh();
+      }
+    });
+  }
+
   return (
     <tr className="border-t">
       <td className="px-4 py-3 text-sm">
@@ -59,6 +81,11 @@ function UserRow({ user }: { user: UserItem }) {
           {user.displayName ?? user.username}
         </div>
         <div className="text-xs text-muted-foreground">@{user.username}</div>
+        {user.isSuspended && (
+          <span className="inline-block mt-1 rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900 dark:text-red-300">
+            Suspended
+          </span>
+        )}
       </td>
       <td className="px-4 py-3 text-sm text-muted-foreground max-w-[200px] truncate">
         {user.email}
@@ -68,51 +95,70 @@ function UserRow({ user }: { user: UserItem }) {
         {new Date(user.createdAt).toLocaleDateString()}
       </td>
       <td className="px-4 py-3 text-right">
-        {showChange ? (
-          <div className="flex items-center gap-2 justify-end">
-            <select
-              className="rounded-md border bg-background px-2 py-1 text-sm"
-              value={newRole}
-              onChange={(e) => setNewRole(e.target.value)}
-              disabled={isPending}
-            >
-              {ROLE_OPTIONS.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-            <Button
-              size="sm"
-              onClick={handleChange}
-              disabled={isPending || newRole === user.role}
-            >
-              Save
-            </Button>
+        <div className="flex items-center gap-2 justify-end">
+          {showChange ? (
+            <>
+              <select
+                className="rounded-md border bg-background px-2 py-1 text-sm"
+                value={newRole}
+                onChange={(e) => setNewRole(e.target.value)}
+                disabled={isPending}
+              >
+                {ROLE_OPTIONS.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+              <Button
+                size="sm"
+                onClick={handleChange}
+                disabled={isPending || newRole === user.role}
+              >
+                Save
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setShowChange(false);
+                  setError(null);
+                  setNewRole(user.role);
+                }}
+              >
+                Cancel
+              </Button>
+            </>
+          ) : (
             <Button
               size="sm"
               variant="outline"
-              onClick={() => {
-                setShowChange(false);
-                setError(null);
-                setNewRole(user.role);
-              }}
+              onClick={() => setShowChange(true)}
             >
-              Cancel
+              Change Role
             </Button>
-            {error && (
-              <span className="text-xs text-destructive">{error}</span>
-            )}
-          </div>
-        ) : (
+          )}
           <Button
             size="sm"
-            variant="outline"
-            onClick={() => setShowChange(true)}
+            variant={user.isSuspended ? "default" : "outline"}
+            onClick={handleSuspendToggle}
+            disabled={isPending || suspensionReason.trim().length < 3}
           >
-            Change Role
+            {user.isSuspended ? "Unsuspend" : "Suspend"}
           </Button>
-        )}
+          <input
+            aria-label={`Suspension reason for ${user.username}`}
+            data-testid={`suspension-reason-${user.username}`}
+            className="w-44 rounded-md border px-2 py-1 text-sm"
+            placeholder="Reason required"
+            value={suspensionReason}
+            onChange={(e) => setSuspensionReason(e.target.value)}
+            disabled={isPending}
+          />
+          {error && (
+            <span className="text-xs text-destructive">{error}</span>
+          )}
+        </div>
       </td>
     </tr>
   );
@@ -121,7 +167,7 @@ function UserRow({ user }: { user: UserItem }) {
 export function UserList({ users }: { users: UserItem[] }) {
   return (
     <div className="mt-8 rounded-lg border overflow-x-auto">
-      <table className="w-full min-w-[600px]">
+      <table className="w-full min-w-[700px]">
         <thead>
           <tr className="border-b text-left text-xs font-medium text-muted-foreground">
             <th className="px-4 py-2">User</th>

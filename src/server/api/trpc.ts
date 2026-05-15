@@ -10,6 +10,7 @@ export interface TrpcSession {
     email: string;
     name: string | null;
     role: UserRole;
+    isSuspended?: boolean;
   };
   expires: string;
 }
@@ -17,6 +18,7 @@ export interface TrpcSession {
 export interface TrpcContext {
   db: typeof dbType;
   session: TrpcSession | null;
+  clientIp?: string;
 }
 
 const t = initTRPC.context<TrpcContext>().create({

@@ -39,11 +39,11 @@ export default async function AdminPage() {
 
       <div className="mt-8">
         <div className="mb-4 flex flex-wrap gap-3">
-          <Link href="/admin/structure" className="rounded-md border px-3 py-2 text-sm">Manage Structure</Link>
-          <Link href="/admin/categories" className="rounded-md border px-3 py-2 text-sm">Manage Categories</Link>
-          <Link href="/admin/mod" className="rounded-md border px-3 py-2 text-sm">Moderation Queue</Link>
-          <Link href="/admin/threads" className="rounded-md border px-3 py-2 text-sm">Thread Management</Link>
-          <Link href="/admin/users" className="rounded-md border px-3 py-2 text-sm">Manage Users</Link>
+          <Link href="/admin/structure" className="rounded-md border px-3 py-2 text-sm hover:bg-muted">Structure Manager</Link>
+          <Link href="/admin/threads" className="rounded-md border px-3 py-2 text-sm hover:bg-muted">Thread Management</Link>
+          <Link href="/admin/mod" className="rounded-md border px-3 py-2 text-sm hover:bg-muted">Moderation Queue</Link>
+          <Link href="/admin/mod/history" className="rounded-md border px-3 py-2 text-sm hover:bg-muted">Moderation History</Link>
+          <Link href="/admin/users" className="rounded-md border px-3 py-2 text-sm hover:bg-muted">Manage Users</Link>
         </div>
         <SignOutButton />
       </div>

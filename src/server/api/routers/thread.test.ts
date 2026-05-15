@@ -16,7 +16,7 @@ const publicForum = {
   slug: "general-discussion",
   isPublic: true,
   isLocked: false,
-  category: { isPublic: true, section: { isPublic: true } },
+  category: { isPublic: true, isLocked: false, section: { isPublic: true, isLocked: false } },
 };
 
 describe("thread router", () => {
@@ -80,6 +80,37 @@ describe("thread router", () => {
       thread: { findUnique: vi.fn() },
     };
     const caller = createCaller({ db: db as never, session: memberSession });
+    await expect(
+      caller.thread.create({ forumId: "forum-1", title: "My Thread", content: "Some content here." }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("rejects thread creation beneath a locked parent section", async () => {
+    const db = {
+      forum: {
+        findUnique: vi.fn().mockResolvedValue({
+          ...publicForum,
+          category: {
+            ...publicForum.category,
+            section: { ...publicForum.category.section, isLocked: true },
+          },
+        }),
+      },
+      thread: { findUnique: vi.fn() },
+    };
+    const caller = createCaller({ db: db as never, session: memberSession });
+    await expect(
+      caller.thread.create({ forumId: "forum-1", title: "My Thread", content: "Some content here." }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("rejects thread creation by suspended user", async () => {
+    const suspendedSession = { ...memberSession, user: { ...memberSession.user, isSuspended: true } };
+    const db = {
+      forum: { findUnique: vi.fn() },
+      thread: { findUnique: vi.fn() },
+    };
+    const caller = createCaller({ db: db as never, session: suspendedSession });
     await expect(
       caller.thread.create({ forumId: "forum-1", title: "My Thread", content: "Some content here." }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });

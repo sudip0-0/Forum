@@ -5,6 +5,7 @@ import {
   roleProcedure,
   router,
 } from "@/server/api/trpc";
+import { checkRateLimit, RL_REPORT, assertNotSuspended } from "@/server/api/rate-limit";
 
 const reportSchema = z
   .object({
@@ -77,6 +78,8 @@ export const moderationRouter = router({
   report: protectedProcedure
     .input(reportSchema)
     .mutation(async ({ ctx, input }) => {
+      checkRateLimit(ctx.session.user.id, RL_REPORT);
+      assertNotSuspended(ctx.session.user);
       if (input.postId) {
         const post = await ctx.db.post.findUnique({
           where: { id: input.postId },
@@ -338,6 +341,7 @@ export const moderationRouter = router({
           displayName: true,
           email: true,
           role: true,
+          isSuspended: true,
           createdAt: true,
         },
         orderBy: { createdAt: "desc" },
@@ -488,5 +492,31 @@ export const moderationRouter = router({
         }),
       ]);
       return { success: true };
+    }),
+
+  listHistory: roleProcedure(["MODERATOR", "ADMIN"])
+    .input(z.object({
+      cursor: z.string().optional(),
+      limit: z.number().min(1).max(100).default(50),
+    }))
+    .query(async ({ ctx, input }) => {
+      const logs = await ctx.db.moderationLog.findMany({
+        orderBy: { createdAt: "desc" },
+        take: input.limit + 1,
+        ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
+        include: {
+          moderator: { select: { username: true, displayName: true } },
+          targetUser: { select: { username: true, displayName: true } },
+          post: { select: { id: true, content: true } },
+          thread: { select: { id: true, title: true, slug: true } },
+        },
+      });
+
+      let nextCursor: string | undefined;
+      if (logs.length > input.limit) {
+        nextCursor = logs.pop()!.id;
+      }
+
+      return { logs, nextCursor };
     }),
 });

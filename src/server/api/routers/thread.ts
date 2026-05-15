@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import type { Prisma } from "@prisma/client";
 import { publicProcedure, protectedProcedure, router } from "@/server/api/trpc";
+import { checkRateLimit, RL_CREATE_THREAD, assertNotSuspended } from "@/server/api/rate-limit";
 
 function slugify(value: string) {
   return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
@@ -125,12 +126,25 @@ export const threadRouter = router({
       tags: z.array(z.string().min(1).max(40)).max(5).default([]),
     }).refine((value) => !!value.forumId || !!value.categoryId, { message: "Forum is required." }))
     .mutation(async ({ ctx, input }) => {
+      checkRateLimit(ctx.session.user.id, RL_CREATE_THREAD);
+      assertNotSuspended(ctx.session.user);
       const forum =
         input.forumId
-          ? await ctx.db.forum.findUnique({ where: { id: input.forumId } })
-          : await ctx.db.forum.findFirst({ where: { categoryId: input.categoryId!, isPublic: true } });
+          ? await ctx.db.forum.findUnique({
+              where: { id: input.forumId },
+              include: { category: { include: { section: true } } },
+            })
+          : await ctx.db.forum.findFirst({
+              where: { categoryId: input.categoryId!, isPublic: true },
+              include: { category: { include: { section: true } } },
+            });
       if (!forum) throw new TRPCError({ code: "NOT_FOUND", message: "Forum not found." });
-      if (forum.isLocked) throw new TRPCError({ code: "FORBIDDEN", message: "Forum is locked." });
+      if (!forum.isPublic || !forum.category.isPublic || !forum.category.section.isPublic) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Forum not found." });
+      }
+      if (forum.isLocked || forum.category.isLocked || forum.category.section.isLocked) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Posting is locked in this forum." });
+      }
       let slug = slugify(input.title);
       if (await ctx.db.thread.findUnique({ where: { slug } })) slug = `${slug}-${Date.now().toString(36)}`;
       const tagInputs = input.tags.map((name) => ({ name, slug: slugify(name) }));

@@ -59,6 +59,37 @@ describe("search router", () => {
   it("rejects invalid cursor format", async () => {
     const db = { $queryRawUnsafe: vi.fn() };
     const caller = createCaller({ db: db as never, session: null });
-    await expect(caller.search.query({ q: "test", cursor: "'; DROP TABLE--" })).rejects.toThrow();
+    await expect(caller.search.query({ q: "test", cursor: { createdAt: "not-a-date", id: "'; DROP TABLE--" } })).rejects.toThrow();
+  });
+
+  it("supports forum filter", async () => {
+    const db = { $queryRawUnsafe: vi.fn().mockResolvedValue([]) };
+    const caller = createCaller({ db: db as never, session: null });
+    const result = await caller.search.query({ q: "test", forumSlug: "announcements" });
+    expect(result.results).toEqual([]);
+    // verify the SQL includes the forum slug
+    const sql = db.$queryRawUnsafe.mock.calls[0][0];
+    expect(sql).toContain("f.slug");
+  });
+
+  it("supports author filter", async () => {
+    const db = { $queryRawUnsafe: vi.fn().mockResolvedValue([]) };
+    const caller = createCaller({ db: db as never, session: null });
+    const result = await caller.search.query({ q: "test", authorUsername: "john" });
+    expect(result.results).toEqual([]);
+  });
+
+  it("supports tag filter", async () => {
+    const db = { $queryRawUnsafe: vi.fn().mockResolvedValue([]) };
+    const caller = createCaller({ db: db as never, session: null });
+    const result = await caller.search.query({ q: "test", tagSlug: "help" });
+    expect(result.results).toEqual([]);
+  });
+
+  it("supports date range filter", async () => {
+    const db = { $queryRawUnsafe: vi.fn().mockResolvedValue([]) };
+    const caller = createCaller({ db: db as never, session: null });
+    const result = await caller.search.query({ q: "test", dateFrom: "2026-01-01", dateTo: "2026-12-31" });
+    expect(result.results).toEqual([]);
   });
 });

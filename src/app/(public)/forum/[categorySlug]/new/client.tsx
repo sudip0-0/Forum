@@ -40,6 +40,8 @@ export function NewThreadForm({
         </div>
       )}
       <input
+        aria-label="Thread title"
+        data-testid="thread-title"
         className="w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
         placeholder="Thread title"
         value={title}
@@ -52,8 +54,11 @@ export function NewThreadForm({
         placeholder="Write your post content (Markdown supported)..."
         rows={8}
         disabled={isPending}
+        textareaName="content"
+        textareaTestId="thread-content"
       />
       <input
+        aria-label="Thread tags"
         className="w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
         placeholder="Tags, comma separated"
         value={tags}

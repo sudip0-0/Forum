@@ -38,3 +38,22 @@ export async function changeUserRole(input: {
     return { error: (e as { message?: string }).message ?? "Failed to change role." };
   }
 }
+
+export async function toggleSuspension(input: {
+  userId: string;
+  isSuspended: boolean;
+  reason: string;
+}) {
+  try {
+    const caller = await createCaller();
+    await caller.moderation.suspendUser({
+      userId: input.userId,
+      isSuspended: input.isSuspended,
+      reason: input.reason,
+    });
+    revalidatePath("/admin/users");
+    return { success: true };
+  } catch (e: unknown) {
+    return { error: (e as { message?: string }).message ?? "Failed to update suspension." };
+  }
+}

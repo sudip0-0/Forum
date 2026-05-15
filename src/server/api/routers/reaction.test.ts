@@ -56,4 +56,14 @@ describe("reaction router", () => {
       emoji: null,
     });
   });
+
+  it("rejects reaction by suspended user", async () => {
+    const suspendedSession = { ...memberSession, user: { ...memberSession.user, isSuspended: true } };
+    const db = {
+      post: { findUnique: vi.fn() },
+      reaction: { findUnique: vi.fn() },
+    };
+    const caller = appRouter.createCaller({ db: db as never, session: suspendedSession });
+    await expect(caller.reaction.toggle({ postId: "post-1", emoji: "LIKE" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
 });

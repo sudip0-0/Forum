@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { publicProcedure, protectedProcedure, router } from "@/server/api/trpc";
+import { checkRateLimit, RL_REPLY, assertNotSuspended } from "@/server/api/rate-limit";
 
 const listByThreadSchema = z.object({
   threadId: z.string().min(1),
@@ -64,8 +65,20 @@ export const postRouter = router({
   create: protectedProcedure
     .input(createSchema)
     .mutation(async ({ ctx, input }) => {
+      checkRateLimit(ctx.session.user.id, RL_REPLY);
+      assertNotSuspended(ctx.session.user);
+
       const thread = await ctx.db.thread.findUnique({
         where: { id: input.threadId },
+        include: {
+          forum: {
+            include: {
+              category: {
+                include: { section: true },
+              },
+            },
+          },
+        },
       });
 
       if (!thread || thread.isDeleted) {
@@ -74,6 +87,20 @@ export const postRouter = router({
 
       if (thread.isLocked) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Thread is locked." });
+      }
+      if (
+        !thread.forum.isPublic ||
+        !thread.forum.category.isPublic ||
+        !thread.forum.category.section.isPublic
+      ) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Thread not found." });
+      }
+      if (
+        thread.forum.isLocked ||
+        thread.forum.category.isLocked ||
+        thread.forum.category.section.isLocked
+      ) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Posting is locked in this forum." });
       }
 
       if (input.parentId) {

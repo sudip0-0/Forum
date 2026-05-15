@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { protectedProcedure, router } from "@/server/api/trpc";
+import { assertNotSuspended } from "@/server/api/rate-limit";
 
 const emojiSchema = z.enum(["LIKE", "HELPFUL", "LAUGH", "INSIGHTFUL"]);
 const targetSchema = z.object({
@@ -13,6 +14,7 @@ const targetSchema = z.object({
 
 export const reactionRouter = router({
   toggle: protectedProcedure.input(targetSchema).mutation(async ({ ctx, input }) => {
+    assertNotSuspended(ctx.session.user);
     const target = input.postId
       ? await ctx.db.post.findUnique({ where: { id: input.postId } })
       : await ctx.db.thread.findUnique({ where: { id: input.threadId! } });

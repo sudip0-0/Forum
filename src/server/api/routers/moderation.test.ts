@@ -337,6 +337,18 @@ describe("moderation router", () => {
         caller.moderation.report({ threadId: "thread-1", reason: "SPAM" }),
       ).rejects.toMatchObject({ code: "BAD_REQUEST" });
     });
+
+    it("rejects report by suspended user", async () => {
+      const suspendedSession = { ...memberSession, user: { ...memberSession.user, isSuspended: true } };
+      const db = {
+        post: { findUnique: vi.fn() },
+        report: { create: vi.fn() },
+      };
+      const caller = createCaller({ db: db as never, session: suspendedSession });
+      await expect(
+        caller.moderation.report({ postId: "post-1", reason: "SPAM" }),
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
   });
 
   describe("listQueue", () => {

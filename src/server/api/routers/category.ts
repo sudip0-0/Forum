@@ -29,6 +29,7 @@ const updateSchema = z.object({
     .optional(),
   description: z.string().max(500).nullable().optional(),
   isPublic: z.boolean().optional(),
+  isLocked: z.boolean().optional(),
   sortOrder: z.number().int().min(0).optional(),
   sectionId: z.string().min(1).optional(),
 });
@@ -129,6 +130,7 @@ export const categoryRouter = router({
           sectionId: input.sectionId,
           description: input.description,
           isPublic: input.isPublic,
+          isLocked: input.isLocked,
           sortOrder: input.sortOrder,
         },
       });

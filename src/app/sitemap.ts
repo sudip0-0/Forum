@@ -15,7 +15,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   const forums = await db.forum.findMany({
-    where: { isPublic: true },
+    where: {
+      isPublic: true,
+      category: { isPublic: true, section: { isPublic: true } },
+    },
     select: { slug: true, updatedAt: true },
   });
 
@@ -29,7 +32,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const threads = await db.thread.findMany({
     where: {
       isDeleted: false,
-      forum: { isPublic: true },
+      forum: { isPublic: true, category: { isPublic: true, section: { isPublic: true } } },
     },
     select: {
       slug: true,

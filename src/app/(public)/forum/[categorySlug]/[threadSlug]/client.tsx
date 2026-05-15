@@ -192,6 +192,8 @@ function ReplyComposer({
             rows={7}
             disabled={isPending}
             textareaId="thread-reply-textarea"
+            textareaName="content"
+            textareaTestId="reply-content"
             textareaRef={textareaRef}
           />
           <div className="mt-3 flex justify-end">

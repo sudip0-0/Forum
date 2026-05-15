@@ -24,6 +24,8 @@ export function MarkdownEditor({
   disabled,
   textareaId,
   textareaRef,
+  textareaName,
+  textareaTestId,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -32,6 +34,8 @@ export function MarkdownEditor({
   disabled?: boolean;
   textareaId?: string;
   textareaRef?: RefObject<HTMLTextAreaElement | null>;
+  textareaName?: string;
+  textareaTestId?: string;
 }) {
   const internalRef = useRef<HTMLTextAreaElement>(null);
   const ref = textareaRef ?? internalRef;
@@ -83,6 +87,8 @@ export function MarkdownEditor({
         <textarea
           ref={ref}
           id={textareaId}
+          name={textareaName}
+          data-testid={textareaTestId}
           className="w-full resize-y bg-transparent px-4 py-3 text-sm outline-none"
           placeholder={placeholder}
           rows={rows}
