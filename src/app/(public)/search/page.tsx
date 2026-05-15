@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { appRouter } from "@/server/api/root";
 import { db } from "@/server/db/prisma";
+import { TagPill } from "@/components/forum/tag-pill";
 
 export const metadata: Metadata = {
   title: "Search",
@@ -31,7 +32,7 @@ export default async function SearchPage({
   type ResultRow = {
     id: string; title: string; slug: string; createdAt: string;
     authorUsername: string; authorDisplayName: string | null;
-    forumSlug: string; forumName: string; tags: string; snippet: string;
+    forumSlug: string; forumName: string; tags: { id: string; name: string; slug: string }[]; snippet: string;
   };
   let results: ResultRow[] = [];
   let searchError: string | null = null;
@@ -145,10 +146,10 @@ export default async function SearchPage({
                       <span>by {r.authorDisplayName ?? r.authorUsername}</span>
                       <span>in {r.forumName}</span>
                       <span>{new Date(r.createdAt).toLocaleDateString()}</span>
-                      {r.tags && (
+                      {r.tags.length > 0 && (
                         <span className="flex gap-1">
-                          {r.tags.split(", ").map((tagName) => (
-                            <Link key={tagName} href={`/tags/${tagName.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`} className="rounded bg-muted px-1.5 py-0.5 text-xs hover:bg-muted/80 transition-colors">{tagName}</Link>
+                          {r.tags.map((tag) => (
+                            <TagPill key={tag.id} tag={tag} className="px-1.5" />
                           ))}
                         </span>
                       )}

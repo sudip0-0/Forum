@@ -42,7 +42,7 @@ export default async function TagPage({
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
-      <Link href="/" className="text-xs text-muted-foreground hover:text-foreground">
+      <Link href="/forums" className="text-xs text-muted-foreground hover:text-foreground">
         &larr; Forums
       </Link>
 

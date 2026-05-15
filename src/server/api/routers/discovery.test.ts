@@ -63,6 +63,43 @@ describe("discovery router", () => {
     expect(callArgs.where.thread.forum.category.section.isPublic).toBe(true);
   });
 
+  it("counts only public visible threads for popular tags", async () => {
+    const db = {
+      post: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0) },
+      thread: { findMany: vi.fn().mockResolvedValueOnce([]).mockResolvedValueOnce([]), count: vi.fn().mockResolvedValue(0) },
+      tag: { findMany: vi.fn().mockResolvedValue([]) },
+      user: { count: vi.fn().mockResolvedValue(0) },
+    };
+
+    const caller = createCaller({ db: db as never, session: null });
+    await caller.discovery.home();
+
+    expect(db.tag.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          threads: {
+            some: {
+              isDeleted: false,
+              forum: { isPublic: true, category: { isPublic: true, section: { isPublic: true } } },
+            },
+          },
+        },
+        include: {
+          _count: {
+            select: {
+              threads: {
+                where: {
+                  isDeleted: false,
+                  forum: { isPublic: true, category: { isPublic: true, section: { isPublic: true } } },
+                },
+              },
+            },
+          },
+        },
+      }),
+    );
+  });
+
   it("works for guests", async () => {
     const db = {
       post: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0) },

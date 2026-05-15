@@ -95,7 +95,7 @@ export const searchRouter = router({
         authorDisplayName: string | null;
         forumSlug: string;
         forumName: string;
-        tags: string;
+        tags: { id: string; name: string; slug: string }[];
         snippet: string;
       }[]
     >(
@@ -124,10 +124,13 @@ export const searchRouter = router({
       SELECT
         m.*,
         COALESCE(
-          (SELECT string_agg(tg.name, ', ' ORDER BY tg.name)
+          (SELECT json_agg(
+             json_build_object('id', tg.id, 'name', tg.name, 'slug', tg.slug)
+             ORDER BY tg.name
+           )
            FROM "_TagToThread" tt
            JOIN "Tag" tg ON tg.id = tt."A"
-           WHERE tt."B" = m.id), ''
+           WHERE tt."B" = m.id), '[]'::json
         ) AS tags,
         COALESCE(
           (SELECT LEFT(p2.content, 200)

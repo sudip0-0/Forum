@@ -5,6 +5,11 @@ import { publicProcedure, router } from "@/server/api/trpc";
 
 export const discoveryRouter = router({
   home: publicProcedure.query(async ({ ctx }) => {
+    const publicThreadWhere: Prisma.ThreadWhereInput = {
+      isDeleted: false,
+      forum: { isPublic: true, category: { isPublic: true, section: { isPublic: true } } },
+    };
+
     const [latestMessages, activeThreads, popularThreads, popularTags, stats] = await Promise.all([
       ctx.db.post.findMany({
         where: {
@@ -19,21 +24,20 @@ export const discoveryRouter = router({
         },
       }),
       ctx.db.thread.findMany({
-        where: { isDeleted: false, forum: { isPublic: true, category: { isPublic: true, section: { isPublic: true } } } },
+        where: publicThreadWhere,
         orderBy: { lastActivityAt: "desc" },
         take: 8,
         include: { forum: { select: { slug: true, name: true } }, tags: true },
       }),
       ctx.db.thread.findMany({
-        where: { isDeleted: false, forum: { isPublic: true, category: { isPublic: true, section: { isPublic: true } } } },
+        where: publicThreadWhere,
         orderBy: [{ viewCount: "desc" }, { replyCount: "desc" }],
         take: 5,
         include: { forum: { select: { slug: true, name: true } } },
       }),
       ctx.db.tag.findMany({
-        orderBy: { threads: { _count: "desc" } },
-        take: 10,
-        include: { _count: { select: { threads: true } } },
+        where: { threads: { some: publicThreadWhere } },
+        include: { _count: { select: { threads: { where: publicThreadWhere } } } },
       }),
       Promise.all([
         ctx.db.user.count(),
@@ -46,7 +50,9 @@ export const discoveryRouter = router({
       latestMessages,
       activeThreads,
       popularThreads,
-      popularTags,
+      popularTags: popularTags
+        .sort((left, right) => right._count.threads - left._count.threads)
+        .slice(0, 10),
       stats: { users: stats[0], threads: stats[1], messages: stats[2] },
     };
   }),

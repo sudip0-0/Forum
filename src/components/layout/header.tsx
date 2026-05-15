@@ -2,12 +2,17 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useSession, signOut } from "next-auth/react";
+import { getCsrfToken, useSession, signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 
 export function Header() {
   const { data: session } = useSession();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  async function handleSignOut() {
+    await getCsrfToken();
+    await signOut({ callbackUrl: "/login" });
+  }
 
   return (
     <header className="border-b">
@@ -31,7 +36,7 @@ export function Header() {
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => signOut()}
+                onClick={handleSignOut}
               >
                 Logout
               </Button>
@@ -98,7 +103,7 @@ export function Header() {
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => signOut()}
+                onClick={handleSignOut}
               >
                 Logout
               </Button>
