@@ -33,7 +33,7 @@ export const userRouter = router({
               title: true,
               slug: true,
               createdAt: true,
-              category: { select: { slug: true, name: true } },
+              forum: { select: { slug: true, name: true } },
             },
           },
         },

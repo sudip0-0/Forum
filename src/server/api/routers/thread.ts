@@ -1,134 +1,157 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import type { Prisma } from "@prisma/client";
 import { publicProcedure, protectedProcedure, router } from "@/server/api/trpc";
 
 function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
-const listByCategorySchema = z.object({
-  categorySlug: z.string().min(1),
-  sort: z.enum(["latest", "newest", "unanswered"]).default("latest"),
-  cursor: z.string().optional(),
-  limit: z.number().min(1).max(50).default(20),
-});
-
-const createSchema = z.object({
-  categoryId: z.string().min(1),
-  title: z.string().min(5).max(150),
-  content: z.string().min(10).max(20000),
-});
-
-const getBySlugSchema = z.object({
-  slug: z.string().min(1),
-});
+const sortSchema = z.enum(["latest", "newest", "oldest", "views", "reacted", "replies", "unanswered"]);
+const directionSchema = z.enum(["asc", "desc"]).default("desc");
 
 export const threadRouter = router({
   listByCategory: publicProcedure
-    .input(listByCategorySchema)
+    .input(z.object({
+      categorySlug: z.string().min(1),
+      sort: z.enum(["latest", "newest", "unanswered"]).default("latest"),
+      cursor: z.string().optional(),
+      limit: z.number().min(1).max(50).default(20),
+    }))
     .query(async ({ ctx, input }) => {
-      const category = await ctx.db.category.findUnique({
-        where: { slug: input.categorySlug },
-      });
-
-      if (!category || !category.isPublic) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Category not found." });
-      }
-
-      const orderBy =
-        input.sort === "newest"
-          ? { createdAt: "desc" as const }
-          : { lastActivityAt: "desc" as const };
-
-      const where: Record<string, unknown> = {
-        categoryId: category.id,
-        isDeleted: false,
-      };
-
-      if (input.sort === "unanswered") {
-        where.replyCount = 0;
-      }
-
+      const category = await ctx.db.category.findUnique({ where: { slug: input.categorySlug } });
+      if (!category || !category.isPublic) throw new TRPCError({ code: "NOT_FOUND", message: "Category not found." });
+      const forums = await ctx.db.forum.findMany({ where: { categoryId: category.id, isPublic: true }, select: { id: true } });
+      const where: Prisma.ThreadWhereInput = { forumId: { in: forums.map((forum) => forum.id) }, isDeleted: false };
+      if (input.sort === "unanswered") where.replyCount = 0;
       const threads = await ctx.db.thread.findMany({
         where,
-        orderBy: [orderBy, { id: "desc" as const }],
+        orderBy: input.sort === "newest" ? [{ createdAt: "desc" }, { id: "desc" }] : [{ lastActivityAt: "desc" }, { id: "desc" }],
         take: input.limit + 1,
         ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
-        include: { author: { select: { id: true, username: true, displayName: true } } },
       });
-
       let nextCursor: string | undefined;
-      if (threads.length > input.limit) {
-        nextCursor = threads.pop()!.id;
-      }
-
+      if (threads.length > input.limit) nextCursor = threads.pop()!.id;
       return { threads, nextCursor, category };
     }),
 
-  getBySlug: publicProcedure
-    .input(getBySlugSchema)
+  listByForum: publicProcedure
+    .input(z.object({
+      forumSlug: z.string().min(1),
+      sort: sortSchema.default("latest"),
+      direction: directionSchema,
+      cursor: z.string().optional(),
+      limit: z.number().min(1).max(50).default(20),
+    }))
     .query(async ({ ctx, input }) => {
-      const thread = await ctx.db.thread.findUnique({
-        where: { slug: input.slug },
+      const forum = await ctx.db.forum.findUnique({
+        where: { slug: input.forumSlug },
+        include: { category: { include: { section: true } } },
+      });
+      if (!forum || !forum.isPublic || !forum.category.isPublic || !forum.category.section.isPublic) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Forum not found." });
+      }
+
+      const where = {
+        forumId: forum.id,
+        isDeleted: false,
+        ...(input.sort === "unanswered" ? { replyCount: 0 } : {}),
+      };
+      const orderBy: Prisma.ThreadOrderByWithRelationInput[] =
+        input.sort === "newest"
+          ? [{ createdAt: input.direction }]
+          : input.sort === "oldest"
+            ? [{ createdAt: input.direction === "desc" ? "asc" : "desc" }]
+            : input.sort === "views"
+              ? [{ viewCount: input.direction }]
+              : input.sort === "replies"
+                ? [{ replyCount: input.direction }]
+                : input.sort === "reacted"
+                  ? [{ reactions: { _count: input.direction } }]
+                  : [{ lastActivityAt: input.direction }];
+
+      const threads = await ctx.db.thread.findMany({
+        where,
+        orderBy: [...orderBy, { id: "desc" }],
+        take: input.limit + 1,
+        ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
         include: {
           author: { select: { id: true, username: true, displayName: true } },
-          category: { select: { id: true, name: true, slug: true, isPublic: true } },
+          tags: true,
+          _count: { select: { reactions: true } },
         },
       });
-
-      if (!thread || thread.isDeleted || !thread.category.isPublic) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Thread not found." });
-      }
-
-      return thread;
+      let nextCursor: string | undefined;
+      if (threads.length > input.limit) nextCursor = threads.pop()!.id;
+      return { threads, nextCursor, forum };
     }),
 
+  getBySlug: publicProcedure.input(z.object({ slug: z.string().min(1) })).query(async ({ ctx, input }) => {
+    const thread = await ctx.db.thread.findUnique({
+      where: { slug: input.slug },
+      include: {
+        author: { select: { id: true, username: true, displayName: true } },
+        forum: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            isPublic: true,
+            category: { select: { isPublic: true, section: { select: { isPublic: true } } } },
+          },
+        },
+        tags: true,
+        _count: { select: { reactions: true } },
+      },
+    });
+    if (!thread || thread.isDeleted || !thread.forum.isPublic || !thread.forum.category.isPublic || !thread.forum.category.section.isPublic) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Thread not found." });
+    }
+    return thread;
+  }),
+
+  incrementView: publicProcedure.input(z.object({ id: z.string().min(1) })).mutation(async ({ ctx, input }) => {
+    await ctx.db.thread.update({ where: { id: input.id }, data: { viewCount: { increment: 1 } } });
+    return { success: true };
+  }),
+
   create: protectedProcedure
-    .input(createSchema)
+    .input(z.object({
+      forumId: z.string().min(1).optional(),
+      categoryId: z.string().min(1).optional(),
+      title: z.string().min(5).max(150),
+      content: z.string().min(10).max(20000),
+      tags: z.array(z.string().min(1).max(40)).max(5).default([]),
+    }).refine((value) => !!value.forumId || !!value.categoryId, { message: "Forum is required." }))
     .mutation(async ({ ctx, input }) => {
-      const category = await ctx.db.category.findUnique({
-        where: { id: input.categoryId },
-      });
-
-      if (!category) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Category not found." });
-      }
-
-      if (category.isLocked) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Category is locked." });
-      }
-
+      const forum =
+        input.forumId
+          ? await ctx.db.forum.findUnique({ where: { id: input.forumId } })
+          : await ctx.db.forum.findFirst({ where: { categoryId: input.categoryId!, isPublic: true } });
+      if (!forum) throw new TRPCError({ code: "NOT_FOUND", message: "Forum not found." });
+      if (forum.isLocked) throw new TRPCError({ code: "FORBIDDEN", message: "Forum is locked." });
       let slug = slugify(input.title);
-      const existing = await ctx.db.thread.findUnique({ where: { slug } });
-      if (existing) {
-        slug = `${slug}-${Date.now().toString(36)}`;
-      }
-
-      const thread = await ctx.db.$transaction(async (tx) => {
-        const t = await tx.thread.create({
+      if (await ctx.db.thread.findUnique({ where: { slug } })) slug = `${slug}-${Date.now().toString(36)}`;
+      const tagInputs = input.tags.map((name) => ({ name, slug: slugify(name) }));
+      return ctx.db.$transaction(async (tx) => {
+        const thread = await tx.thread.create({
           data: {
-            categoryId: input.categoryId,
+            forumId: forum.id,
             authorId: ctx.session.user.id,
             title: input.title,
             slug,
+            tags: {
+              connectOrCreate: tagInputs.map((tag) => ({
+                where: { slug: tag.slug },
+                create: tag,
+              })),
+            },
           },
         });
-
         await tx.post.create({
-          data: {
-            threadId: t.id,
-            authorId: ctx.session.user.id,
-            content: input.content,
-          },
+          data: { threadId: thread.id, authorId: ctx.session.user.id, content: input.content },
         });
-
-        return t;
+        return thread;
       });
-
-      return thread;
     }),
 });

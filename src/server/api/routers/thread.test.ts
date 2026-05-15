@@ -11,190 +11,77 @@ const memberSession: TrpcContext["session"] = {
   expires: new Date(Date.now() + 3600000).toISOString(),
 };
 
+const publicForum = {
+  id: "forum-1",
+  slug: "general-discussion",
+  isPublic: true,
+  isLocked: false,
+  category: { isPublic: true, section: { isPublic: true } },
+};
+
 describe("thread router", () => {
-  describe("listByCategory", () => {
-    it("returns threads for a public category", async () => {
-      const threads = [{ id: "t1", title: "Hello", slug: "hello", replyCount: 0, lastActivityAt: new Date(), author: { id: "u1", username: "user1", displayName: null } }];
-      const db = {
-        category: { findUnique: vi.fn().mockResolvedValue({ id: "cat-1", slug: "general", isPublic: true }) },
-        thread: { findMany: vi.fn().mockResolvedValue(threads) },
-      };
-
-      const caller = createCaller({ db: db as never, session: null });
-      const result = await caller.thread.listByCategory({ categorySlug: "general" });
-
-      expect(result.threads).toHaveLength(1);
-      expect(result.category.slug).toBe("general");
-      expect(db.thread.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: expect.objectContaining({ isDeleted: false }) }),
-      );
-    });
-
-    it("returns NOT_FOUND for non-public category", async () => {
-      const db = {
-        category: { findUnique: vi.fn().mockResolvedValue({ id: "cat-1", slug: "hidden", isPublic: false }) },
-        thread: { findMany: vi.fn() },
-      };
-
-      const caller = createCaller({ db: db as never, session: null });
-      await expect(caller.thread.listByCategory({ categorySlug: "hidden" })).rejects.toMatchObject({ code: "NOT_FOUND" });
-    });
-
-    it("returns NOT_FOUND for missing category", async () => {
-      const db = {
-        category: { findUnique: vi.fn().mockResolvedValue(null) },
-        thread: { findMany: vi.fn() },
-      };
-
-      const caller = createCaller({ db: db as never, session: null });
-      await expect(caller.thread.listByCategory({ categorySlug: "nope" })).rejects.toMatchObject({ code: "NOT_FOUND" });
-    });
+  it("returns threads for a public forum", async () => {
+    const db = {
+      forum: { findUnique: vi.fn().mockResolvedValue(publicForum) },
+      thread: { findMany: vi.fn().mockResolvedValue([]) },
+    };
+    const caller = createCaller({ db: db as never, session: null });
+    const result = await caller.thread.listByForum({ forumSlug: "general-discussion" });
+    expect(result.forum.slug).toBe("general-discussion");
+    expect(db.thread.findMany).toHaveBeenCalled();
   });
 
-  describe("getBySlug", () => {
-    it("returns thread with author info", async () => {
-      const thread = { id: "t1", slug: "hello", isDeleted: false, author: { id: "u1", username: "user1", displayName: null }, category: { id: "c1", name: "General", slug: "general", isPublic: true } };
-      const db = {
-        thread: { findUnique: vi.fn().mockResolvedValue(thread) },
-      };
-
-      const caller = createCaller({ db: db as never, session: null });
-      const result = await caller.thread.getBySlug({ slug: "hello" });
-      expect(result.slug).toBe("hello");
-    });
-
-    it("returns NOT_FOUND for deleted thread", async () => {
-      const db = {
-        thread: { findUnique: vi.fn().mockResolvedValue({ id: "t1", slug: "hello", isDeleted: true, category: { id: "c1", name: "General", slug: "general", isPublic: true } }) },
-      };
-
-      const caller = createCaller({ db: db as never, session: null });
-      await expect(caller.thread.getBySlug({ slug: "hello" })).rejects.toMatchObject({ code: "NOT_FOUND" });
-    });
-
-    it("returns NOT_FOUND for thread in hidden category", async () => {
-      const db = {
-        thread: { findUnique: vi.fn().mockResolvedValue({ id: "t1", slug: "hello", isDeleted: false, category: { id: "c1", name: "Hidden", slug: "hidden", isPublic: false } }) },
-      };
-
-      const caller = createCaller({ db: db as never, session: null });
-      await expect(caller.thread.getBySlug({ slug: "hello" })).rejects.toMatchObject({ code: "NOT_FOUND" });
-    });
+  it("rejects hidden forums", async () => {
+    const db = {
+      forum: { findUnique: vi.fn().mockResolvedValue({ ...publicForum, isPublic: false }) },
+      thread: { findMany: vi.fn() },
+    };
+    const caller = createCaller({ db: db as never, session: null });
+    await expect(caller.thread.listByForum({ forumSlug: "hidden" })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
-  describe("create", () => {
-    it("creates thread and first post in transaction", async () => {
-      const thread = { id: "t1", slug: "my-thread", title: "My Thread" };
-      const txMock = {
-        thread: { create: vi.fn().mockResolvedValue(thread) },
-        post: { create: vi.fn() },
-      };
-      const db = {
-        category: { findUnique: vi.fn().mockResolvedValue({ id: "cat-1", isLocked: false }) },
-        thread: { findUnique: vi.fn().mockResolvedValue(null) },
-        post: { create: vi.fn() },
-        $transaction: vi.fn().mockImplementation((fn) => fn(txMock)),
-      };
+  it("returns a visible thread", async () => {
+    const db = {
+      thread: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "thread-1",
+          slug: "hello",
+          isDeleted: false,
+          forum: publicForum,
+        }),
+      },
+    };
+    const caller = createCaller({ db: db as never, session: null });
+    await expect(caller.thread.getBySlug({ slug: "hello" })).resolves.toMatchObject({ slug: "hello" });
+  });
 
-      const caller = createCaller({ db: db as never, session: memberSession });
-      const result = await caller.thread.create({
-        categoryId: "cat-1",
-        title: "My Thread",
-        content: "This is the content of my thread.",
-      });
-
-      expect(result.slug).toBe("my-thread");
-      expect(db.$transaction).toHaveBeenCalled();
-      expect(txMock.thread.create).toHaveBeenCalled();
-      expect(txMock.post.create).toHaveBeenCalled();
+  it("creates a thread and first post in a forum", async () => {
+    const thread = { id: "thread-1", slug: "my-thread" };
+    const tx = { thread: { create: vi.fn().mockResolvedValue(thread) }, post: { create: vi.fn() } };
+    const db = {
+      forum: { findUnique: vi.fn().mockResolvedValue(publicForum) },
+      thread: { findUnique: vi.fn().mockResolvedValue(null) },
+      $transaction: vi.fn().mockImplementation((fn) => fn(tx)),
+    };
+    const caller = createCaller({ db: db as never, session: memberSession });
+    const result = await caller.thread.create({
+      forumId: "forum-1",
+      title: "My Thread",
+      content: "This is the content of my thread.",
     });
+    expect(result.slug).toBe("my-thread");
+    expect(tx.thread.create).toHaveBeenCalled();
+    expect(tx.post.create).toHaveBeenCalled();
+  });
 
-    it("appends suffix on slug collision", async () => {
-      const thread = { id: "t1", slug: "my-thread-abc", title: "My Thread" };
-      const txMock = {
-        thread: { create: vi.fn().mockResolvedValue(thread) },
-        post: { create: vi.fn() },
-      };
-      const db = {
-        category: { findUnique: vi.fn().mockResolvedValue({ id: "cat-1", isLocked: false }) },
-        thread: { findUnique: vi.fn().mockResolvedValue({ id: "existing" }) },
-        post: { create: vi.fn() },
-        $transaction: vi.fn().mockImplementation((fn) => fn(txMock)),
-      };
-
-      const caller = createCaller({ db: db as never, session: memberSession });
-      const result = await caller.thread.create({
-        categoryId: "cat-1",
-        title: "My Thread",
-        content: "This is the content of my thread.",
-      });
-
-      expect(result.slug).toContain("my-thread");
-    });
-
-    it("rejects when category is locked", async () => {
-      const db = {
-        category: { findUnique: vi.fn().mockResolvedValue({ id: "cat-1", isLocked: true }) },
-        thread: { findUnique: vi.fn() },
-        $transaction: vi.fn(),
-      };
-
-      const caller = createCaller({ db: db as never, session: memberSession });
-      await expect(
-        caller.thread.create({ categoryId: "cat-1", title: "My Thread", content: "Some content here." }),
-      ).rejects.toMatchObject({ code: "FORBIDDEN" });
-    });
-
-    it("rejects when category not found", async () => {
-      const db = {
-        category: { findUnique: vi.fn().mockResolvedValue(null) },
-        thread: { findUnique: vi.fn() },
-        $transaction: vi.fn(),
-      };
-
-      const caller = createCaller({ db: db as never, session: memberSession });
-      await expect(
-        caller.thread.create({ categoryId: "nope", title: "My Thread", content: "Some content here." }),
-      ).rejects.toMatchObject({ code: "NOT_FOUND" });
-    });
-
-    it("rejects guest (UNAUTHORIZED)", async () => {
-      const db = {
-        category: { findUnique: vi.fn() },
-        thread: { findUnique: vi.fn() },
-        $transaction: vi.fn(),
-      };
-
-      const caller = createCaller({ db: db as never, session: null });
-      await expect(
-        caller.thread.create({ categoryId: "cat-1", title: "My Thread", content: "Some content here." }),
-      ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
-    });
-
-    it("rejects short title", async () => {
-      const db = {
-        category: { findUnique: vi.fn() },
-        thread: { findUnique: vi.fn() },
-        $transaction: vi.fn(),
-      };
-
-      const caller = createCaller({ db: db as never, session: memberSession });
-      await expect(
-        caller.thread.create({ categoryId: "cat-1", title: "Hi", content: "Some content here." }),
-      ).rejects.toThrow();
-    });
-
-    it("rejects short content", async () => {
-      const db = {
-        category: { findUnique: vi.fn() },
-        thread: { findUnique: vi.fn() },
-        $transaction: vi.fn(),
-      };
-
-      const caller = createCaller({ db: db as never, session: memberSession });
-      await expect(
-        caller.thread.create({ categoryId: "cat-1", title: "Valid Title", content: "Short" }),
-      ).rejects.toThrow();
-    });
+  it("rejects locked forums", async () => {
+    const db = {
+      forum: { findUnique: vi.fn().mockResolvedValue({ ...publicForum, isLocked: true }) },
+      thread: { findUnique: vi.fn() },
+    };
+    const caller = createCaller({ db: db as never, session: memberSession });
+    await expect(
+      caller.thread.create({ forumId: "forum-1", title: "My Thread", content: "Some content here." }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });

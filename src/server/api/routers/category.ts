@@ -11,6 +11,7 @@ function slugify(value: string) {
 }
 
 const createSchema = z.object({
+  sectionId: z.string().min(1).optional(),
   name: z.string().min(2).max(100),
   description: z.string().max(500).optional(),
   isPublic: z.boolean().default(true),
@@ -29,6 +30,7 @@ const updateSchema = z.object({
   description: z.string().max(500).nullable().optional(),
   isPublic: z.boolean().optional(),
   sortOrder: z.number().int().min(0).optional(),
+  sectionId: z.string().min(1).optional(),
 });
 
 const reorderSchema = z.object({
@@ -69,8 +71,20 @@ export const categoryRouter = router({
         });
       }
 
+      const sectionId =
+        input.sectionId ??
+        (
+          await ctx.db.section.findFirst({
+            orderBy: { sortOrder: "asc" },
+            select: { id: true },
+          })
+        )?.id;
+      if (!sectionId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Create a section first." });
+      }
       return ctx.db.category.create({
         data: {
+          sectionId,
           name: input.name,
           slug,
           description: input.description ?? null,
@@ -112,6 +126,7 @@ export const categoryRouter = router({
         data: {
           name: input.name,
           slug,
+          sectionId: input.sectionId,
           description: input.description,
           isPublic: input.isPublic,
           sortOrder: input.sortOrder,

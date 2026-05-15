@@ -17,7 +17,7 @@ export default async function SearchPage({
 
   const caller = appRouter.createCaller({ db, session: null });
 
-  let results: { id: string; title: string; slug: string; createdAt: Date; authorUsername: string; authorDisplayName: string | null; categorySlug: string; categoryName: string }[] = [];
+  let results: { id: string; title: string; slug: string; createdAt: Date; authorUsername: string; authorDisplayName: string | null; forumSlug: string; forumName: string }[] = [];
 
   if (q?.trim()) {
     try {
@@ -53,13 +53,13 @@ export default async function SearchPage({
           {results.map((r) => (
             <li key={r.id} className="px-4 py-3">
               <Link
-                href={`/forum/${r.categorySlug}/${r.slug}`}
+                href={`/forum/${r.forumSlug}/${r.slug}`}
                 className="text-sm font-medium hover:underline"
               >
                 {r.title}
               </Link>
               <div className="mt-1 text-xs text-muted-foreground">
-                by {r.authorDisplayName ?? r.authorUsername} in {r.categoryName}
+                by {r.authorDisplayName ?? r.authorUsername} in {r.forumName}
               </div>
             </li>
           ))}

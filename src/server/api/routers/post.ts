@@ -31,7 +31,17 @@ export const postRouter = router({
         where,
         orderBy: { createdAt: "asc" },
         take: input.limit + 1,
-        include: { author: { select: { id: true, username: true, displayName: true } } },
+        include: {
+          author: { select: { id: true, username: true, displayName: true } },
+          parent: {
+            select: {
+              id: true,
+              content: true,
+              author: { select: { username: true, displayName: true } },
+            },
+          },
+          _count: { select: { reactions: true } },
+        },
       });
 
       let nextCursor: string | undefined;
@@ -66,25 +76,6 @@ export const postRouter = router({
           throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid parent post." });
         }
 
-        // Check nesting depth (max 3 levels)
-        let depth = 1;
-        let currentParentId: string | null = parent.parentId;
-        while (currentParentId && depth < 3) {
-          const ancestor = await ctx.db.post.findUnique({
-            where: { id: currentParentId },
-            select: { parentId: true },
-          });
-          if (!ancestor) break;
-          depth++;
-          currentParentId = ancestor.parentId;
-        }
-
-        if (depth >= 3) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Maximum reply nesting depth (3 levels) exceeded.",
-          });
-        }
       }
 
       const post = await ctx.db.post.create({

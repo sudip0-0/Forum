@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/server/auth/config";
 import { isAdmin } from "@/server/auth/permissions";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import Link from "next/link";
 
 export default async function AdminPage() {
   const session = await auth();
@@ -37,6 +38,12 @@ export default async function AdminPage() {
       </dl>
 
       <div className="mt-8">
+        <div className="mb-4 flex flex-wrap gap-3">
+          <Link href="/admin/structure" className="rounded-md border px-3 py-2 text-sm">Manage Structure</Link>
+          <Link href="/admin/categories" className="rounded-md border px-3 py-2 text-sm">Manage Categories</Link>
+          <Link href="/admin/mod" className="rounded-md border px-3 py-2 text-sm">Moderation Queue</Link>
+          <Link href="/admin/users" className="rounded-md border px-3 py-2 text-sm">Manage Users</Link>
+        </div>
         <SignOutButton />
       </div>
     </main>

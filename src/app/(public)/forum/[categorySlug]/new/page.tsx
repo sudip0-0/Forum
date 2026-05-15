@@ -29,18 +29,18 @@ export default async function NewThreadPage({
     },
   });
 
-  let data;
+  let forum;
   try {
-    data = await caller.thread.listByCategory({ categorySlug, limit: 1 });
+    forum = await caller.forum.getBySlug({ slug: categorySlug });
   } catch {
     notFound();
   }
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
-      <h1 className="text-2xl font-semibold">New Thread in {data.category.name}</h1>
+      <h1 className="text-2xl font-semibold">New Thread in {forum.name}</h1>
       <div className="mt-6">
-        <NewThreadForm categorySlug={categorySlug} categoryId={data.category.id} />
+        <NewThreadForm categorySlug={categorySlug} forumId={forum.id} />
       </div>
     </main>
   );

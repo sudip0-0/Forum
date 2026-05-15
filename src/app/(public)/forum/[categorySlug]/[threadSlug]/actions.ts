@@ -40,6 +40,21 @@ export async function createReply(
   }
 }
 
+export async function toggleReaction(
+  targetType: "post" | "thread",
+  targetId: string,
+  emoji: "LIKE" | "HELPFUL" | "LAUGH" | "INSIGHTFUL",
+) {
+  const caller = await createCaller();
+  try {
+    return await caller.reaction.toggle(
+      targetType === "post" ? { postId: targetId, emoji } : { threadId: targetId, emoji },
+    );
+  } catch {
+    return null;
+  }
+}
+
 export async function reportContent(
   categorySlug: string,
   threadSlug: string,

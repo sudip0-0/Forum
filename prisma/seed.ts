@@ -15,10 +15,13 @@ async function main() {
   const demoPasswordHash = await bcryptjs.hash("password123", 10);
   await prisma.moderationLog.deleteMany();
   await prisma.report.deleteMany();
+  await prisma.reaction.deleteMany();
   await prisma.post.deleteMany();
   await prisma.thread.deleteMany();
   await prisma.tag.deleteMany();
+  await prisma.forum.deleteMany();
   await prisma.category.deleteMany();
+  await prisma.section.deleteMany();
   await prisma.session.deleteMany();
   await prisma.account.deleteMany();
   await prisma.verificationToken.deleteMany();
@@ -62,16 +65,53 @@ async function main() {
     ),
   );
 
+  const generalSection = await prisma.section.create({
+    data: {
+      name: "Community",
+      slug: "community",
+      description: "General community spaces.",
+      sortOrder: 1,
+    },
+  });
+  const helpSection = await prisma.section.create({
+    data: {
+      name: "Help & Building",
+      slug: "help-building",
+      description: "Support and project discussion.",
+      sortOrder: 2,
+    },
+  });
+
   const categories = await Promise.all(
     [
-      ["General Discussion", "Questions and discussion that do not fit elsewhere."],
-      ["Support", "Get help from the community."],
-      ["Showcase", "Share projects, launches, and demos."],
-      ["Development", "Technical implementation and architecture topics."],
-      ["Meta", "Discuss the forum itself."],
-    ].map(([name, description], index) =>
+      [generalSection.id, "General", "General discussion and announcements."],
+      [generalSection.id, "Meta", "Discuss the forum itself."],
+      [helpSection.id, "Support", "Get help from the community."],
+      [helpSection.id, "Development", "Technical implementation topics."],
+    ].map(([sectionId, name, description], index) =>
       prisma.category.create({
         data: {
+          sectionId,
+          name,
+          slug: slugify(name),
+          description,
+          sortOrder: index + 1,
+        },
+      }),
+    ),
+  );
+
+  const forums = await Promise.all(
+    [
+      [categories[0].id, "General Discussion", "Questions and discussion that do not fit elsewhere."],
+      [categories[0].id, "Showcase", "Share projects, launches, and demos."],
+      [categories[1].id, "Announcements", "News and updates from the team."],
+      [categories[2].id, "Help Desk", "Ask for help and support."],
+      [categories[3].id, "Engineering", "Architecture and implementation topics."],
+    ].map(([categoryId, name, description], index) =>
+      prisma.forum.create({
+        data: {
+          categoryId,
           name,
           slug: slugify(name),
           description,
@@ -96,14 +136,14 @@ async function main() {
   const threads = [];
 
   for (let index = 0; index < 20; index += 1) {
-    const category = categories[index % categories.length];
+    const forum = forums[index % forums.length];
     const author = authors[index % authors.length];
-    const title = `Seed thread ${index + 1} in ${category.name}`;
+    const title = `Seed thread ${index + 1} in ${forum.name}`;
     const createdAt = new Date(Date.now() - (20 - index) * 60 * 60 * 1000);
 
     const thread = await prisma.thread.create({
       data: {
-        categoryId: category.id,
+        forumId: forum.id,
         authorId: author.id,
         title,
         slug: `${slugify(title)}-${index + 1}`,
@@ -147,7 +187,7 @@ async function main() {
           threadId: thread.id,
           authorId: author.id,
           parentId: replyIndex === 0 ? undefined : firstPost.id,
-          content: `Reply ${replyIndex + 1} on ${thread.title}. This seeded reply helps exercise nested discussion data.`,
+          content: `Reply ${replyIndex + 1} on ${thread.title}. This seeded reply helps exercise flat conversation references.`,
           createdAt: new Date(thread.createdAt.getTime() + (replyIndex + 1) * 10 * 60 * 1000),
         },
       });
@@ -192,6 +232,17 @@ async function main() {
       },
     },
   });
+
+  const samplePosts = await prisma.post.findMany({ take: 8, orderBy: { createdAt: "asc" } });
+  for (let index = 0; index < samplePosts.length; index += 1) {
+    await prisma.reaction.create({
+      data: {
+        userId: members[index % members.length].id,
+        postId: samplePosts[index].id,
+        emoji: index % 2 === 0 ? "LIKE" : "HELPFUL",
+      },
+    });
+  }
 }
 
 main()

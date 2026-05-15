@@ -19,19 +19,19 @@ export const searchRouter = router({
           createdAt: Date;
           authorUsername: string;
           authorDisplayName: string | null;
-          categorySlug: string;
-          categoryName: string;
+          forumSlug: string;
+          forumName: string;
         }[]
       >(
         `SELECT DISTINCT ON (t."lastActivityAt", t.id)
           t.id, t.title, t.slug, t."createdAt",
           u.username AS "authorUsername",
           u."displayName" AS "authorDisplayName",
-          c.slug AS "categorySlug",
-          c.name AS "categoryName"
+          f.slug AS "forumSlug",
+          f.name AS "forumName"
         FROM "Thread" t
         JOIN "User" u ON u.id = t."authorId"
-        JOIN "Category" c ON c.id = t."categoryId"
+        JOIN "Forum" f ON f.id = t."forumId"
         LEFT JOIN "Post" p ON p."threadId" = t.id AND p."isDeleted" = false
         WHERE t."isDeleted" = false
           AND (

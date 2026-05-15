@@ -28,15 +28,16 @@ async function createCaller() {
 
 export async function createThread(
   categorySlug: string,
-  categoryId: string,
-  input: { title: string; content: string },
+  forumId: string,
+  input: { title: string; content: string; tags: string[] },
 ) {
   const { caller } = await createCaller();
   try {
     const thread = await caller.thread.create({
-      categoryId,
+      forumId,
       title: input.title,
       content: input.content,
+      tags: input.tags,
     });
     revalidatePath(`/forum/${categorySlug}`);
     redirect(`/forum/${categorySlug}/${thread.slug}`);

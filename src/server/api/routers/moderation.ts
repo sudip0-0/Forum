@@ -28,7 +28,12 @@ const resolveSchema = z.object({
     "DISMISS",
     "SOFT_DELETE_POST",
     "SOFT_DELETE_THREAD",
+    "RESTORE_POST",
+    "RESTORE_THREAD",
     "LOCK_THREAD",
+    "UNLOCK_THREAD",
+    "PIN_THREAD",
+    "UNPIN_THREAD",
   ]),
   reason: z.string().min(3).max(1000),
 });
@@ -41,6 +46,24 @@ const listUsersSchema = z.object({
 const changeRoleSchema = z.object({
   userId: z.string().min(1),
   role: z.enum(["MEMBER", "MODERATOR", "ADMIN"]),
+});
+
+const threadActionSchema = z.object({
+  threadId: z.string().min(1),
+  action: z.enum(["LOCK", "UNLOCK", "PIN", "UNPIN"]),
+  reason: z.string().min(3).max(1000),
+});
+
+const moveThreadSchema = z.object({
+  threadId: z.string().min(1),
+  forumId: z.string().min(1),
+  reason: z.string().min(3).max(1000),
+});
+
+const suspendUserSchema = z.object({
+  userId: z.string().min(1),
+  isSuspended: z.boolean(),
+  reason: z.string().min(3).max(1000),
 });
 
 export const moderationRouter = router({
@@ -184,7 +207,7 @@ export const moderationRouter = router({
         where: { id: input.reportId },
         include: {
           post: { select: { id: true, threadId: true } },
-          thread: { select: { id: true, categoryId: true } },
+          thread: { select: { id: true, forumId: true } },
         },
       });
 
@@ -271,11 +294,26 @@ export const moderationRouter = router({
               data: { isDeleted: true },
             });
             break;
+          case "RESTORE_POST":
+            await tx.post.update({ where: { id: report.postId! }, data: { isDeleted: false } });
+            break;
+          case "RESTORE_THREAD":
+            await tx.thread.update({ where: { id: report.threadId! }, data: { isDeleted: false } });
+            break;
           case "LOCK_THREAD":
             await tx.thread.update({
               where: { id: report.threadId! },
               data: { isLocked: true },
             });
+            break;
+          case "UNLOCK_THREAD":
+            await tx.thread.update({ where: { id: report.threadId! }, data: { isLocked: false } });
+            break;
+          case "PIN_THREAD":
+            await tx.thread.update({ where: { id: report.threadId! }, data: { isPinned: true } });
+            break;
+          case "UNPIN_THREAD":
+            await tx.thread.update({ where: { id: report.threadId! }, data: { isPinned: false } });
             break;
         }
       });
@@ -362,6 +400,66 @@ export const moderationRouter = router({
         });
       });
 
+      return { success: true };
+    }),
+
+  threadAction: roleProcedure(["MODERATOR", "ADMIN"])
+    .input(threadActionSchema)
+    .mutation(async ({ ctx, input }) => {
+      const data =
+        input.action === "LOCK"
+          ? { isLocked: true }
+          : input.action === "UNLOCK"
+            ? { isLocked: false }
+            : input.action === "PIN"
+              ? { isPinned: true }
+              : { isPinned: false };
+      await ctx.db.$transaction([
+        ctx.db.thread.update({ where: { id: input.threadId }, data }),
+        ctx.db.moderationLog.create({
+          data: {
+            moderatorId: ctx.session.user.id,
+            threadId: input.threadId,
+            action: `${input.action}_THREAD`,
+            reason: input.reason,
+          },
+        }),
+      ]);
+      return { success: true };
+    }),
+
+  moveThread: roleProcedure(["MODERATOR", "ADMIN"])
+    .input(moveThreadSchema)
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db.$transaction([
+        ctx.db.thread.update({ where: { id: input.threadId }, data: { forumId: input.forumId } }),
+        ctx.db.moderationLog.create({
+          data: {
+            moderatorId: ctx.session.user.id,
+            threadId: input.threadId,
+            action: "MOVE_THREAD",
+            reason: input.reason,
+            metadata: { forumId: input.forumId },
+          },
+        }),
+      ]);
+      return { success: true };
+    }),
+
+  suspendUser: roleProcedure(["MODERATOR", "ADMIN"])
+    .input(suspendUserSchema)
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db.$transaction([
+        ctx.db.user.update({ where: { id: input.userId }, data: { isSuspended: input.isSuspended } }),
+        ctx.db.moderationLog.create({
+          data: {
+            moderatorId: ctx.session.user.id,
+            targetUserId: input.userId,
+            action: input.isSuspended ? "SUSPEND_USER" : "UNSUSPEND_USER",
+            reason: input.reason,
+          },
+        }),
+      ]);
       return { success: true };
     }),
 });

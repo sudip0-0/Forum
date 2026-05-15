@@ -7,20 +7,25 @@ import { createThread } from "./actions";
 
 export function NewThreadForm({
   categorySlug,
-  categoryId,
+  forumId,
 }: {
   categorySlug: string;
-  categoryId: string;
+  forumId: string;
 }) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [tags, setTags] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function handleSubmit() {
     setError(null);
     startTransition(async () => {
-      const result = await createThread(categorySlug, categoryId, { title, content });
+      const result = await createThread(categorySlug, forumId, {
+        title,
+        content,
+        tags: tags.split(",").map((tag) => tag.trim()).filter(Boolean),
+      });
       if (result?.error) {
         setError(result.error);
       }
@@ -46,6 +51,13 @@ export function NewThreadForm({
         onChange={setContent}
         placeholder="Write your post content (Markdown supported)..."
         rows={8}
+        disabled={isPending}
+      />
+      <input
+        className="w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+        placeholder="Tags, comma separated"
+        value={tags}
+        onChange={(e) => setTags(e.target.value)}
         disabled={isPending}
       />
       <Button onClick={handleSubmit} disabled={isPending || !title.trim() || !content.trim()}>

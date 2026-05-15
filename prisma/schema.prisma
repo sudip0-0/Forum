@@ -36,6 +36,7 @@ model User {
   image         String?
   bio           String?
   role          UserRole  @default(MEMBER)
+  isSuspended   Boolean   @default(false)
   emailVerified DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -45,6 +46,7 @@ model User {
   threads            Thread[]
   posts              Post[]
   reports            Report[]
+  reactions          Reaction[]
   moderationLogs     ModerationLog[] @relation("ModeratorLogs")
   targetedModeration ModerationLog[] @relation("TargetUserLogs")
 
@@ -92,28 +94,64 @@ model VerificationToken {
 
 model Category {
   id          String   @id @default(cuid())
+  sectionId   String
   name        String
   slug        String   @unique
   description String?
-  parentId    String?
   sortOrder   Int      @default(0)
   isPublic    Boolean  @default(true)
   isLocked    Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
-  children Category[] @relation("CategoryTree")
+  section Section @relation(fields: [sectionId], references: [id])
+  forums  Forum[]
+
+  @@index([sectionId])
+  @@index([sortOrder])
+  @@index([isPublic, sortOrder])
+}
+
+model Section {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  sortOrder   Int      @default(0)
+  isPublic    Boolean  @default(true)
+  isLocked    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  categories Category[]
+
+  @@index([sortOrder])
+  @@index([isPublic, sortOrder])
+}
+
+model Forum {
+  id          String   @id @default(cuid())
+  categoryId  String
+  name        String
+  slug        String   @unique
+  description String?
+  sortOrder   Int      @default(0)
+  isPublic    Boolean  @default(true)
+  isLocked    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category Category @relation(fields: [categoryId], references: [id])
   threads  Thread[]
 
-  @@index([parentId])
+  @@index([categoryId])
   @@index([sortOrder])
   @@index([isPublic, sortOrder])
 }
 
 model Thread {
   id             String   @id @default(cuid())
-  categoryId     String
+  forumId        String
   authorId       String
   title          String
   slug           String   @unique
@@ -126,14 +164,15 @@ model Thread {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  category       Category        @relation(fields: [categoryId], references: [id])
+  forum          Forum           @relation(fields: [forumId], references: [id])
   author         User            @relation(fields: [authorId], references: [id])
   posts          Post[]
   tags           Tag[]
   reports        Report[]
   moderationLogs ModerationLog[]
+  reactions      Reaction[]
 
-  @@index([categoryId, lastActivityAt])
+  @@index([forumId, lastActivityAt])
   @@index([authorId])
   @@index([isDeleted, isPinned])
   @@index([slug])
@@ -155,11 +194,30 @@ model Post {
   replies        Post[]          @relation("PostReplies")
   reports        Report[]
   moderationLogs ModerationLog[]
+  reactions      Reaction[]
 
   @@index([threadId, createdAt])
   @@index([parentId])
   @@index([authorId])
   @@index([isDeleted])
+}
+
+model Reaction {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String?
+  threadId  String?
+  emoji     String
+  createdAt DateTime @default(now())
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post   Post?   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  thread Thread? @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId, emoji])
+  @@unique([userId, threadId, emoji])
+  @@index([postId])
+  @@index([threadId])
 }
 
 model Tag {

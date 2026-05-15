@@ -23,7 +23,7 @@ function makeCategory(overrides: Partial<Category> = {}): Category {
     name: "General",
     slug: "general",
     description: null,
-    parentId: null,
+    sectionId: "section-1",
     sortOrder: 0,
     isPublic: true,
     isLocked: false,
@@ -60,6 +60,7 @@ describe("category router", () => {
 
     it("excludes non-public categories", async () => {
       const db = {
+        section: { findFirst: vi.fn().mockResolvedValue({ id: "section-1" }) },
         category: {
           findMany: vi.fn().mockResolvedValue([
             makeCategory({ id: "cat-1", isPublic: true }),
@@ -100,6 +101,7 @@ describe("category router", () => {
 
       const caller = createCaller({ db: db as never, session: adminSession });
       const result = await caller.category.create({
+        sectionId: "section-1",
         name: "General",
         description: "General chat",
       });

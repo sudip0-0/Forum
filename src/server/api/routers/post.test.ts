@@ -86,33 +86,13 @@ describe("post router", () => {
       await expect(caller.post.create({ threadId: "t1", content: "Reply" })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     });
 
-    it("rejects nesting beyond 3 levels", async () => {
-      const db = {
-        thread: { findUnique: vi.fn().mockResolvedValue({ id: "t1", isDeleted: false, isLocked: false }), update: vi.fn() },
-        post: {
-          create: vi.fn(),
-          findUnique: vi.fn()
-            .mockResolvedValueOnce({ id: "p3", parentId: "p2", threadId: "t1" }) // parent
-            .mockResolvedValueOnce({ parentId: "p1" }) // grandparent
-            .mockResolvedValueOnce({ parentId: null }), // great-grandparent
-        },
-      };
-
-      const caller = createCaller({ db: db as never, session: memberSession });
-      await expect(
-        caller.post.create({ threadId: "t1", parentId: "p3", content: "Deep reply" }),
-      ).rejects.toMatchObject({ code: "BAD_REQUEST" });
-    });
-
-    it("allows reply at depth 2", async () => {
+    it("allows replies that reference earlier messages without nesting limits", async () => {
       const post = { id: "p-new", threadId: "t1", content: "Reply", parentId: "p2" };
       const db = {
         thread: { findUnique: vi.fn().mockResolvedValue({ id: "t1", isDeleted: false, isLocked: false }), update: vi.fn() },
         post: {
           create: vi.fn().mockResolvedValue(post),
-          findUnique: vi.fn()
-            .mockResolvedValueOnce({ id: "p2", parentId: "p1", threadId: "t1" }) // parent
-            .mockResolvedValueOnce({ parentId: null }), // grandparent (depth=2, under limit)
+          findUnique: vi.fn().mockResolvedValueOnce({ id: "p2", parentId: "p1", threadId: "t1" }),
         },
       };
 

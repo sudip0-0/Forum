@@ -87,13 +87,13 @@ export default async function UserProfilePage({
           {profile.threads.map((thread) => (
             <li key={thread.id} className="px-4 py-3">
               <Link
-                href={`/forum/${thread.category.slug}/${thread.slug}`}
+                href={`/forum/${thread.forum.slug}/${thread.slug}`}
                 className="text-sm font-medium hover:underline"
               >
                 {thread.title}
               </Link>
               <div className="mt-1 text-xs text-muted-foreground">
-                in {thread.category.name} · {new Date(thread.createdAt).toLocaleDateString()}
+                in {thread.forum.name} · {new Date(thread.createdAt).toLocaleDateString()}
               </div>
             </li>
           ))}
