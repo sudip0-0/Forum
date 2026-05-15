@@ -115,4 +115,114 @@ describe("thread router", () => {
       caller.thread.create({ forumId: "forum-1", title: "My Thread", content: "Some content here." }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
+
+  describe("listByForum filters", () => {
+    it("filters by pinnedOnly", async () => {
+      const db = {
+        forum: { findUnique: vi.fn().mockResolvedValue(publicForum) },
+        thread: { findMany: vi.fn().mockResolvedValue([]) },
+      };
+      const caller = createCaller({ db: db as never, session: null });
+      await caller.thread.listByForum({ forumSlug: "general-discussion", pinnedOnly: true });
+      expect(db.thread.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ isPinned: true }) }),
+      );
+    });
+
+    it("filters by tagSlug", async () => {
+      const db = {
+        forum: { findUnique: vi.fn().mockResolvedValue(publicForum) },
+        thread: { findMany: vi.fn().mockResolvedValue([]) },
+      };
+      const caller = createCaller({ db: db as never, session: null });
+      await caller.thread.listByForum({ forumSlug: "general-discussion", tagSlug: "help" });
+      expect(db.thread.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ tags: { some: { slug: "help" } } }) }),
+      );
+    });
+
+    it("filters by authorUsername", async () => {
+      const db = {
+        forum: { findUnique: vi.fn().mockResolvedValue(publicForum) },
+        thread: { findMany: vi.fn().mockResolvedValue([]) },
+      };
+      const caller = createCaller({ db: db as never, session: null });
+      await caller.thread.listByForum({ forumSlug: "general-discussion", authorUsername: "john" });
+      expect(db.thread.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ author: { username: "john" } }) }),
+      );
+    });
+
+    it("filters by updatedWithinDays", async () => {
+      const db = {
+        forum: { findUnique: vi.fn().mockResolvedValue(publicForum) },
+        thread: { findMany: vi.fn().mockResolvedValue([]) },
+      };
+      const caller = createCaller({ db: db as never, session: null });
+      await caller.thread.listByForum({ forumSlug: "general-discussion", updatedWithinDays: 7 });
+      expect(db.thread.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ lastActivityAt: expect.any(Object) }) }),
+      );
+    });
+
+    it("filters by unanswered", async () => {
+      const db = {
+        forum: { findUnique: vi.fn().mockResolvedValue(publicForum) },
+        thread: { findMany: vi.fn().mockResolvedValue([]) },
+      };
+      const caller = createCaller({ db: db as never, session: null });
+      await caller.thread.listByForum({ forumSlug: "general-discussion", unanswered: true });
+      expect(db.thread.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ replyCount: 0 }) }),
+      );
+    });
+
+    it("sorts by title", async () => {
+      const db = {
+        forum: { findUnique: vi.fn().mockResolvedValue(publicForum) },
+        thread: { findMany: vi.fn().mockResolvedValue([]) },
+      };
+      const caller = createCaller({ db: db as never, session: null });
+      await caller.thread.listByForum({ forumSlug: "general-discussion", sort: "title", direction: "asc" });
+      expect(db.thread.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: expect.arrayContaining([{ title: "asc" }]) }),
+      );
+    });
+
+    it("sorts by reactions", async () => {
+      const db = {
+        forum: { findUnique: vi.fn().mockResolvedValue(publicForum) },
+        thread: { findMany: vi.fn().mockResolvedValue([]) },
+      };
+      const caller = createCaller({ db: db as never, session: null });
+      await caller.thread.listByForum({ forumSlug: "general-discussion", sort: "reactions", direction: "desc" });
+      expect(db.thread.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: expect.arrayContaining([{ reactions: { _count: "desc" } }]) }),
+      );
+    });
+  });
+
+  describe("incrementView", () => {
+    it("rejects increment for hidden thread", async () => {
+      const db = {
+        thread: {
+          findUnique: vi.fn().mockResolvedValue({
+            id: "thread-1", isDeleted: false,
+            forum: { isPublic: false, category: { isPublic: true, section: { isPublic: true } } },
+          }),
+          update: vi.fn(),
+        },
+      };
+      const caller = createCaller({ db: db as never, session: null });
+      await expect(caller.thread.incrementView({ id: "thread-1" })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    });
+
+    it("rejects increment for non-existent thread", async () => {
+      const db = {
+        thread: { findUnique: vi.fn().mockResolvedValue(null), update: vi.fn() },
+      };
+      const caller = createCaller({ db: db as never, session: null });
+      await expect(caller.thread.incrementView({ id: "nope" })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    });
+  });
 });

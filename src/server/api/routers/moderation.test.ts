@@ -905,4 +905,35 @@ describe("moderation router", () => {
       ).rejects.toMatchObject({ code: "NOT_FOUND" });
     });
   });
+
+  describe("adminStats", () => {
+    it("returns admin stats for admin", async () => {
+      const db = {
+        user: { count: vi.fn().mockResolvedValue(42) },
+        thread: { count: vi.fn().mockResolvedValue(15) },
+        report: { count: vi.fn().mockResolvedValue(3) },
+        forum: { count: vi.fn().mockResolvedValue(8) },
+      };
+      const caller = createCaller({ db: db as never, session: adminSession });
+      const result = await caller.moderation.adminStats();
+      expect(result).toEqual({
+        totalUsers: 42,
+        totalVisibleThreads: 15,
+        openReports: 3,
+        visibleForums: 8,
+      });
+    });
+
+    it("rejects moderator", async () => {
+      const db = {};
+      const caller = createCaller({ db: db as never, session: moderatorSession });
+      await expect(caller.moderation.adminStats()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+
+    it("rejects member", async () => {
+      const db = {};
+      const caller = createCaller({ db: db as never, session: memberSession });
+      await expect(caller.moderation.adminStats()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+  });
 });

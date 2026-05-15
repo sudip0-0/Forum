@@ -494,6 +494,19 @@ export const moderationRouter = router({
       return { success: true };
     }),
 
+  adminStats: roleProcedure(["ADMIN"])
+    .query(async ({ ctx }) => {
+      const [totalUsers, totalVisibleThreads, openReports, visibleForums] = await Promise.all([
+        ctx.db.user.count(),
+        ctx.db.thread.count({
+          where: { isDeleted: false, forum: { isPublic: true, category: { isPublic: true, section: { isPublic: true } } } },
+        }),
+        ctx.db.report.count({ where: { status: "OPEN" } }),
+        ctx.db.forum.count({ where: { isPublic: true, category: { isPublic: true, section: { isPublic: true } } } }),
+      ]);
+      return { totalUsers, totalVisibleThreads, openReports, visibleForums };
+    }),
+
   listHistory: roleProcedure(["MODERATOR", "ADMIN"])
     .input(z.object({
       cursor: z.string().optional(),

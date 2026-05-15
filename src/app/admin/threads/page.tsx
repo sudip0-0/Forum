@@ -3,6 +3,7 @@ import { auth } from "@/server/auth/config";
 import { isModeratorOrAbove } from "@/server/auth/permissions";
 import { appRouter } from "@/server/api/root";
 import { db } from "@/server/db/prisma";
+import { AdminHeader } from "@/components/admin/admin-header";
 import { ThreadManagement } from "./client";
 
 export default async function ThreadManagementPage({
@@ -24,8 +25,7 @@ export default async function ThreadManagementPage({
   ]);
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
-      <h1 className="text-2xl font-semibold">Thread Management</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Find and act on threads directly, without waiting for reports.</p>
+      <AdminHeader title="Thread Management" description="Find and act on threads directly, without waiting for reports." backHref="/admin" />
       <ThreadManagement threads={threads} forums={forums} />
     </main>
   );

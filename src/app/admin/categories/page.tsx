@@ -3,6 +3,7 @@ import { auth } from "@/server/auth/config";
 import { isAdmin } from "@/server/auth/permissions";
 import { appRouter } from "@/server/api/root";
 import { db } from "@/server/db/prisma";
+import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminCategoryList } from "./client";
 
 export default async function AdminCategoriesPage() {
@@ -33,10 +34,7 @@ export default async function AdminCategoriesPage() {
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
-      <h1 className="text-2xl font-semibold">Manage Categories</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Create, edit, reorder, and hide categories.
-      </p>
+      <AdminHeader title="Manage Categories" description="Create, edit, reorder, and hide categories." backHref="/admin" />
       <AdminCategoryList categories={categories} />
     </main>
   );

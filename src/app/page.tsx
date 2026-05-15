@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { appRouter } from "@/server/api/root";
 import { db } from "@/server/db/prisma";
+import { TagPill } from "@/components/forum/tag-pill";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ export default async function Home() {
                   <span>{thread.replyCount} replies</span>
                   <span>{thread.viewCount} views</span>
                 </div>
-                {thread.tags.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{thread.tags.map((tag) => <span key={tag.id} className="rounded bg-muted px-2 py-0.5 text-xs">#{tag.name}</span>)}</div>}
+                {thread.tags.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{thread.tags.map((tag) => <TagPill key={tag.id} tag={tag} />)}</div>}
               </article>
             ))}
           </div>
@@ -56,7 +57,7 @@ export default async function Home() {
           <section className="rounded-lg border p-4">
             <h2 className="text-sm font-semibold">Popular tags</h2>
             <div className="mt-3 flex flex-wrap gap-2">
-              {data.popularTags.map((tag) => <span key={tag.id} className="rounded bg-muted px-2 py-1 text-xs">#{tag.name} · {tag._count.threads}</span>)}
+              {data.popularTags.map((tag) => <TagPill key={tag.id} tag={tag} showCount count={tag._count.threads} className="px-2 py-1" />)}
             </div>
           </section>
           <section className="rounded-lg border p-4 text-sm">

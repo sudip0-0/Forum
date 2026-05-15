@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { getCsrfToken, signIn } from "next-auth/react";
 import { registerUser } from "@/server/auth/actions";
 import { Button } from "@/components/ui/button";
 
@@ -29,6 +29,8 @@ export default function RegisterPage() {
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
 
+    // Prime Auth.js' CSRF cookie before attempting the immediate post-registration sign-in.
+    await getCsrfToken();
     const signInResult = await signIn("credentials", {
       email,
       password,

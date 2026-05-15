@@ -4,6 +4,9 @@ import { notFound } from "next/navigation";
 import { appRouter } from "@/server/api/root";
 import { auth } from "@/server/auth/config";
 import { db } from "@/server/db/prisma";
+import { Breadcrumbs } from "@/components/navigation/breadcrumbs";
+import { TagPill } from "@/components/forum/tag-pill";
+import { ForumFilters } from "@/components/forum/forum-filters";
 
 export async function generateMetadata({ params }: { params: Promise<{ categorySlug: string }> }): Promise<Metadata> {
   const { categorySlug: forumSlug } = await params;
@@ -21,10 +24,27 @@ export default async function ForumThreadListPage({
   searchParams,
 }: {
   params: Promise<{ categorySlug: string }>;
-  searchParams: Promise<{ sort?: string; direction?: "asc" | "desc" }>;
+  searchParams: Promise<{
+    sort?: string;
+    direction?: "asc" | "desc";
+    pinnedOnly?: string;
+    tagSlug?: string;
+    authorUsername?: string;
+    updatedWithinDays?: string;
+    unanswered?: string;
+  }>;
 }) {
   const { categorySlug: forumSlug } = await params;
-  const { sort = "latest", direction = "desc" } = await searchParams;
+  const sp = await searchParams;
+
+  const sort = (sp.sort || "latest") as string;
+  const direction = (sp.direction || "desc") as "asc" | "desc";
+  const pinnedOnly = sp.pinnedOnly === "1";
+  const tagSlug = sp.tagSlug;
+  const authorUsername = sp.authorUsername;
+  const updatedWithinDays = sp.updatedWithinDays ? parseInt(sp.updatedWithinDays, 10) : undefined;
+  const unanswered = sp.unanswered === "1";
+
   const session = await auth();
   const caller = appRouter.createCaller({
     db,
@@ -32,25 +52,38 @@ export default async function ForumThreadListPage({
       ? { user: { id: session.user.id, email: session.user.email ?? "", name: session.user.name ?? null, role: session.user.role }, expires: session.expires }
       : null,
   });
+
   let data;
   try {
     data = await caller.thread.listByForum({
       forumSlug,
-      sort: sort as "latest" | "newest" | "oldest" | "views" | "reacted" | "replies" | "unanswered",
+      sort: sort as "latest" | "newest" | "oldest" | "views" | "reactions" | "reacted" | "replies" | "title" | "unanswered",
       direction,
+      pinnedOnly: pinnedOnly || undefined,
+      tagSlug,
+      authorUsername,
+      updatedWithinDays,
+      unanswered: unanswered || undefined,
     });
   } catch {
     notFound();
   }
+
   const { threads, forum } = data;
-  const sorts = ["latest", "newest", "oldest", "views", "reacted", "replies", "unanswered"] as const;
+
+  const breadcrumbItems = [
+    { label: "Forums", href: "/forums" },
+    { label: forum.category.section.name },
+    { label: forum.category.name, href: `/category/${forum.category.slug}` },
+    { label: forum.name },
+  ];
+
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
+      <Breadcrumbs items={breadcrumbItems} className="mb-2" />
+
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="text-xs text-muted-foreground">
-            {forum.category.section.name} / {forum.category.name}
-          </div>
           <h1 className="text-2xl font-semibold">{forum.name}</h1>
           {forum.description && <p className="mt-1 text-sm text-muted-foreground">{forum.description}</p>}
         </div>
@@ -60,26 +93,25 @@ export default async function ForumThreadListPage({
           </Link>
         )}
       </div>
-      <div className="mt-6 flex flex-wrap gap-2">
-        {sorts.map((item) => (
-          <Link
-            key={item}
-            href={`/forum/${forumSlug}?sort=${item}&direction=${direction}`}
-            className={`rounded-md border px-3 py-1.5 text-xs ${sort === item ? "bg-accent" : ""}`}
-          >
-            {item}
-          </Link>
-        ))}
-        <Link href={`/forum/${forumSlug}?sort=${sort}&direction=${direction === "asc" ? "desc" : "asc"}`} className="rounded-md border px-3 py-1.5 text-xs">
-          {direction === "asc" ? "Ascending" : "Descending"}
-        </Link>
+
+      <div className="mt-4">
+        <ForumFilters forumSlug={forumSlug} />
       </div>
+
       {threads.length === 0 ? (
         <p className="mt-8 text-sm text-muted-foreground">No threads yet.</p>
       ) : (
-        <ul className="mt-8 divide-y rounded-lg border">
+        <ul className="mt-4 divide-y rounded-lg border">
           {threads.map((thread) => (
             <li key={thread.id} className="px-4 py-3">
+              <div className="flex items-start gap-2">
+                {thread.isPinned && (
+                  <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">Pinned</span>
+                )}
+                {thread.isLocked && (
+                  <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Locked</span>
+                )}
+              </div>
               <Link href={`/forum/${forumSlug}/${thread.slug}`} className="block hover:underline">
                 <span className="text-sm font-medium">{thread.title}</span>
               </Link>
@@ -90,7 +122,13 @@ export default async function ForumThreadListPage({
                 <span>{thread._count.reactions} reactions</span>
                 <span>{new Date(thread.lastActivityAt).toLocaleDateString()}</span>
               </div>
-              {thread.tags.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{thread.tags.map((tag) => <span key={tag.id} className="rounded bg-muted px-2 py-0.5 text-xs">#{tag.name}</span>)}</div>}
+              {thread.tags.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {thread.tags.map((tag) => (
+                    <TagPill key={tag.id} tag={tag} />
+                  ))}
+                </div>
+              )}
             </li>
           ))}
         </ul>

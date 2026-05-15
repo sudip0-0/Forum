@@ -46,6 +46,26 @@ const reorderSchema = z.object({
 });
 
 export const categoryRouter = router({
+  getBySlug: publicProcedure
+    .input(z.object({ slug: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      const category = await ctx.db.category.findUnique({
+        where: { slug: input.slug },
+        include: {
+          section: { select: { id: true, name: true, slug: true, isPublic: true } },
+          forums: {
+            where: { isPublic: true },
+            orderBy: { sortOrder: "asc" },
+            select: { id: true, name: true, slug: true, description: true, isPublic: true },
+          },
+        },
+      });
+      if (!category || !category.isPublic || !category.section.isPublic) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Category not found." });
+      }
+      return category;
+    }),
+
   listPublic: publicProcedure.query(async ({ ctx }) => {
     return ctx.db.category.findMany({
       where: { isPublic: true },

@@ -23,7 +23,7 @@ test.describe("Moderation flows", () => {
     await page.fill('input[name="email"]', "moderator@example.com");
     await page.fill('input[name="password"]', "password123");
     await page.click('button[type="submit"]');
-    await expect(page).toHaveURL("/admin", { timeout: 10000 });
+    await expect(page).toHaveURL("/", { timeout: 10000 });
 
     await page.goto("/admin/mod");
     await expect(page.locator("body")).toContainText("Moderation", { timeout: 10000 });

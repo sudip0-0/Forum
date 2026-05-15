@@ -148,7 +148,7 @@ export default async function SearchPage({
                       {r.tags && (
                         <span className="flex gap-1">
                           {r.tags.split(", ").map((tagName) => (
-                            <span key={tagName} className="rounded bg-muted px-1.5 py-0.5 text-xs">{tagName}</span>
+                            <Link key={tagName} href={`/tags/${tagName.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`} className="rounded bg-muted px-1.5 py-0.5 text-xs hover:bg-muted/80 transition-colors">{tagName}</Link>
                           ))}
                         </span>
                       )}

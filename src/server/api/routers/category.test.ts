@@ -343,4 +343,77 @@ describe("category router", () => {
       await expect(caller.category.softDelete({ id: "" })).rejects.toThrow();
     });
   });
+
+  describe("getBySlug", () => {
+    it("returns a public category with its section and public forums", async () => {
+      const db = {
+        category: {
+          findUnique: vi.fn().mockResolvedValue({
+            id: "cat-1",
+            name: "General",
+            slug: "general",
+            description: "Desc",
+            isPublic: true,
+            section: { id: "sec-1", name: "Community", slug: "community", isPublic: true },
+            forums: [
+              { id: "f-1", name: "Chat", slug: "chat", description: null, isPublic: true },
+            ],
+          }),
+        },
+      };
+      const caller = createCaller({ db: db as never, session: null });
+      const result = await caller.category.getBySlug({ slug: "general" });
+      expect(result.name).toBe("General");
+      expect(result.section.name).toBe("Community");
+      expect(result.forums).toHaveLength(1);
+    });
+
+    it("returns NOT_FOUND for hidden category", async () => {
+      const db = {
+        category: {
+          findUnique: vi.fn().mockResolvedValue({
+            id: "cat-1", name: "Hidden", slug: "hidden", isPublic: false,
+            section: { isPublic: true },
+          }),
+        },
+      };
+      const caller = createCaller({ db: db as never, session: null });
+      await expect(caller.category.getBySlug({ slug: "hidden" })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    });
+
+    it("returns NOT_FOUND when parent section is hidden", async () => {
+      const db = {
+        category: {
+          findUnique: vi.fn().mockResolvedValue({
+            id: "cat-1", name: "Cat", slug: "cat", isPublic: true,
+            section: { isPublic: false },
+          }),
+        },
+      };
+      const caller = createCaller({ db: db as never, session: null });
+      await expect(caller.category.getBySlug({ slug: "cat" })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    });
+
+    it("returns NOT_FOUND for non-existent slug", async () => {
+      const db = {
+        category: { findUnique: vi.fn().mockResolvedValue(null) },
+      };
+      const caller = createCaller({ db: db as never, session: null });
+      await expect(caller.category.getBySlug({ slug: "nope" })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    });
+
+    it("works for guests", async () => {
+      const db = {
+        category: {
+          findUnique: vi.fn().mockResolvedValue({
+            id: "cat-1", name: "Cat", slug: "cat", isPublic: true,
+            section: { id: "sec-1", name: "S", slug: "s", isPublic: true },
+            forums: [],
+          }),
+        },
+      };
+      const caller = createCaller({ db: db as never, session: null });
+      await expect(caller.category.getBySlug({ slug: "cat" })).resolves.toBeDefined();
+    });
+  });
 });

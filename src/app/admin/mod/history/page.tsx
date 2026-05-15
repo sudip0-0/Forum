@@ -3,6 +3,7 @@ import { auth } from "@/server/auth/config";
 import { isModeratorOrAbove } from "@/server/auth/permissions";
 import { appRouter } from "@/server/api/root";
 import { db } from "@/server/db/prisma";
+import { AdminHeader } from "@/components/admin/admin-header";
 import { ModerationHistoryList } from "./client";
 
 export default async function ModerationHistoryPage() {
@@ -32,10 +33,7 @@ export default async function ModerationHistoryPage() {
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
-      <h1 className="text-2xl font-semibold">Moderation History</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Audit trail of recent moderation actions.
-      </p>
+      <AdminHeader title="Moderation History" description="Audit trail of recent moderation actions." backHref="/admin" />
       <ModerationHistoryList logs={serializedLogs} />
     </main>
   );

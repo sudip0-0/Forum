@@ -3,6 +3,7 @@ import { auth } from "@/server/auth/config";
 import { isAdmin } from "@/server/auth/permissions";
 import { appRouter } from "@/server/api/root";
 import { db } from "@/server/db/prisma";
+import { AdminHeader } from "@/components/admin/admin-header";
 import { UserList } from "./client";
 
 export default async function AdminUsersPage() {
@@ -33,10 +34,7 @@ export default async function AdminUsersPage() {
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
-      <h1 className="text-2xl font-semibold">Manage Users</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        View users and manage roles.
-      </p>
+      <AdminHeader title="Manage Users" description="View users and manage roles." backHref="/admin" />
       <UserList users={users} />
     </main>
   );

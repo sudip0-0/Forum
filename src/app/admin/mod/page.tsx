@@ -3,6 +3,7 @@ import { auth } from "@/server/auth/config";
 import { isModeratorOrAbove } from "@/server/auth/permissions";
 import { appRouter } from "@/server/api/root";
 import { db } from "@/server/db/prisma";
+import { AdminHeader } from "@/components/admin/admin-header";
 import { ModerationQueue } from "./client";
 
 export default async function ModQueuePage() {
@@ -33,10 +34,7 @@ export default async function ModQueuePage() {
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
-      <h1 className="text-2xl font-semibold">Moderation Queue</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Review and resolve open reports.
-      </p>
+      <AdminHeader title="Moderation Queue" description="Review and resolve open reports." backHref="/admin" />
       <ModerationQueue reports={reports} />
     </main>
   );

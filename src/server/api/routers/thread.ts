@@ -8,7 +8,7 @@ function slugify(value: string) {
   return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
-const sortSchema = z.enum(["latest", "newest", "oldest", "views", "reacted", "replies", "unanswered"]);
+const sortSchema = z.enum(["latest", "newest", "oldest", "views", "reactions", "reacted", "replies", "title", "unanswered"]);
 const directionSchema = z.enum(["asc", "desc"]).default("desc");
 
 export const threadRouter = router({
@@ -20,8 +20,13 @@ export const threadRouter = router({
       limit: z.number().min(1).max(50).default(20),
     }))
     .query(async ({ ctx, input }) => {
-      const category = await ctx.db.category.findUnique({ where: { slug: input.categorySlug } });
-      if (!category || !category.isPublic) throw new TRPCError({ code: "NOT_FOUND", message: "Category not found." });
+      const category = await ctx.db.category.findUnique({
+        where: { slug: input.categorySlug },
+        include: { section: true },
+      });
+      if (!category || !category.isPublic || !category.section.isPublic) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Category not found." });
+      }
       const forums = await ctx.db.forum.findMany({ where: { categoryId: category.id, isPublic: true }, select: { id: true } });
       const where: Prisma.ThreadWhereInput = { forumId: { in: forums.map((forum) => forum.id) }, isDeleted: false };
       if (input.sort === "unanswered") where.replyCount = 0;
@@ -30,6 +35,12 @@ export const threadRouter = router({
         orderBy: input.sort === "newest" ? [{ createdAt: "desc" }, { id: "desc" }] : [{ lastActivityAt: "desc" }, { id: "desc" }],
         take: input.limit + 1,
         ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
+        include: {
+          author: { select: { id: true, username: true, displayName: true } },
+          forum: { select: { slug: true, name: true } },
+          tags: true,
+          _count: { select: { reactions: true } },
+        },
       });
       let nextCursor: string | undefined;
       if (threads.length > input.limit) nextCursor = threads.pop()!.id;
@@ -41,6 +52,11 @@ export const threadRouter = router({
       forumSlug: z.string().min(1),
       sort: sortSchema.default("latest"),
       direction: directionSchema,
+      pinnedOnly: z.boolean().optional(),
+      tagSlug: z.string().min(1).optional(),
+      authorUsername: z.string().min(1).optional(),
+      updatedWithinDays: z.number().int().min(1).optional(),
+      unanswered: z.boolean().optional(),
       cursor: z.string().optional(),
       limit: z.number().min(1).max(50).default(20),
     }))
@@ -53,10 +69,14 @@ export const threadRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Forum not found." });
       }
 
-      const where = {
+      const where: Prisma.ThreadWhereInput = {
         forumId: forum.id,
         isDeleted: false,
-        ...(input.sort === "unanswered" ? { replyCount: 0 } : {}),
+        ...(input.pinnedOnly ? { isPinned: true } : {}),
+        ...(input.tagSlug ? { tags: { some: { slug: input.tagSlug } } } : {}),
+        ...(input.authorUsername ? { author: { username: input.authorUsername } } : {}),
+        ...(input.updatedWithinDays ? { lastActivityAt: { gte: new Date(Date.now() - input.updatedWithinDays * 86400000) } } : {}),
+        ...(input.unanswered || input.sort === "unanswered" ? { replyCount: 0 } : {}),
       };
       const orderBy: Prisma.ThreadOrderByWithRelationInput[] =
         input.sort === "newest"
@@ -67,9 +87,11 @@ export const threadRouter = router({
               ? [{ viewCount: input.direction }]
               : input.sort === "replies"
                 ? [{ replyCount: input.direction }]
-                : input.sort === "reacted"
+                : input.sort === "reacted" || input.sort === "reactions"
                   ? [{ reactions: { _count: input.direction } }]
-                  : [{ lastActivityAt: input.direction }];
+                  : input.sort === "title"
+                    ? [{ title: input.direction }]
+                    : [{ lastActivityAt: input.direction }];
 
       const threads = await ctx.db.thread.findMany({
         where,
@@ -98,7 +120,7 @@ export const threadRouter = router({
             name: true,
             slug: true,
             isPublic: true,
-            category: { select: { isPublic: true, section: { select: { isPublic: true } } } },
+            category: { select: { name: true, slug: true, isPublic: true, section: { select: { name: true, isPublic: true } } } },
           },
         },
         tags: true,
@@ -113,6 +135,13 @@ export const threadRouter = router({
   }),
 
   incrementView: publicProcedure.input(z.object({ id: z.string().min(1) })).mutation(async ({ ctx, input }) => {
+    const thread = await ctx.db.thread.findUnique({
+      where: { id: input.id },
+      include: { forum: { include: { category: { include: { section: true } } } } },
+    });
+    if (!thread || thread.isDeleted || !thread.forum.isPublic || !thread.forum.category.isPublic || !thread.forum.category.section.isPublic) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Thread not found." });
+    }
     await ctx.db.thread.update({ where: { id: input.id }, data: { viewCount: { increment: 1 } } });
     return { success: true };
   }),
