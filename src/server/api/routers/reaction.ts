@@ -19,12 +19,19 @@ export const reactionRouter = router({
     if (!target || target.isDeleted) throw new TRPCError({ code: "NOT_FOUND", message: "Target not found." });
 
     const where = input.postId
-      ? { userId_postId_emoji: { userId: ctx.session.user.id, postId: input.postId, emoji: input.emoji } }
-      : { userId_threadId_emoji: { userId: ctx.session.user.id, threadId: input.threadId!, emoji: input.emoji } };
+      ? { userId_postId: { userId: ctx.session.user.id, postId: input.postId } }
+      : { userId_threadId: { userId: ctx.session.user.id, threadId: input.threadId! } };
     const existing = await ctx.db.reaction.findUnique({ where });
     if (existing) {
-      await ctx.db.reaction.delete({ where: { id: existing.id } });
-      return { active: false };
+      if (existing.emoji === input.emoji) {
+        await ctx.db.reaction.delete({ where: { id: existing.id } });
+        return { active: false, emoji: null };
+      }
+      await ctx.db.reaction.update({
+        where: { id: existing.id },
+        data: { emoji: input.emoji },
+      });
+      return { active: true, emoji: input.emoji };
     }
     await ctx.db.reaction.create({
       data: {
@@ -34,6 +41,6 @@ export const reactionRouter = router({
         emoji: input.emoji,
       },
     });
-    return { active: true };
+    return { active: true, emoji: input.emoji };
   }),
 });

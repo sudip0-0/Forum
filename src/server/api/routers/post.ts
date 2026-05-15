@@ -32,7 +32,16 @@ export const postRouter = router({
         orderBy: { createdAt: "asc" },
         take: input.limit + 1,
         include: {
-          author: { select: { id: true, username: true, displayName: true } },
+          author: {
+            select: {
+              id: true,
+              username: true,
+              displayName: true,
+              image: true,
+              createdAt: true,
+              _count: { select: { posts: true } },
+            },
+          },
           parent: {
             select: {
               id: true,
@@ -40,7 +49,7 @@ export const postRouter = router({
               author: { select: { username: true, displayName: true } },
             },
           },
-          _count: { select: { reactions: true } },
+          reactions: { select: { userId: true, emoji: true } },
         },
       });
 

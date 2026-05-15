@@ -214,8 +214,8 @@ model Reaction {
   post   Post?   @relation(fields: [postId], references: [id], onDelete: Cascade)
   thread Thread? @relation(fields: [threadId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, postId, emoji])
-  @@unique([userId, threadId, emoji])
+  @@unique([userId, postId])
+  @@unique([userId, threadId])
   @@index([postId])
   @@index([threadId])
 }

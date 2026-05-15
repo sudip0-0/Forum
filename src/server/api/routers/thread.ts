@@ -101,6 +101,7 @@ export const threadRouter = router({
           },
         },
         tags: true,
+        reactions: { select: { userId: true, emoji: true } },
         _count: { select: { reactions: true } },
       },
     });
