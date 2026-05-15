@@ -1,33 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/server/auth/config";
-import { appRouter } from "@/server/api/root";
-import { db } from "@/server/db/prisma";
-import type { TrpcContext } from "@/server/api/trpc";
-
-async function createCaller() {
-  const session = await auth();
-  const ctx: TrpcContext = session?.user
-    ? {
-        db,
-        session: {
-          user: {
-            id: session.user.id,
-            email: session.user.email ?? "",
-            name: session.user.name ?? null,
-            role: session.user.role,
-          },
-          expires: session.expires,
-        },
-      }
-    : { db, session: null };
-  return appRouter.createCaller(ctx);
-}
+import { makeServerCaller } from "@/server/api/caller";
 
 export async function createCategory(input: { name: string; description?: string }) {
   try {
-    const caller = await createCaller();
+    const caller = await makeServerCaller();
     await caller.category.create(input);
     revalidatePath("/admin/categories");
     return { success: true };
@@ -45,7 +23,7 @@ export async function updateCategory(input: {
   sortOrder?: number;
 }) {
   try {
-    const caller = await createCaller();
+    const caller = await makeServerCaller();
     await caller.category.update(input);
     revalidatePath("/admin/categories");
     return { success: true };
@@ -56,7 +34,7 @@ export async function updateCategory(input: {
 
 export async function softDeleteCategory(id: string) {
   try {
-    const caller = await createCaller();
+    const caller = await makeServerCaller();
     await caller.category.softDelete({ id });
     revalidatePath("/admin/categories");
     return { success: true };
@@ -67,7 +45,7 @@ export async function softDeleteCategory(id: string) {
 
 export async function reorderCategories(items: { id: string; sortOrder: number }[]) {
   try {
-    const caller = await createCaller();
+    const caller = await makeServerCaller();
     await caller.category.reorder({ items });
     revalidatePath("/admin/categories");
     return { success: true };

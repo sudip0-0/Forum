@@ -246,7 +246,7 @@ Definition of done:
 ### MOD-003 — Admin User Management
 
 **Owner:** agent-backend + agent-frontend  
-**Status:** 🔲 Not Started
+**Status:** ✅ Done
 
 **Acceptance Criteria**
 - Admin can list users.
@@ -294,7 +294,7 @@ Definition of done:
 ### QA-001 — Unit and Integration Tests
 
 **Owner:** agent-qa  
-**Status:** 🔲 Not Started
+**Status:** ✅ Done
 
 **Acceptance Criteria**
 - Slug generation tested.
@@ -302,10 +302,12 @@ Definition of done:
 - tRPC create thread tested.
 - Report flow tested.
 
+**Notes:** 13+ test files covering schema, auth, validators, tRPC routers (health, category, section, forum, thread, post, user, search, moderation, reaction, discovery), rate-limit, and markdown. All passing.
+
 ### QA-002 — Playwright E2E Tests
 
 **Owner:** agent-qa  
-**Status:** 🔲 Not Started
+**Status:** ✅ Done
 
 **Acceptance Criteria**
 - Register/login/logout journey passes.
@@ -313,10 +315,12 @@ Definition of done:
 - Report/moderate journey passes.
 - Search journey passes.
 
+**Notes:** 7 E2E spec files in `e2e/` covering auth, thread creation, search (with filters), moderation flows, moderator direct actions, admin structure management, and navigation/tag/filter journeys.
+
 ### SEC-001 — Security Review
 
 **Owner:** agent-security  
-**Status:** 🔲 Not Started
+**Status:** ⏳ Review
 
 **Acceptance Criteria**
 - Auth routes reviewed.
@@ -324,6 +328,8 @@ Definition of done:
 - XSS checks pass for markdown content.
 - No secrets committed.
 - Rate-limit plan documented.
+
+**Notes:** In-memory rate limiting is implemented for login, register, create-thread, reply, report, and search. Suspension checks are enforced on mutations. XSS safe via react-markdown (no raw HTML). Formal security review document not yet written.
 
 ## Phase 5 — Post-MVP Enhancements
 

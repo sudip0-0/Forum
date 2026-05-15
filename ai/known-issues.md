@@ -8,12 +8,8 @@
 | KI-002 | Medium | Architecture | Real-time approach must be aligned before implementation | Open | architect | Use no real-time in MVP, SSE later |
 | KI-003 | Medium | Search | Meilisearch adds infrastructure complexity | Open | backend | Start with PostgreSQL search |
 | KI-004 | High | Security | Markdown rendering can introduce XSS | Resolved | security | react-markdown escapes all raw HTML by default |
-| KI-005 | Medium | Progress | Existing progress logs may imply implementation already happened | Open | coordinator | Verify repo state before marking tasks done |
-| KI-008 | Low | Code | `slugify` helper duplicated in category.ts and thread.ts | Open | backend | Extract to src/lib/slug.ts in next refactor |
-| KI-009 | Low | Code | `createCaller` helper duplicated in 4 server action files | Open | backend | Extract to shared utility in next refactor |
-| KI-010 | Low | Architecture | Category softDelete conflates visibility with deletion (isPublic=false) | Open | architect | Document as intentional or add isDeleted field to Category |
-| KI-011 | Low | Search | No GIN indexes on tsvector columns — search slow at scale | Open | backend | Add migration with GIN indexes before public launch |
-| KI-012 | Low | UX | Header uses useSession causing brief flash of unauthenticated state | Open | frontend | Pass session from server layout as prop |
+| KI-005 | Medium | Progress | Existing progress logs may imply implementation already happened | Resolved | coordinator | Docs now audited and synced to actual repo state (2026-05-15) |
+| KI-010 | Low | Architecture | Category softDelete conflates visibility with deletion (isPublic=false) | Open | architect | Intentional for MVP — document and defer isDeleted field to post-MVP |
 
 ## Deferred Features
 
@@ -50,3 +46,7 @@ Do not implement until MVP passes staging:
 |---|---|---|
 | KI-006 | 2026-05-14 | Docker Desktop is running; `docker compose ps` shows Postgres and Redis healthy. |
 | KI-007 | 2026-05-14 | Docker Postgres was remapped to host port `5433`; migration and seed now pass with `DATABASE_URL=postgresql://forum:forum@localhost:5433/forum_dev`. |
+| KI-008 | 2026-05-15 | `slugify` extracted to `src/lib/slug.ts`. Was duplicated in 4 files (category.ts, thread.ts, forum.ts, section.ts); all updated to import from shared module. |
+| KI-009 | 2026-05-15 | `createCaller` extracted to `src/server/api/caller.ts`. Was duplicated across all server action files; all updated to import shared helper. |
+| KI-011 | 2026-05-15 | GIN indexes on `to_tsvector('english', title)` (Thread) and `to_tsvector('english', content)` (Post) added via migration `20260515_gin_fts_indexes`. |
+| KI-012 | 2026-05-15 | Header converted to accept `session` prop from server layout; `useSession` removed from header. `ClientShell` now reads session server-side and passes it down. |

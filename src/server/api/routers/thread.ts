@@ -3,10 +3,7 @@ import { TRPCError } from "@trpc/server";
 import type { Prisma } from "@prisma/client";
 import { publicProcedure, protectedProcedure, router } from "@/server/api/trpc";
 import { checkRateLimit, RL_CREATE_THREAD, assertNotSuspended } from "@/server/api/rate-limit";
-
-function slugify(value: string) {
-  return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-}
+import { slugify } from "@/lib/slug";
 
 const sortSchema = z.enum(["latest", "newest", "oldest", "views", "reactions", "reacted", "replies", "title", "unanswered"]);
 const directionSchema = z.enum(["asc", "desc"]).default("desc");

@@ -17,9 +17,13 @@ The app uses tRPC for internal APIs.
 ```txt
 appRouter
   ├─ health
-  ├─ category
+  ├─ section        (admin CRUD for top-level sections)
+  ├─ category       (admin CRUD for categories within sections)
+  ├─ forum          (admin CRUD for forums within categories)
   ├─ thread
   ├─ post
+  ├─ reaction       (toggle emoji reactions on posts/threads)
+  ├─ discovery      (home page aggregation, tag-based thread listing)
   ├─ user
   ├─ search
   └─ moderation
@@ -419,6 +423,152 @@ Rules:
 - Returns NOT_FOUND if user does not exist
 ```
 
+## sectionRouter
+
+### `section.listPublicTree`
+
+**Type:** public query
+
+Returns all public sections with nested public categories and forums, ordered by `sortOrder` asc.
+
+### `section.listAll`
+
+**Type:** admin query
+
+Returns all sections (including hidden) with full nested tree. Admin only.
+
+### `section.create` / `section.update` / `section.reorder`
+
+**Type:** admin mutations
+
+Same pattern as `category.*`: slug auto-derived from name, CONFLICT on duplicate slug, $transaction for reorder. Admin only.
+
+## forumRouter
+
+### `forum.getBySlug`
+
+**Type:** public query
+
+Input: `{ slug: string }`
+
+Returns forum with parent category and section. Throws NOT_FOUND if hidden at any tier.
+
+### `forum.listAll`
+
+**Type:** admin query. Returns all forums with category info.
+
+### `forum.listForModeration`
+
+**Type:** moderator/admin query. Returns minimal forum list (id, name, slug) for thread-move dropdowns.
+
+### `forum.create` / `forum.update` / `forum.reorder`
+
+**Type:** admin mutations. Same pattern as `section.*`. Admin only.
+
+## reactionRouter
+
+### `reaction.toggle`
+
+**Type:** member mutation
+
+Input:
+
+```ts
+z.object({
+  postId: z.string().min(1).optional(),
+  threadId: z.string().min(1).optional(),
+  emoji: z.enum(["LIKE", "HELPFUL", "LAUGH", "INSIGHTFUL"]),
+}).refine(value => !!value.postId !== !!value.threadId)
+```
+
+Rules:
+
+- Provide exactly one of postId or threadId (BAD_REQUEST otherwise)
+- Target must exist and not be deleted (NOT_FOUND)
+- Suspended users are blocked (FORBIDDEN)
+- If no existing reaction: creates one and returns `{ active: true, emoji }`
+- If existing reaction with same emoji: deletes it (toggle off) and returns `{ active: false, emoji: null }`
+- If existing reaction with different emoji: updates it and returns `{ active: true, emoji }`
+- Enforced by unique constraints: `@@unique([userId, postId])` and `@@unique([userId, threadId])`
+
+## discoveryRouter
+
+### `discovery.home`
+
+**Type:** public query
+
+Returns aggregated home page data in a single query:
+
+- `latestMessages`: 8 most recent non-deleted posts from public threads
+- `activeThreads`: 8 threads ordered by `lastActivityAt` from public forums
+- `popularThreads`: 5 threads ordered by `viewCount` then `replyCount`
+- `popularTags`: top 10 tags by thread count across public threads
+- `stats`: `{ users, threads, messages }` counts
+
+### `discovery.listThreadsByTag`
+
+**Type:** public query
+
+Input:
+
+```ts
+z.object({
+  tagSlug: z.string().min(1),
+  sort: z.enum(["latest", "newest", "oldest", "views", "replies", "reactions"]).default("latest"),
+  direction: z.enum(["asc", "desc"]).default("desc"),
+  cursor: z.string().optional(),
+  limit: z.number().min(1).max(50).default(20),
+})
+```
+
+Returns threads tagged with the given slug from public forums, with cursor-based pagination. Throws NOT_FOUND if tag does not exist.
+
+## moderation — additional procedures
+
+### `moderation.threadAction`
+
+**Type:** moderator/admin mutation
+
+Input: `{ threadId, action: "LOCK"|"UNLOCK"|"PIN"|"UNPIN", reason }`
+
+Applies action to thread and logs to ModerationLog. Uses $transaction.
+
+### `moderation.moveThread`
+
+**Type:** moderator/admin mutation
+
+Input: `{ threadId, forumId, reason }`
+
+Moves thread to a different forum. Logs action with forumId metadata.
+
+### `moderation.suspendUser`
+
+**Type:** moderator/admin mutation
+
+Input: `{ userId, isSuspended: boolean, reason }`
+
+Sets `isSuspended` on user and creates SUSPEND_USER or UNSUSPEND_USER log entry.
+
+### `moderation.listThreads`
+
+**Type:** moderator/admin query
+
+Input: `{ q?, forumId?, status: "all"|"locked"|"pinned", limit }`
+
+Returns threads for the thread management page (not paginated, max 100).
+
+### `moderation.adminStats`
+
+**Type:** admin query
+
+Returns `{ totalUsers, totalVisibleThreads, openReports, visibleForums }` for the admin dashboard.
+
+### `moderation.listHistory`
+
+**Type:** moderator/admin query
+
+Returns paginated ModerationLog entries ordered by createdAt desc, including moderator and target user details.
+
 ## Error Codes
 
 | Code | Meaning |
@@ -428,4 +578,5 @@ Rules:
 | NOT_FOUND | Missing or hidden resource |
 | BAD_REQUEST | Invalid input |
 | CONFLICT | Duplicate or invalid state |
+| TOO_MANY_REQUESTS | Rate limit exceeded |
 | INTERNAL_SERVER_ERROR | Unexpected error |

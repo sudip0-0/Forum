@@ -14,6 +14,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
+  // Category overview pages (/category/[slug])
+  const categories = await db.category.findMany({
+    where: {
+      isPublic: true,
+      section: { isPublic: true },
+    },
+    select: { slug: true, updatedAt: true },
+  });
+
+  for (const category of categories) {
+    entries.push({
+      url: `${baseUrl}/category/${category.slug}`,
+      lastModified: category.updatedAt,
+    });
+  }
+
+  // Forum thread-list pages (/forum/[slug])
   const forums = await db.forum.findMany({
     where: {
       isPublic: true,
@@ -29,6 +46,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
   }
 
+  // Individual thread pages (/forum/[forumSlug]/[threadSlug])
   const threads = await db.thread.findMany({
     where: {
       isDeleted: false,

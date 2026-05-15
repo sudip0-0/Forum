@@ -1,10 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/server/auth/config";
-import { appRouter } from "@/server/api/root";
-import { db } from "@/server/db/prisma";
-import type { TrpcContext } from "@/server/api/trpc";
+import { makeServerCaller } from "@/server/api/caller";
 
 function friendlyActionError(error: unknown, fallback: string) {
   const message = (error as { message?: string }).message ?? "";
@@ -14,26 +11,8 @@ function friendlyActionError(error: unknown, fallback: string) {
   if (message.includes("Thread is locked")) return "This thread is locked and is no longer accepting replies.";
   if (message.includes("Posting is locked")) return "Posting is currently locked in this forum.";
   if (message.includes("Invalid parent post")) return "The message you replied to is no longer available.";
+  if (message.includes("Maximum reply depth")) return "Replies cannot be nested more than 3 levels deep.";
   return fallback;
-}
-
-async function createCaller() {
-  const session = await auth();
-  const ctx: TrpcContext = session?.user
-    ? {
-        db,
-        session: {
-          user: {
-            id: session.user.id,
-            email: session.user.email ?? "",
-            name: session.user.name ?? null,
-            role: session.user.role,
-          },
-          expires: session.expires,
-        },
-      }
-    : { db, session: null };
-  return appRouter.createCaller(ctx);
 }
 
 export async function createReply(
@@ -42,7 +21,7 @@ export async function createReply(
   input: { threadId: string; parentId?: string; content: string },
 ) {
   try {
-    const caller = await createCaller();
+    const caller = await makeServerCaller();
     await caller.post.create(input);
     revalidatePath(`/forum/${categorySlug}/${threadSlug}`);
     return { success: true };
@@ -56,7 +35,7 @@ export async function toggleReaction(
   targetId: string,
   emoji: "LIKE" | "HELPFUL" | "LAUGH" | "INSIGHTFUL",
 ) {
-  const caller = await createCaller();
+  const caller = await makeServerCaller();
   try {
     return await caller.reaction.toggle(
       targetType === "post" ? { postId: targetId, emoji } : { threadId: targetId, emoji },
@@ -77,7 +56,7 @@ export async function reportContent(
   },
 ) {
   try {
-    const caller = await createCaller();
+    const caller = await makeServerCaller();
     await caller.moderation.report(input);
     revalidatePath(`/forum/${categorySlug}/${threadSlug}`);
     return { success: true };

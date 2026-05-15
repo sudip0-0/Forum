@@ -1,22 +1,19 @@
 "use client";
 
-import dynamic from "next/dynamic";
+import { SessionProvider } from "@/components/layout/session-provider";
+import { Header } from "@/components/layout/header";
+import type { Session } from "next-auth";
 
-const SessionProviderInner = dynamic(
-  () => import("@/components/layout/session-provider").then((m) => m.SessionProvider),
-  { ssr: false },
-);
+interface ClientShellProps {
+  children: React.ReactNode;
+  session: Session | null;
+}
 
-const HeaderInner = dynamic(
-  () => import("@/components/layout/header").then((m) => m.Header),
-  { ssr: false },
-);
-
-export function ClientShell({ children }: { children: React.ReactNode }) {
+export function ClientShell({ children, session }: ClientShellProps) {
   return (
-    <SessionProviderInner>
-      <HeaderInner />
+    <SessionProvider>
+      <Header session={session} />
       <main>{children}</main>
-    </SessionProviderInner>
+    </SessionProvider>
   );
 }

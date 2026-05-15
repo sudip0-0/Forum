@@ -2,12 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
 import { getCsrfToken, signOut } from "next-auth/react";
 import { Menu, X, MessageSquareText, Search } from "lucide-react";
+import type { Session } from "next-auth";
 
-export function Header() {
-  const { data: session } = useSession();
+interface HeaderProps {
+  session: Session | null;
+}
+
+export function Header({ session }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   async function handleSignOut() {
@@ -47,8 +50,8 @@ export function Header() {
         <div className="flex items-center gap-3">
           {session?.user ? (
             <div className="hidden items-center gap-3 md:flex">
-            <Link
-              href={`/u/${session.user.username ?? session.user.email?.split("@")[0] ?? ""}`}
+              <Link
+                href={`/u/${session.user.username ?? session.user.email?.split("@")[0] ?? ""}`}
                 className="text-sm font-medium hover:no-underline"
               >
                 {session.user.name ?? session.user.email}
@@ -94,8 +97,8 @@ export function Header() {
       {menuOpen && (
         <div className="border-t-2 border-border bg-card md:hidden">
           <div className="space-y-1 px-6 py-4">
-              <Link
-                href="/"
+            <Link
+              href="/"
               className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium hover:bg-accent hover:no-underline"
               onClick={() => setMenuOpen(false)}
             >
@@ -114,7 +117,7 @@ export function Header() {
             {session?.user ? (
               <>
                 <Link
-                  href={`/u/${session.user.name ?? session.user.email?.split("@")[0] ?? ""}`}
+                  href={`/u/${session.user.username ?? session.user.email?.split("@")[0] ?? ""}`}
                   className="block rounded-md px-3 py-2.5 text-sm font-medium hover:bg-accent hover:no-underline"
                   onClick={() => setMenuOpen(false)}
                 >

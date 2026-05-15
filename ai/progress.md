@@ -1,9 +1,9 @@
 # Forum Website Progress Tracker
 
-**Version:** 1.1
-**Status:** Core Forum In Progress
+**Version:** 1.2
+**Status:** MVP Feature-Complete — Testing and Hardening Phase
 **Owner:** Project Coordinator
-**Last Updated:** 2026-05-14
+**Last Updated:** 2026-05-15
 
 ## 1. Current State
 
@@ -19,17 +19,29 @@
 | Category CRUD | Done — public listing, admin CRUD, tRPC router with tests |
 | Thread CRUD | Done — thread router, post router, category thread list, thread detail, reply form, 21 tests |
 | Core forum | Done — all CORE tasks complete |
-| Moderation | MOD-001/MOD-002/MOD-003 done — report, queue, resolve, user management, action-target validation |
-| Tests | 129 tests (schema, utils, auth, validators, tRPC, categories, threads, posts, markdown, users, search, moderation) |
+| Moderation | MOD-001/MOD-002/MOD-003 done — report, queue, resolve, user management, role change, suspend/unsuspend, thread actions, move thread, history log |
+| Tests | 150+ unit/integration tests across 13+ test files; 7 Playwright E2E spec files covering auth, threads, search, moderation, navigation, filters, admin |
 | Staging deploy | Not started |
 | SEO / Polish | POL-001/POL-002/POL-003 done — metadata, sitemap (revalidate=3600, take:5000), header/nav, responsive, error/loading/404 |
+| Post-MVP features | Reactions (ENG-001) and Tags implemented ahead of staging milestone |
 
 ## 2. Current Sprint
 
-**Sprint:** 1 — Core Forum MVP
-**Goal:** Implement categories, threads, replies, and basic forum flows.
+**Sprint:** 3 — Hardening and Optimization
+**Goal:** Fix known issues, extract shared utilities, add GIN indexes, stabilise for staging.
 
 ### Active Tasks
+
+| Task | Owner | Status | Notes |
+|---|---|---|---|
+| KI-008 fix | agent-backend | Done | Extracted `slugify` to `src/lib/slug.ts`; updated category, thread, forum, section routers |
+| KI-009 fix | agent-backend | Done | Extracted `makeServerCaller` to `src/server/api/caller.ts`; updated all server action files |
+| KI-011 fix | agent-backend | Done | Added GIN tsvector migration for Thread.title and Post.content |
+| KI-012 fix | agent-frontend | Done | Header now receives session from server layout as prop; `useSession` removed |
+| Post depth fix | agent-backend | Done | 3-level nesting enforced in `post.create` via parent chain walk |
+| Sitemap fix | agent-frontend | Done | `/category/[slug]` pages added to sitemap |
+
+### Completed Sprints
 
 | Task | Owner | Status | Notes |
 |---|---|---|---|
@@ -39,7 +51,6 @@
 | CORE-004 | agent-frontend+security | Done | Markdown renderer (react-markdown + remark-gfm), MarkdownEditor with preview, XSS tests, 6 tests |
 | CORE-005 | agent-frontend+backend | Done | User router (getPublicProfile, updateProfile), profile page at /u/[username], edit form, 4 tests |
 | CORE-006 | agent-backend+frontend | Done | Search router (PostgreSQL full-text), search page at /search, 4 tests |
-|---|---|---|---|
 | INF-001 | agent-devops | Done | Scaffold reviewed and verified |
 | INF-002 | agent-devops | Done | Docker Compose starts Postgres and Redis successfully |
 | INF-003 | agent-backend | Done | Prisma schema, migration, and seed verified locally |
@@ -97,7 +108,7 @@
 - POL-003 implemented: global error.tsx error boundary with retry; not-found.tsx custom 404 page; (public)/loading.tsx skeleton loader; all list pages already had empty states; all mutation forms already showed errors.
 
 ### In Progress
-- QA-001 is next (Unit and Integration Tests).
+- Staging deploy preparation.
 
 ### Blockers
 - None.
@@ -116,7 +127,9 @@
 - `pnpm build` passed (requires `NODE_ENV=production`).
 
 ### Next Steps
-- Proceed with QA-001 (Unit and Integration Tests).
+- Prepare staging deploy.
+- Run full E2E suite against staging.
+- Formal SEC-001 security review.
 
 ## 5. Blocker Log
 

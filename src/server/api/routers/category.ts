@@ -1,14 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { publicProcedure, router, roleProcedure } from "@/server/api/trpc";
-
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
+import { slugify } from "@/lib/slug";
 
 const createSchema = z.object({
   sectionId: z.string().min(1).optional(),

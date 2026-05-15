@@ -131,6 +131,25 @@ export const postRouter = router({
           throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid parent post." });
         }
 
+        // Enforce a maximum nesting depth of 3 levels by walking the parent chain.
+        // depth 1 = direct reply to a root post; depth 3 = maximum allowed.
+        let depth = 1;
+        let current: { parentId: string | null } = parent;
+        while (current.parentId) {
+          depth++;
+          if (depth >= 3) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Maximum reply depth of 3 levels reached.",
+            });
+          }
+          const grandparent = await ctx.db.post.findUnique({
+            where: { id: current.parentId },
+            select: { parentId: true },
+          });
+          if (!grandparent) break;
+          current = grandparent;
+        }
       }
 
       const post = await ctx.db.post.create({

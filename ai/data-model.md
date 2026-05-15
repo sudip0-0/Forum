@@ -1,31 +1,40 @@
 # Forum Website — Data Model Guide
 
-## MVP Entities
+## Entities
 
-The MVP database should focus on:
+The database contains:
 
 - User
 - Account/session tables required by Auth.js
-- Category
-- Thread
+- Section (top-level grouping)
+- Category (belongs to Section)
+- Forum (belongs to Category)
+- Thread (belongs to Forum)
 - Post
 - Tag
+- Reaction
 - Report
 - ModerationLog
 
 ## Entity Relationships
 
 ```txt
+Section 1 ── * Category
+Category 1 ── * Forum
+Forum 1 ── * Thread
 User 1 ── * Thread
 User 1 ── * Post
-Category 1 ── * Thread
 Thread 1 ── * Post
-Post 1 ── * Post replies
+Post 1 ── * Post replies (self-referential, max 3 levels enforced)
 Thread * ── * Tag
+User 1 ── * Reaction
+Reaction * ── 1 Post or Thread
 User 1 ── * Report
 Report * ── 1 Post or Thread
 ModerationLog * ── 1 Moderator
 ```
+
+**Note:** The hierarchy is Section → Category → Forum → Thread, not the flat Category → Thread documented in earlier versions. This three-tier structure allows grouping forums under categories and categories under sections.
 
 ## Schema Rules
 
@@ -38,98 +47,89 @@ ModerationLog * ── 1 Moderator
 7. Store user roles as enum.
 8. Put business constraints in both validation and database where possible.
 
-## MVP Prisma Models
+## Prisma Models (current — as implemented)
 
-Use this as the implementation target, but let the coding agent adapt it to Auth.js adapter requirements.
+The schema is in `prisma/schema.prisma`. Key design choices:
+
+- Three-tier forum hierarchy: Section → Category → Forum → Thread
+- `isSuspended` on User controls posting rights without changing role
+- `Reaction` has unique constraints per (userId, postId) and (userId, threadId)
+- GIN indexes on `to_tsvector` for Thread.title and Post.content (for full-text search performance)
+- Soft delete via `isDeleted` on Thread and Post; Category/Section/Forum use `isPublic=false` for hiding
 
 ```prisma
-model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  username      String    @unique
-  displayName   String?
-  passwordHash  String?
-  image         String?
-  bio           String?
-  role          UserRole  @default(MEMBER)
-  emailVerified DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+// Hierarchy: Section → Category → Forum → Thread
 
-  threads       Thread[]
-  posts         Post[]
-  reports       Report[]
-}
-
-enum UserRole {
-  MEMBER
-  MODERATOR
-  ADMIN
+model Section {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  sortOrder   Int      @default(0)
+  isPublic    Boolean  @default(true)
+  isLocked    Boolean  @default(false)
+  categories  Category[]
 }
 
 model Category {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
+  sectionId   String
   name        String
-  slug        String    @unique
+  slug        String   @unique
   description String?
-  parentId    String?
-  sortOrder   Int       @default(0)
-  isPublic    Boolean   @default(true)
-  isLocked    Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  sortOrder   Int      @default(0)
+  isPublic    Boolean  @default(true)
+  isLocked    Boolean  @default(false)
+  section     Section  @relation(...)
+  forums      Forum[]
+}
 
-  parent      Category?  @relation("CategoryTree", fields: [parentId], references: [id])
-  children    Category[] @relation("CategoryTree")
+model Forum {
+  id          String   @id @default(cuid())
+  categoryId  String
+  name        String
+  slug        String   @unique
+  description String?
+  sortOrder   Int      @default(0)
+  isPublic    Boolean  @default(true)
+  isLocked    Boolean  @default(false)
+  category    Category @relation(...)
   threads     Thread[]
-
-  @@index([parentId])
-  @@index([sortOrder])
 }
 
 model Thread {
-  id              String   @id @default(cuid())
-  categoryId      String
-  authorId        String
-  title           String
-  slug            String   @unique
-  isPinned        Boolean  @default(false)
-  isLocked        Boolean  @default(false)
-  isDeleted       Boolean  @default(false)
-  replyCount      Int      @default(0)
-  viewCount       Int      @default(0)
-  lastActivityAt  DateTime @default(now())
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  category        Category @relation(fields: [categoryId], references: [id])
-  author          User     @relation(fields: [authorId], references: [id])
-  posts           Post[]
-  tags            Tag[]
-
-  @@index([categoryId, lastActivityAt])
-  @@index([authorId])
-  @@index([isDeleted, isPinned])
+  id             String   @id @default(cuid())
+  forumId        String
+  authorId       String
+  title          String
+  slug           String   @unique
+  isPinned       Boolean  @default(false)
+  isLocked       Boolean  @default(false)
+  isDeleted      Boolean  @default(false)
+  replyCount     Int      @default(0)
+  viewCount      Int      @default(0)
+  lastActivityAt DateTime @default(now())
+  // GIN index on to_tsvector('english', title)
 }
 
 model Post {
-  id          String   @id @default(cuid())
-  threadId    String
-  authorId    String
-  parentId    String?
-  content     String
-  isDeleted   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String  @id @default(cuid())
+  threadId  String
+  authorId  String
+  parentId  String? // max nesting depth: 3 levels enforced in post.create
+  content   String
+  isDeleted Boolean @default(false)
+  // GIN index on to_tsvector('english', content)
+}
 
-  thread      Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  author      User     @relation(fields: [authorId], references: [id])
-  parent      Post?    @relation("PostReplies", fields: [parentId], references: [id])
-  replies     Post[]   @relation("PostReplies")
-
-  @@index([threadId, createdAt])
-  @@index([parentId])
-  @@index([authorId])
+model Reaction {
+  id       String  @id @default(cuid())
+  userId   String
+  postId   String?
+  threadId String?
+  emoji    String  // enum: LIKE | HELPFUL | LAUGH | INSIGHTFUL
+  @@unique([userId, postId])
+  @@unique([userId, threadId])
 }
 
 model Tag {
@@ -140,39 +140,18 @@ model Tag {
 }
 
 model Report {
-  id          String       @id @default(cuid())
-  reporterId  String
-  postId      String?
-  threadId    String?
-  reason      ReportReason
-  note        String?
-  status      ReportStatus @default(OPEN)
-  createdAt   DateTime     @default(now())
-  resolvedAt  DateTime?
-
-  reporter    User         @relation(fields: [reporterId], references: [id])
-
-  @@index([status, createdAt])
-  @@index([postId])
-  @@index([threadId])
-}
-
-enum ReportReason {
-  SPAM
-  HARASSMENT
-  OFF_TOPIC
-  DUPLICATE
-  OTHER
-}
-
-enum ReportStatus {
-  OPEN
-  RESOLVED
-  DISMISSED
+  id         String       @id @default(cuid())
+  reporterId String
+  postId     String?
+  threadId   String?
+  reason     ReportReason
+  status     ReportStatus @default(OPEN)
+  @@unique([reporterId, postId])
+  @@unique([reporterId, threadId])
 }
 
 model ModerationLog {
-  id           String   @id @default(cuid())
+  id           String  @id @default(cuid())
   moderatorId  String
   targetUserId String?
   postId       String?
@@ -180,11 +159,6 @@ model ModerationLog {
   action       String
   reason       String?
   metadata     Json?
-  createdAt    DateTime @default(now())
-
-  @@index([moderatorId])
-  @@index([targetUserId])
-  @@index([createdAt])
 }
 ```
 
@@ -205,9 +179,11 @@ Seed should create:
 - 1 admin
 - 1 moderator
 - 5 members
-- 5 categories
-- 20 threads
-- 60 replies
+- 1+ sections
+- 2+ categories per section
+- 2+ forums per category
+- 20+ threads spread across forums
+- 60+ replies
 - sample reports
 
 ## Data Safety Rules

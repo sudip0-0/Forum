@@ -1,37 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/server/auth/config";
-import { appRouter } from "@/server/api/root";
-import { db } from "@/server/db/prisma";
-import type { TrpcContext } from "@/server/api/trpc";
-
-async function createCaller() {
-  const session = await auth();
-  const ctx: TrpcContext = session?.user
-    ? {
-        db,
-        session: {
-          user: {
-            id: session.user.id,
-            email: session.user.email ?? "",
-            name: session.user.name ?? null,
-            role: session.user.role,
-          },
-          expires: session.expires,
-        },
-      }
-    : { db, session: null };
-  return appRouter.createCaller(ctx);
-}
+import { makeServerCaller } from "@/server/api/caller";
 
 export async function resolveReport(input: {
   reportId: string;
-  action: "DISMISS" | "SOFT_DELETE_POST" | "SOFT_DELETE_THREAD" | "LOCK_THREAD";
+  action: "DISMISS" | "SOFT_DELETE_POST" | "SOFT_DELETE_THREAD" | "RESTORE_POST" | "RESTORE_THREAD" | "LOCK_THREAD" | "UNLOCK_THREAD" | "PIN_THREAD" | "UNPIN_THREAD";
   reason: string;
 }) {
   try {
-    const caller = await createCaller();
+    const caller = await makeServerCaller();
     await caller.moderation.resolve(input);
     revalidatePath("/admin/mod");
     return { success: true };
@@ -46,7 +24,7 @@ export async function runThreadAction(input: {
   reason: string;
 }) {
   try {
-    const caller = await createCaller();
+    const caller = await makeServerCaller();
     await caller.moderation.threadAction(input);
     revalidatePath("/admin/threads");
     return { success: true };
@@ -57,7 +35,7 @@ export async function runThreadAction(input: {
 
 export async function moveThread(input: { threadId: string; forumId: string; reason: string }) {
   try {
-    const caller = await createCaller();
+    const caller = await makeServerCaller();
     await caller.moderation.moveThread(input);
     revalidatePath("/admin/threads");
     return { success: true };
