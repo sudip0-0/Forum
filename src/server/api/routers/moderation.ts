@@ -66,6 +66,13 @@ const suspendUserSchema = z.object({
   reason: z.string().min(3).max(1000),
 });
 
+const listThreadsSchema = z.object({
+  q: z.string().max(100).optional(),
+  forumId: z.string().optional(),
+  status: z.enum(["all", "locked", "pinned"]).default("all"),
+  limit: z.number().min(1).max(100).default(50),
+});
+
 export const moderationRouter = router({
   report: protectedProcedure
     .input(reportSchema)
@@ -344,6 +351,26 @@ export const moderationRouter = router({
       }
 
       return { users, nextCursor };
+    }),
+
+  listThreads: roleProcedure(["MODERATOR", "ADMIN"])
+    .input(listThreadsSchema)
+    .query(async ({ ctx, input }) => {
+      return ctx.db.thread.findMany({
+        where: {
+          isDeleted: false,
+          ...(input.forumId ? { forumId: input.forumId } : {}),
+          ...(input.status === "locked" ? { isLocked: true } : {}),
+          ...(input.status === "pinned" ? { isPinned: true } : {}),
+          ...(input.q ? { title: { contains: input.q, mode: "insensitive" } } : {}),
+        },
+        orderBy: { lastActivityAt: "desc" },
+        take: input.limit,
+        include: {
+          author: { select: { username: true, displayName: true } },
+          forum: { select: { id: true, name: true, slug: true } },
+        },
+      });
     }),
 
   changeRole: roleProcedure(["ADMIN"])

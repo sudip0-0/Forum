@@ -42,6 +42,7 @@ export default async function AdminPage() {
           <Link href="/admin/structure" className="rounded-md border px-3 py-2 text-sm">Manage Structure</Link>
           <Link href="/admin/categories" className="rounded-md border px-3 py-2 text-sm">Manage Categories</Link>
           <Link href="/admin/mod" className="rounded-md border px-3 py-2 text-sm">Moderation Queue</Link>
+          <Link href="/admin/threads" className="rounded-md border px-3 py-2 text-sm">Thread Management</Link>
           <Link href="/admin/users" className="rounded-md border px-3 py-2 text-sm">Manage Users</Link>
         </div>
         <SignOutButton />

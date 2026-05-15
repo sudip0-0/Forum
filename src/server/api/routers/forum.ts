@@ -16,6 +16,9 @@ const createSchema = z.object({
 });
 
 const updateSchema = createSchema.partial().extend({ id: z.string().min(1) });
+const reorderSchema = z.object({
+  items: z.array(z.object({ id: z.string().min(1), sortOrder: z.number().int().min(0) })).min(1),
+});
 
 export const forumRouter = router({
   getBySlug: publicProcedure.input(z.object({ slug: z.string().min(1) })).query(async ({ ctx, input }) => {
@@ -35,6 +38,13 @@ export const forumRouter = router({
     ctx.db.forum.findMany({
       orderBy: { sortOrder: "asc" },
       include: { category: { select: { id: true, name: true } } },
+    }),
+  ),
+
+  listForModeration: roleProcedure(["MODERATOR", "ADMIN"]).query(({ ctx }) =>
+    ctx.db.forum.findMany({
+      orderBy: { sortOrder: "asc" },
+      select: { id: true, name: true, slug: true },
     }),
   ),
 
@@ -60,5 +70,14 @@ export const forumRouter = router({
         sortOrder: input.sortOrder,
       },
     });
+  }),
+
+  reorder: roleProcedure(["ADMIN"]).input(reorderSchema).mutation(async ({ ctx, input }) => {
+    await ctx.db.$transaction(
+      input.items.map((item) =>
+        ctx.db.forum.update({ where: { id: item.id }, data: { sortOrder: item.sortOrder } }),
+      ),
+    );
+    return { success: true };
   }),
 });

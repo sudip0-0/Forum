@@ -15,6 +15,9 @@ const createSchema = z.object({
 });
 
 const updateSchema = createSchema.partial().extend({ id: z.string().min(1) });
+const reorderSchema = z.object({
+  items: z.array(z.object({ id: z.string().min(1), sortOrder: z.number().int().min(0) })).min(1),
+});
 
 export const sectionRouter = router({
   listPublicTree: publicProcedure.query(({ ctx }) =>
@@ -37,7 +40,15 @@ export const sectionRouter = router({
   ),
 
   listAll: roleProcedure(["ADMIN"]).query(({ ctx }) =>
-    ctx.db.section.findMany({ orderBy: { sortOrder: "asc" } }),
+    ctx.db.section.findMany({
+      orderBy: { sortOrder: "asc" },
+      include: {
+        categories: {
+          orderBy: { sortOrder: "asc" },
+          include: { forums: { orderBy: { sortOrder: "asc" } } },
+        },
+      },
+    }),
   ),
 
   create: roleProcedure(["ADMIN"]).input(createSchema).mutation(async ({ ctx, input }) => {
@@ -61,5 +72,14 @@ export const sectionRouter = router({
         sortOrder: input.sortOrder,
       },
     });
+  }),
+
+  reorder: roleProcedure(["ADMIN"]).input(reorderSchema).mutation(async ({ ctx, input }) => {
+    await ctx.db.$transaction(
+      input.items.map((item) =>
+        ctx.db.section.update({ where: { id: item.id }, data: { sortOrder: item.sortOrder } }),
+      ),
+    );
+    return { success: true };
   }),
 });

@@ -39,3 +39,29 @@ export async function resolveReport(input: {
     return { error: (e as { message?: string }).message ?? "Failed to resolve report." };
   }
 }
+
+export async function runThreadAction(input: {
+  threadId: string;
+  action: "LOCK" | "UNLOCK" | "PIN" | "UNPIN";
+  reason: string;
+}) {
+  try {
+    const caller = await createCaller();
+    await caller.moderation.threadAction(input);
+    revalidatePath("/admin/threads");
+    return { success: true };
+  } catch (e: unknown) {
+    return { error: (e as { message?: string }).message ?? "Failed to update thread." };
+  }
+}
+
+export async function moveThread(input: { threadId: string; forumId: string; reason: string }) {
+  try {
+    const caller = await createCaller();
+    await caller.moderation.moveThread(input);
+    revalidatePath("/admin/threads");
+    return { success: true };
+  } catch (e: unknown) {
+    return { error: (e as { message?: string }).message ?? "Failed to move thread." };
+  }
+}

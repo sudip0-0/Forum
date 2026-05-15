@@ -6,6 +6,8 @@ import { db } from "@/server/db/prisma";
 import { ReportForm } from "@/components/forum/report-form";
 import { ReactionButtons } from "@/components/forum/reaction-buttons";
 import { ThreadConversation } from "./client";
+import { ThreadModerationControls } from "@/components/forum/thread-moderation-controls";
+import { isModeratorOrAbove } from "@/server/auth/permissions";
 
 export async function generateMetadata({ params }: { params: Promise<{ categorySlug: string; threadSlug: string }> }): Promise<Metadata> {
   const { threadSlug } = await params;
@@ -38,6 +40,8 @@ export default async function ThreadDetailPage({ params }: { params: Promise<{ c
   const { posts } = await caller.post.listByThread({ threadId: thread.id, limit: 100 });
   const canReply = !!session?.user && !thread.isLocked;
   const isLoggedIn = !!session?.user;
+  const canModerate = isModeratorOrAbove(session?.user?.role);
+  const moderationForums = canModerate ? await caller.forum.listForModeration() : [];
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
@@ -55,6 +59,15 @@ export default async function ThreadDetailPage({ params }: { params: Promise<{ c
         <ReactionButtons targetId={thread.id} targetType="thread" reactions={thread.reactions} currentUserId={session?.user?.id} />
       </div>
       {thread.tags.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{thread.tags.map((tag) => <span key={tag.id} className="rounded bg-muted px-2 py-0.5 text-xs">#{tag.name}</span>)}</div>}
+      {canModerate && (
+        <ThreadModerationControls
+          threadId={thread.id}
+          isLocked={thread.isLocked}
+          isPinned={thread.isPinned}
+          currentForumId={thread.forum.id}
+          forums={moderationForums}
+        />
+      )}
       <ThreadConversation
         posts={posts}
         threadId={thread.id}
