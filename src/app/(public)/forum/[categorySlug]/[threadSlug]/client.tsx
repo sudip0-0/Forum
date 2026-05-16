@@ -7,6 +7,9 @@ import { Markdown } from "@/components/forum/markdown";
 import { MarkdownEditor } from "@/components/forum/markdown-editor";
 import { ReactionButtons } from "@/components/forum/reaction-buttons";
 import { ReportForm } from "@/components/forum/report-form";
+import { useHighlight } from "@/components/forum/thread-highlight-provider";
+import { highlightPostContent } from "@/lib/thread-highlight";
+import { HighlightedText } from "@/components/forum/highlighted-text";
 import { createReply, deleteOwnReply, deleteOwnThread, updateOwnReply, updateOwnThread } from "./actions";
 import { MessageSquare, Pencil, Reply, Trash2 } from "lucide-react";
 
@@ -78,6 +81,7 @@ export function ThreadConversation({
 }) {
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const [replyTarget, setReplyTarget] = useState<PostItem | null>(null);
+  const { highlightParam } = useHighlight();
 
   function replyTo(post: PostItem) {
     setReplyTarget(post);
@@ -160,7 +164,11 @@ export function ThreadConversation({
                 )}
 
                 <div className="mt-4 flex-1 text-sm leading-relaxed prose prose-sm max-w-none">
-                  <Markdown content={post.content} />
+                  {highlightParam ? (
+                    <HighlightedText segments={highlightPostContent(post.content, highlightParam)} />
+                  ) : (
+                    <Markdown content={post.content} />
+                  )}
                 </div>
 
                 <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">

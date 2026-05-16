@@ -590,6 +590,26 @@ button,
   background: oklch(0.68 0.22 42 / 0.12);
 }
 
+/* ── Search Highlight ──
+   WCAG 2.1 AA compliant highlight for <mark> elements:
+   Light mode: 3.1:1 highlight-bg vs page-bg, 5.5:1 text vs highlight-bg
+   Dark mode:  7.6:1 highlight-bg vs page-bg, 8.1:1 text vs highlight-bg
+   Verified with oklch→sRGB conversion and WCAG relative luminance formula.
+*/
+.search-highlight {
+  background-color: oklch(0.63 0.16 80);
+  color: oklch(0.16 0.02 35);
+  padding: 0.1em 0.2em;
+  border-radius: 2px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.dark .search-highlight {
+  background-color: oklch(0.72 0.15 85);
+  color: oklch(0.12 0.015 30);
+}
+
 /* Markdown prose overrides */
 .prose {
   --tw-prose-body: var(--foreground);

@@ -11,8 +11,8 @@ describe("Markdown component XSS sanitization", () => {
   it("does not render script tags as HTML elements", () => {
     const html = render('<script>alert("xss")</script>');
     expect(html).not.toContain("<script");
-    // Content is escaped as text, which is safe
-    expect(html).toContain("&lt;script&gt;");
+    // Script tag and its content are stripped entirely by sanitization
+    expect(html).not.toContain("alert");
   });
 
   it("does not render iframe tags as HTML elements", () => {

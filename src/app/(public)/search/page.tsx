@@ -3,7 +3,10 @@ import Link from "next/link";
 import { appRouter } from "@/server/api/root";
 import { db } from "@/server/db/prisma";
 import { createMetadata } from "@/lib/seo";
+import { highlightSnippet } from "@/lib/highlight";
+import { buildSearchResultLink } from "@/lib/search-link";
 import { TagPill } from "@/components/forum/tag-pill";
+import { HighlightedText } from "@/components/forum/highlighted-text";
 import { Search, SlidersHorizontal, X, ArrowRight, Calendar } from "lucide-react";
 
 export const metadata: Metadata = createMetadata({
@@ -37,6 +40,7 @@ export default async function SearchPage({
     id: string; title: string; slug: string; createdAt: string;
     authorUsername: string; authorDisplayName: string | null;
     forumSlug: string; forumName: string; tags: { id: string; name: string; slug: string }[]; snippet: string;
+    matchedPostId: string;
   };
   let results: ResultRow[] = [];
   let searchError: string | null = null;
@@ -212,7 +216,7 @@ export default async function SearchPage({
                     <div key={r.id} className="row-dense">
                       <div className="flex-1 min-w-0">
                         <Link
-                          href={`/forum/${r.forumSlug}/${r.slug}`}
+                          href={buildSearchResultLink({ forumSlug: r.forumSlug, threadSlug: r.slug, query: q, matchedPostId: r.matchedPostId })}
                           className="text-sm font-semibold hover:text-link hover:no-underline leading-snug"
                         >
                           {r.title}
@@ -226,7 +230,7 @@ export default async function SearchPage({
                         </div>
                         {r.snippet && (
                           <p className="mt-1 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                            {r.snippet.slice(0, 200)}
+                            <HighlightedText segments={highlightSnippet(r.snippet, q)} />
                           </p>
                         )}
                         {r.tags.length > 0 && (

@@ -97,6 +97,7 @@ export const searchRouter = router({
         forumName: string;
         tags: { id: string; name: string; slug: string }[];
         snippet: string;
+        matchedPostId: string;
       }[]
     >(
       `WITH matched AS (
@@ -133,10 +134,26 @@ export const searchRouter = router({
            WHERE tt."B" = m.id), '[]'::json
         ) AS tags,
         COALESCE(
-          (SELECT LEFT(p2.content, 200)
-           FROM "Post" p2
+          (SELECT p2.id FROM "Post" p2
            WHERE p2."threadId" = m.id AND p2."isDeleted" = false
-           ORDER BY p2."createdAt" ASC LIMIT 1), ''
+             AND to_tsvector('english', p2.content) @@ websearch_to_tsquery('english', $1)
+           ORDER BY p2."createdAt" ASC LIMIT 1),
+          (SELECT p2.id FROM "Post" p2
+           WHERE p2."threadId" = m.id AND p2."isDeleted" = false
+           ORDER BY p2."createdAt" ASC LIMIT 1)
+        ) AS "matchedPostId",
+        COALESCE(
+          (SELECT LEFT(p2.content, 200) FROM "Post" p2
+           WHERE p2.id = COALESCE(
+             (SELECT p3.id FROM "Post" p3
+              WHERE p3."threadId" = m.id AND p3."isDeleted" = false
+                AND to_tsvector('english', p3.content) @@ websearch_to_tsquery('english', $1)
+              ORDER BY p3."createdAt" ASC LIMIT 1),
+             (SELECT p3.id FROM "Post" p3
+              WHERE p3."threadId" = m.id AND p3."isDeleted" = false
+              ORDER BY p3."createdAt" ASC LIMIT 1)
+           ) AND p2."isDeleted" = false),
+          ''
         ) AS snippet
       FROM matched m
       ORDER BY m."createdAt" DESC`,

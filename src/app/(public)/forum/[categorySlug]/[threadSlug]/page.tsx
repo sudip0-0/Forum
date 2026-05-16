@@ -7,6 +7,7 @@ import { createMetadata } from "@/lib/seo";
 import { ReportForm } from "@/components/forum/report-form";
 import { ReactionButtons } from "@/components/forum/reaction-buttons";
 import { ThreadConversation } from "./client";
+import { ThreadHighlightProvider } from "@/components/forum/thread-highlight-provider";
 import { ThreadModerationControls } from "@/components/forum/thread-moderation-controls";
 import { ThreadViewTracker } from "@/components/forum/thread-view-tracker";
 import { Breadcrumbs } from "@/components/navigation/breadcrumbs";
@@ -173,19 +174,21 @@ export default async function ThreadDetailPage({
       )}
 
       {/* ── Conversation ── */}
-      <ThreadConversation
-        posts={posts}
-        threadTitle={thread.title}
-        originalPost={originalPost ? { id: originalPost.id, content: originalPost.content } : null}
-        replyCount={thread.replyCount}
-        threadId={thread.id}
-        categorySlug={forumSlug}
-        threadSlug={threadSlug}
-        currentUserId={session?.user?.id}
-        canReply={canReply}
-        isLoggedIn={isLoggedIn}
-        isThreadOwner={session?.user?.id === thread.author.id}
-      />
+      <ThreadHighlightProvider>
+        <ThreadConversation
+          posts={posts}
+          threadTitle={thread.title}
+          originalPost={originalPost ? { id: originalPost.id, content: originalPost.content } : null}
+          replyCount={thread.replyCount}
+          threadId={thread.id}
+          categorySlug={forumSlug}
+          threadSlug={threadSlug}
+          currentUserId={session?.user?.id}
+          canReply={canReply}
+          isLoggedIn={isLoggedIn}
+          isThreadOwner={session?.user?.id === thread.author.id}
+        />
+      </ThreadHighlightProvider>
 
       {thread.isLocked && (
         <div className="mt-8 rounded-md border-2 border-warning bg-warning/5 px-4 py-3 text-sm text-warning font-medium">
