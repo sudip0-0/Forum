@@ -110,3 +110,22 @@ These areas are high-risk.
 ### Impact
 
 Use `security.md` and the security review prompt before merge.
+
+---
+
+## ADR-006 â€” Search Results and MVP Profile Pages Are Not Index Targets
+
+**Date:** 2026-05-16  
+**Status:** Accepted
+
+### Decision
+
+Keep `/search` and `/u/[username]` publicly accessible, but emit `noindex,follow` metadata for both during MVP.
+
+### Reason
+
+Search pages are parameterized duplicate surfaces, and current profile pages are intentionally lightweight rather than strong landing pages.
+
+### Impact
+
+Do not add search or profile URLs to the sitemap during MVP. Revisit profile indexing only if profiles become richer public content hubs later.

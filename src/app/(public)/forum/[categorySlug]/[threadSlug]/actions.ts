@@ -12,6 +12,10 @@ function friendlyActionError(error: unknown, fallback: string) {
   if (message.includes("Posting is locked")) return "Posting is currently locked in this forum.";
   if (message.includes("Invalid parent post")) return "The message you replied to is no longer available.";
   if (message.includes("Maximum reply depth")) return "Replies cannot be nested more than 3 levels deep.";
+  if (message.includes("only edit your own")) return "You do not have permission to edit this content.";
+  if (message.includes("only delete your own")) return "You do not have permission to delete this content.";
+  if (message.includes("Threads with replies")) return "Threads with replies cannot be deleted by their author.";
+  if (message.includes("not found")) return "This content is no longer available.";
   return fallback;
 }
 
@@ -62,5 +66,66 @@ export async function reportContent(
     return { success: true };
   } catch (e: unknown) {
     return { error: friendlyActionError(e, "We could not submit your report. Please try again.") };
+  }
+}
+
+export async function updateOwnThread(
+  categorySlug: string,
+  threadSlug: string,
+  input: { threadId: string; title: string; content: string },
+) {
+  try {
+    const caller = await makeServerCaller();
+    await caller.thread.updateOwn(input);
+    revalidatePath(`/forum/${categorySlug}/${threadSlug}`);
+    return { success: true };
+  } catch (e: unknown) {
+    return { error: friendlyActionError(e, "We could not update your thread. Please try again.") };
+  }
+}
+
+export async function deleteOwnThread(
+  categorySlug: string,
+  threadSlug: string,
+  input: { threadId: string },
+) {
+  try {
+    const caller = await makeServerCaller();
+    await caller.thread.deleteOwn(input);
+    revalidatePath(`/forum/${categorySlug}/${threadSlug}`);
+    revalidatePath(`/forum/${categorySlug}`);
+    return { success: true };
+  } catch (e: unknown) {
+    return { error: friendlyActionError(e, "We could not delete your thread. Please try again.") };
+  }
+}
+
+export async function updateOwnReply(
+  categorySlug: string,
+  threadSlug: string,
+  input: { postId: string; content: string },
+) {
+  try {
+    const caller = await makeServerCaller();
+    await caller.post.updateOwn(input);
+    revalidatePath(`/forum/${categorySlug}/${threadSlug}`);
+    return { success: true };
+  } catch (e: unknown) {
+    return { error: friendlyActionError(e, "We could not update your reply. Please try again.") };
+  }
+}
+
+export async function deleteOwnReply(
+  categorySlug: string,
+  threadSlug: string,
+  input: { postId: string },
+) {
+  try {
+    const caller = await makeServerCaller();
+    await caller.post.deleteOwn(input);
+    revalidatePath(`/forum/${categorySlug}/${threadSlug}`);
+    return { success: true };
+  } catch (e: unknown) {
+    return { error: friendlyActionError(e, "We could not delete your reply. Please try again.") };
   }
 }

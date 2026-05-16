@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/server/db/prisma";
 import { appRouter } from "@/server/api/root";
+import { createMetadata } from "@/lib/seo";
 import { Breadcrumbs } from "@/components/navigation/breadcrumbs";
 import { TagPill } from "@/components/forum/tag-pill";
 import { MessageSquare, ArrowRight } from "lucide-react";
@@ -73,7 +74,7 @@ export default async function CategoryPage({
         </div>
       )}
 
-      {threads.length > 0 && (
+      {threads.length > 0 ? (
         <div>
           <div className="section-panel-header rounded-t-md text-xs text-muted-foreground uppercase tracking-wider font-semibold">
             Recent Threads
@@ -111,7 +112,28 @@ export default async function CategoryPage({
             </div>
           </div>
         </div>
-      )}
+      ) : category.forums.length > 0 ? (
+        <div>
+          <div className="section-panel-header rounded-t-md text-xs text-muted-foreground uppercase tracking-wider font-semibold">
+            Recent Threads
+          </div>
+          <div className="empty-state rounded-t-none border-t-0">
+            <div className="empty-state-icon">
+              <MessageSquare className="h-10 w-10" />
+            </div>
+            <p className="empty-state-title">No recent threads yet</p>
+            <p className="empty-state-text">
+              Open a forum in this category to start the first discussion.
+            </p>
+            <Link
+              href={`/forum/${category.forums[0].slug}`}
+              className="mt-4 inline-flex items-center gap-1.5 rounded-md border-2 border-border bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[2px_2px_0px_var(--border)] hover:no-underline"
+            >
+              Browse {category.forums[0].name}
+            </Link>
+          </div>
+        </div>
+      ) : null}
 
       {threads.length === 0 && category.forums.length === 0 && (
         <div className="empty-state">
@@ -137,8 +159,17 @@ export async function generateMetadata({
   const caller = appRouter.createCaller({ db, session: null });
   try {
     const category = await caller.category.getBySlug({ slug: categorySlug });
-    return { title: `${category.name} - Forums` };
+    return createMetadata({
+      title: `${category.name} - Forums`,
+      description: category.description ?? `Browse public forums and recent threads in ${category.name}.`,
+      path: `/category/${category.slug}`,
+    });
   } catch {
-    return { title: "Category not found" };
+    return createMetadata({
+      title: "Category not found",
+      description: "This category could not be found.",
+      path: `/category/${categorySlug}`,
+      index: false,
+    });
   }
 }

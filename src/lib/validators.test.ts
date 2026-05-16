@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { registerSchema, loginSchema } from "@/lib/validators";
+import {
+  emailOnlySchema,
+  loginSchema,
+  registerSchema,
+  resetPasswordSchema,
+} from "@/lib/validators";
 
 describe("registerSchema", () => {
   it("accepts valid registration input", () => {
@@ -81,5 +86,18 @@ describe("loginSchema", () => {
       password: "password",
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("emailOnlySchema", () => {
+  it("accepts a valid email", () => {
+    expect(emailOnlySchema.safeParse({ email: "test@example.com" }).success).toBe(true);
+  });
+});
+
+describe("resetPasswordSchema", () => {
+  it("reuses password length validation", () => {
+    expect(resetPasswordSchema.safeParse({ token: "token", password: "password123" }).success).toBe(true);
+    expect(resetPasswordSchema.safeParse({ token: "token", password: "short" }).success).toBe(false);
   });
 });

@@ -1,13 +1,18 @@
 import type { MetadataRoute } from "next";
 import { db } from "@/server/db/prisma";
+import { getSiteUrl } from "@/lib/seo";
 
 export const revalidate = 3600;
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const baseUrl = getSiteUrl();
 
   const entries: MetadataRoute.Sitemap = [
+    {
+      url: `${baseUrl}/`,
+      lastModified: new Date(),
+    },
     {
       url: `${baseUrl}/forums`,
       lastModified: new Date(),

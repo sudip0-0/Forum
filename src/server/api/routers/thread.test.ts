@@ -59,6 +59,7 @@ describe("thread router", () => {
     const thread = { id: "thread-1", slug: "my-thread" };
     const tx = { thread: { create: vi.fn().mockResolvedValue(thread) }, post: { create: vi.fn() } };
     const db = {
+      user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
       forum: { findUnique: vi.fn().mockResolvedValue(publicForum) },
       thread: { findUnique: vi.fn().mockResolvedValue(null) },
       $transaction: vi.fn().mockImplementation((fn) => fn(tx)),
@@ -76,6 +77,7 @@ describe("thread router", () => {
 
   it("rejects locked forums", async () => {
     const db = {
+      user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
       forum: { findUnique: vi.fn().mockResolvedValue({ ...publicForum, isLocked: true }) },
       thread: { findUnique: vi.fn() },
     };
@@ -87,6 +89,7 @@ describe("thread router", () => {
 
   it("rejects thread creation beneath a locked parent section", async () => {
     const db = {
+      user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
       forum: {
         findUnique: vi.fn().mockResolvedValue({
           ...publicForum,
@@ -111,6 +114,18 @@ describe("thread router", () => {
       thread: { findUnique: vi.fn() },
     };
     const caller = createCaller({ db: db as never, session: suspendedSession });
+    await expect(
+      caller.thread.create({ forumId: "forum-1", title: "My Thread", content: "Some content here." }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("rejects thread creation by unverified user", async () => {
+    const db = {
+      user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: null }) },
+      forum: { findUnique: vi.fn() },
+      thread: { findUnique: vi.fn() },
+    };
+    const caller = createCaller({ db: db as never, session: memberSession });
     await expect(
       caller.thread.create({ forumId: "forum-1", title: "My Thread", content: "Some content here." }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
@@ -237,6 +252,78 @@ describe("thread router", () => {
       };
       const caller = createCaller({ db: db as never, session: null });
       await expect(caller.thread.incrementView({ id: "nope" })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    });
+  });
+
+  describe("updateOwn", () => {
+    it("lets the owner edit thread title and body", async () => {
+      const db = {
+        thread: {
+          findUnique: vi.fn().mockResolvedValue({ id: "thread-1", authorId: "member-1", isDeleted: false, forum: publicForum }),
+          update: vi.fn(),
+        },
+        post: {
+          findFirst: vi.fn().mockResolvedValue({ id: "post-1", isDeleted: false }),
+          update: vi.fn(),
+        },
+        $transaction: vi.fn().mockResolvedValue([]),
+      };
+      const caller = createCaller({ db: db as never, session: memberSession });
+      await expect(caller.thread.updateOwn({
+        threadId: "thread-1",
+        title: "Updated title",
+        content: "Updated original thread body.",
+      })).resolves.toEqual({ success: true });
+      expect(db.thread.update).toHaveBeenCalled();
+      expect(db.post.update).toHaveBeenCalled();
+    });
+
+    it("rejects thread edits by non-owners", async () => {
+      const db = { thread: { findUnique: vi.fn().mockResolvedValue({ id: "thread-1", authorId: "other", isDeleted: false, forum: publicForum }) } };
+      const caller = createCaller({ db: db as never, session: memberSession });
+      await expect(caller.thread.updateOwn({ threadId: "thread-1", title: "Updated title", content: "Updated body text." })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+
+    it("rejects thread edits by suspended users", async () => {
+      const caller = createCaller({ db: {} as never, session: { ...memberSession, user: { ...memberSession.user, isSuspended: true } } });
+      await expect(caller.thread.updateOwn({ threadId: "thread-1", title: "Updated title", content: "Updated body text." })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+
+    it("rejects edits to deleted threads", async () => {
+      const db = { thread: { findUnique: vi.fn().mockResolvedValue({ id: "thread-1", authorId: "member-1", isDeleted: true, forum: publicForum }) } };
+      const caller = createCaller({ db: db as never, session: memberSession });
+      await expect(caller.thread.updateOwn({ threadId: "thread-1", title: "Updated title", content: "Updated body text." })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    });
+
+    it("validates thread edit input", async () => {
+      const caller = createCaller({ db: {} as never, session: memberSession });
+      await expect(caller.thread.updateOwn({ threadId: "thread-1", title: "No", content: "short" })).rejects.toThrow();
+    });
+  });
+
+  describe("deleteOwn", () => {
+    it("lets the owner delete a zero-reply thread", async () => {
+      const db = {
+        thread: {
+          findUnique: vi.fn().mockResolvedValue({ id: "thread-1", authorId: "member-1", isDeleted: false, replyCount: 0, forum: publicForum }),
+          update: vi.fn(),
+        },
+      };
+      const caller = createCaller({ db: db as never, session: memberSession });
+      await expect(caller.thread.deleteOwn({ threadId: "thread-1" })).resolves.toEqual({ success: true });
+      expect(db.thread.update).toHaveBeenCalledWith(expect.objectContaining({ data: { isDeleted: true } }));
+    });
+
+    it("blocks author deletion when a thread has replies", async () => {
+      const db = { thread: { findUnique: vi.fn().mockResolvedValue({ id: "thread-1", authorId: "member-1", isDeleted: false, replyCount: 1, forum: publicForum }) } };
+      const caller = createCaller({ db: db as never, session: memberSession });
+      await expect(caller.thread.deleteOwn({ threadId: "thread-1" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    });
+
+    it("rejects thread deletion by non-owners", async () => {
+      const db = { thread: { findUnique: vi.fn().mockResolvedValue({ id: "thread-1", authorId: "other", isDeleted: false, replyCount: 0, forum: publicForum }) } };
+      const caller = createCaller({ db: db as never, session: memberSession });
+      await expect(caller.thread.deleteOwn({ threadId: "thread-1" })).rejects.toMatchObject({ code: "FORBIDDEN" });
     });
   });
 });

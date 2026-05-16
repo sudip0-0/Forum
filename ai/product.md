@@ -38,7 +38,8 @@ The MVP includes only what is needed for a usable forum.
 - Email/password registration
 - Login/logout
 - Password hashing
-- Email verification can be stubbed in local development
+- Real email verification
+- Password reset
 - Basic profile page
 - Roles: guest, member, moderator, admin
 

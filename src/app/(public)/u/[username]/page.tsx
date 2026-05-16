@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { appRouter } from "@/server/api/root";
 import { auth } from "@/server/auth/config";
 import { db } from "@/server/db/prisma";
+import { createMetadata } from "@/lib/seo";
 import { ProfileEditForm } from "./client";
 import { Calendar, MessageSquare } from "lucide-react";
 
@@ -18,12 +19,19 @@ export async function generateMetadata({
   try {
     const profile = await caller.user.getPublicProfile({ username });
     const description = profile.bio ?? `${profile.displayName ?? profile.username}'s profile`;
-    return {
+    return createMetadata({
       title: profile.displayName ?? profile.username,
       description,
-    };
+      path: `/u/${profile.username}`,
+      index: false,
+    });
   } catch {
-    return { title: "Profile" };
+    return createMetadata({
+      title: "Profile",
+      description: "Public forum profile.",
+      path: `/u/${username}`,
+      index: false,
+    });
   }
 }
 
@@ -114,9 +122,17 @@ export default async function UserProfilePage({
               <p className="empty-state-title">No threads yet</p>
               <p className="empty-state-text">
                 {isOwner
-                  ? "You haven&apos;t created any threads yet."
-                  : "This user hasn&apos;t created any threads yet."}
+                  ? "No public threads yet. Browse a forum when you are ready to start one."
+                  : "No public threads yet."}
               </p>
+              {isOwner && (
+                <Link
+                  href="/forums"
+                  className="mt-4 inline-flex items-center rounded-md border-2 border-border bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[2px_2px_0px_var(--border)] hover:no-underline"
+                >
+                  Browse forums
+                </Link>
+              )}
             </div>
           ) : (
             <div className="divide-y divide-border">

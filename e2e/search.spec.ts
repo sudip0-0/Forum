@@ -26,5 +26,6 @@ test.describe("Search with filters", () => {
   test("no results message shown", async ({ page }) => {
     await page.goto("/search?q=xylophonezzzzzzzzzzzzz");
     await expect(page.locator("body")).toContainText("No results found", { timeout: 10000 });
+    await expect(page.locator("body")).toContainText("Try fewer words, check spelling, or browse forums instead.");
   });
 });

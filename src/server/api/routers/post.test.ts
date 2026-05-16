@@ -43,7 +43,7 @@ describe("post router", () => {
     it("creates a reply and increments replyCount", async () => {
       const post = { id: "p2", threadId: "t1", content: "Reply", parentId: null };
       const db = {
-        user: { findUnique: vi.fn().mockResolvedValue({ id: "member-1" }) },
+        user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
         thread: { findUnique: vi.fn().mockResolvedValue({ id: "t1", isDeleted: false, isLocked: false, forum: visibleForum }), update: vi.fn() },
         post: { create: vi.fn().mockResolvedValue(post) },
       };
@@ -59,7 +59,7 @@ describe("post router", () => {
 
     it("rejects when thread is locked", async () => {
       const db = {
-        user: { findUnique: vi.fn().mockResolvedValue({ id: "member-1" }) },
+        user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
         thread: { findUnique: vi.fn().mockResolvedValue({ id: "t1", isDeleted: false, isLocked: true, forum: visibleForum }), update: vi.fn() },
         post: { create: vi.fn() },
       };
@@ -70,7 +70,7 @@ describe("post router", () => {
 
     it("rejects when thread not found", async () => {
       const db = {
-        user: { findUnique: vi.fn().mockResolvedValue({ id: "member-1" }) },
+        user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
         thread: { findUnique: vi.fn().mockResolvedValue(null), update: vi.fn() },
         post: { create: vi.fn() },
       };
@@ -81,7 +81,7 @@ describe("post router", () => {
 
     it("rejects when thread is deleted", async () => {
       const db = {
-        user: { findUnique: vi.fn().mockResolvedValue({ id: "member-1" }) },
+        user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
         thread: { findUnique: vi.fn().mockResolvedValue({ id: "t1", isDeleted: true, isLocked: false, forum: visibleForum }), update: vi.fn() },
         post: { create: vi.fn() },
       };
@@ -92,7 +92,7 @@ describe("post router", () => {
 
     it("rejects guest (UNAUTHORIZED)", async () => {
       const db = {
-        user: { findUnique: vi.fn().mockResolvedValue({ id: "member-1" }) },
+        user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
         thread: { findUnique: vi.fn(), update: vi.fn() },
         post: { create: vi.fn() },
       };
@@ -104,7 +104,7 @@ describe("post router", () => {
     it("allows replies that reference earlier messages without nesting limits", async () => {
       const post = { id: "p-new", threadId: "t1", content: "Reply", parentId: "p2" };
       const db = {
-        user: { findUnique: vi.fn().mockResolvedValue({ id: "member-1" }) },
+        user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
         thread: { findUnique: vi.fn().mockResolvedValue({ id: "t1", isDeleted: false, isLocked: false, forum: visibleForum }), update: vi.fn() },
         post: {
           create: vi.fn().mockResolvedValue(post),
@@ -119,7 +119,7 @@ describe("post router", () => {
 
     it("rejects empty content", async () => {
       const db = {
-        user: { findUnique: vi.fn().mockResolvedValue({ id: "member-1" }) },
+        user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
         thread: { findUnique: vi.fn(), update: vi.fn() },
         post: { create: vi.fn() },
       };
@@ -130,7 +130,7 @@ describe("post router", () => {
 
     it("rejects replies beneath a locked parent category", async () => {
       const db = {
-        user: { findUnique: vi.fn().mockResolvedValue({ id: "member-1" }) },
+        user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
         thread: {
           findUnique: vi.fn().mockResolvedValue({
             id: "t1",
@@ -160,6 +160,18 @@ describe("post router", () => {
       await expect(caller.post.create({ threadId: "t1", content: "Reply" })).rejects.toMatchObject({ code: "FORBIDDEN" });
     });
 
+    it("rejects reply by unverified user", async () => {
+      const db = {
+        user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: null }) },
+        thread: { findUnique: vi.fn() },
+        post: { create: vi.fn() },
+      };
+      const caller = createCaller({ db: db as never, session: memberSession });
+      await expect(caller.post.create({ threadId: "t1", content: "Reply" })).rejects.toMatchObject({
+        code: "FORBIDDEN",
+      });
+    });
+
     it("rejects stale sessions before attempting to create a reply", async () => {
       const db = {
         user: { findUnique: vi.fn().mockResolvedValue(null) },
@@ -171,6 +183,87 @@ describe("post router", () => {
         code: "UNAUTHORIZED",
       });
       expect(db.post.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("updateOwn", () => {
+    const ownReply = {
+      id: "reply-1",
+      authorId: "member-1",
+      threadId: "t1",
+      isDeleted: false,
+      thread: { id: "t1", ...visibleForum, isDeleted: false, forum: visibleForum },
+    };
+
+    it("lets the owner edit a reply", async () => {
+      const db = {
+        post: {
+          findUnique: vi.fn().mockResolvedValue(ownReply),
+          findFirst: vi.fn().mockResolvedValue({ id: "original" }),
+          update: vi.fn(),
+        },
+      };
+      const caller = createCaller({ db: db as never, session: memberSession });
+      await expect(caller.post.updateOwn({ postId: "reply-1", content: "Edited reply" })).resolves.toEqual({ success: true });
+    });
+
+    it("rejects reply edits by non-owners", async () => {
+      const db = { post: { findUnique: vi.fn().mockResolvedValue({ ...ownReply, authorId: "other" }) } };
+      const caller = createCaller({ db: db as never, session: memberSession });
+      await expect(caller.post.updateOwn({ postId: "reply-1", content: "Edited reply" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+
+    it("rejects reply edits by suspended users", async () => {
+      const caller = createCaller({ db: {} as never, session: { ...memberSession, user: { ...memberSession.user, isSuspended: true } } });
+      await expect(caller.post.updateOwn({ postId: "reply-1", content: "Edited reply" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+
+    it("rejects edits to deleted replies", async () => {
+      const db = { post: { findUnique: vi.fn().mockResolvedValue({ ...ownReply, isDeleted: true }) } };
+      const caller = createCaller({ db: db as never, session: memberSession });
+      await expect(caller.post.updateOwn({ postId: "reply-1", content: "Edited reply" })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    });
+
+    it("validates reply edit content", async () => {
+      const caller = createCaller({ db: {} as never, session: memberSession });
+      await expect(caller.post.updateOwn({ postId: "reply-1", content: "" })).rejects.toThrow();
+    });
+  });
+
+  describe("deleteOwn", () => {
+    const ownReply = {
+      id: "reply-1",
+      authorId: "member-1",
+      threadId: "t1",
+      isDeleted: false,
+      thread: { id: "t1", ...visibleForum, isDeleted: false, forum: visibleForum },
+    };
+
+    it("soft-deletes an owned reply and decrements reply count", async () => {
+      const db = {
+        post: {
+          findUnique: vi.fn().mockResolvedValue(ownReply),
+          findFirst: vi.fn().mockResolvedValue({ id: "original" }),
+          update: vi.fn(),
+        },
+        thread: { update: vi.fn() },
+        $transaction: vi.fn().mockResolvedValue([]),
+      };
+      const caller = createCaller({ db: db as never, session: memberSession });
+      await expect(caller.post.deleteOwn({ postId: "reply-1" })).resolves.toEqual({ success: true });
+      expect(db.post.update).toHaveBeenCalledWith(expect.objectContaining({ data: { isDeleted: true } }));
+      expect(db.thread.update).toHaveBeenCalledWith(expect.objectContaining({ data: { replyCount: { decrement: 1 } } }));
+    });
+
+    it("rejects reply deletion by non-owners", async () => {
+      const db = { post: { findUnique: vi.fn().mockResolvedValue({ ...ownReply, authorId: "other" }) } };
+      const caller = createCaller({ db: db as never, session: memberSession });
+      await expect(caller.post.deleteOwn({ postId: "reply-1" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+
+    it("rejects reply deletion by suspended users", async () => {
+      const caller = createCaller({ db: {} as never, session: { ...memberSession, user: { ...memberSession.user, isSuspended: true } } });
+      await expect(caller.post.deleteOwn({ postId: "reply-1" })).rejects.toMatchObject({ code: "FORBIDDEN" });
     });
   });
 });

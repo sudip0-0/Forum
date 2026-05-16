@@ -22,5 +22,16 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+export const emailOnlySchema = z.object({
+  email: z.string().email("Invalid email address"),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, "Reset link is invalid"),
+  password: registerSchema.shape.password,
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+export type EmailOnlyInput = z.infer<typeof emailOnlySchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;

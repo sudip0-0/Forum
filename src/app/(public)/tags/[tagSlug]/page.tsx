@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/server/db/prisma";
 import { appRouter } from "@/server/api/root";
+import { createMetadata } from "@/lib/seo";
 import { TagPill } from "@/components/forum/tag-pill";
 import { Hash, ArrowLeft } from "lucide-react";
 
@@ -153,5 +154,9 @@ export async function generateMetadata({
   params: Promise<{ tagSlug: string }>;
 }) {
   const { tagSlug } = await params;
-  return { title: `#${tagSlug} - Tag` };
+  return createMetadata({
+    title: `#${tagSlug} - Tag`,
+    description: `Browse public threads tagged with ${tagSlug}.`,
+    path: `/tags/${tagSlug}`,
+  });
 }

@@ -33,6 +33,18 @@ describe("user router", () => {
       expect(result.username).toBe("testuser");
       expect(result).not.toHaveProperty("email");
       expect(result).not.toHaveProperty("passwordHash");
+      expect(db.user.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          select: expect.objectContaining({
+            threads: expect.objectContaining({
+              where: {
+                isDeleted: false,
+                forum: { isPublic: true, category: { isPublic: true, section: { isPublic: true } } },
+              },
+            }),
+          }),
+        }),
+      );
     });
 
     it("returns NOT_FOUND for missing user", async () => {

@@ -38,23 +38,29 @@ export function ThreadModerationControls({
       </summary>
       <div className="space-y-4 p-5">
         <div className="grid gap-3 md:grid-cols-[1fr_220px]">
-          <input
-            className="input rounded-lg border-2 border-border bg-background px-3 py-2 text-sm transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            placeholder="Reason required"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-          />
-          <select
-            className="input rounded-lg border-2 border-border bg-background px-3 py-2 text-sm transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            value={forumId}
-            onChange={(e) => setForumId(e.target.value)}
-          >
-            {forums.map((forum) => (
-              <option key={forum.id} value={forum.id}>
-                {forum.name}
-              </option>
-            ))}
-          </select>
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium">Reason</span>
+            <input
+              className="input w-full rounded-lg border-2 border-border bg-background px-3 py-2 text-sm transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              placeholder="Reason required"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium">Move to forum</span>
+            <select
+              className="input w-full rounded-lg border-2 border-border bg-background px-3 py-2 text-sm transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              value={forumId}
+              onChange={(e) => setForumId(e.target.value)}
+            >
+              {forums.map((forum) => (
+                <option key={forum.id} value={forum.id}>
+                  {forum.name}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button

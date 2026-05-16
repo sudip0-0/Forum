@@ -2,18 +2,23 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { appRouter } from "@/server/api/root";
 import { db } from "@/server/db/prisma";
+import { createMetadata } from "@/lib/seo";
 import { MessageSquare, ChevronRight, Lock, EyeOff } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createMetadata({
   title: "Forums",
-  description: "Browse sections, categories, and discussion forums.",
-};
+  description: "Browse public sections, categories, and discussion forums.",
+  path: "/forums",
+});
 
 export default async function ForumsPage() {
   const caller = appRouter.createCaller({ db, session: null });
   const sections = await caller.section.listPublicTree();
+  const hasForums = sections.some((section) =>
+    section.categories.some((category) => category.forums.length > 0),
+  );
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
@@ -24,6 +29,17 @@ export default async function ForumsPage() {
         </p>
       </div>
 
+      {!hasForums ? (
+        <div className="empty-state">
+          <div className="empty-state-icon">
+            <MessageSquare className="h-10 w-10" />
+          </div>
+          <p className="empty-state-title">No public forums yet</p>
+          <p className="empty-state-text">
+            Public discussion spaces have not been published yet. Check back soon.
+          </p>
+        </div>
+      ) : (
       <div className="space-y-8">
         {sections.map((section) => (
           <section key={section.id}>
@@ -93,6 +109,7 @@ export default async function ForumsPage() {
           </section>
         ))}
       </div>
+      )}
     </div>
   );
 }

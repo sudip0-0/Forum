@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { appRouter } from "@/server/api/root";
 import { auth } from "@/server/auth/config";
 import { db } from "@/server/db/prisma";
+import { createMetadata } from "@/lib/seo";
 import { ReportForm } from "@/components/forum/report-form";
 import { ReactionButtons } from "@/components/forum/reaction-buttons";
 import { ThreadConversation } from "./client";
@@ -14,15 +15,26 @@ import { isModeratorOrAbove } from "@/server/auth/permissions";
 import { Pin, Lock, Eye } from "lucide-react";
 import { ThreadFilters } from "@/components/forum/thread-filters";
 
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata({ params }: { params: Promise<{ categorySlug: string; threadSlug: string }> }): Promise<Metadata> {
-  const { threadSlug } = await params;
+  const { categorySlug, threadSlug } = await params;
   const caller = appRouter.createCaller({ db, session: null });
   try {
     const thread = await caller.thread.getBySlug({ slug: threadSlug });
     const { posts } = await caller.post.listByThread({ threadId: thread.id, limit: 1 });
-    return { title: thread.title, description: posts[0]?.content.slice(0, 160) ?? thread.title };
+    return createMetadata({
+      title: thread.title,
+      description: posts[0]?.content.slice(0, 160) ?? thread.title,
+      path: `/forum/${thread.forum.slug}/${thread.slug}`,
+    });
   } catch {
-    return { title: "Thread" };
+    return createMetadata({
+      title: "Thread",
+      description: "Forum discussion thread.",
+      path: `/forum/${categorySlug}/${threadSlug}`,
+      index: false,
+    });
   }
 }
 
@@ -56,6 +68,12 @@ export default async function ThreadDetailPage({
     sort: sp.postSort ?? "oldest",
     repliesOnly: sp.repliesOnly === "1" || undefined,
   });
+  const { posts: originalPosts } = await caller.post.listByThread({
+    threadId: thread.id,
+    limit: 1,
+    sort: "oldest",
+  });
+  const originalPost = originalPosts[0];
   const canReply = !!session?.user && !thread.isLocked;
   const isLoggedIn = !!session?.user;
   const canModerate = isModeratorOrAbove(session?.user?.role);
@@ -157,12 +175,16 @@ export default async function ThreadDetailPage({
       {/* ── Conversation ── */}
       <ThreadConversation
         posts={posts}
+        threadTitle={thread.title}
+        originalPost={originalPost ? { id: originalPost.id, content: originalPost.content } : null}
+        replyCount={thread.replyCount}
         threadId={thread.id}
         categorySlug={forumSlug}
         threadSlug={threadSlug}
         currentUserId={session?.user?.id}
         canReply={canReply}
         isLoggedIn={isLoggedIn}
+        isThreadOwner={session?.user?.id === thread.author.id}
       />
 
       {thread.isLocked && (

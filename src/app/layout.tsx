@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { auth } from "@/server/auth/config";
 import { ClientShell } from "@/components/layout/client-shell";
+import { getSiteUrl } from "@/lib/seo";
 import "@/styles/globals.css";
 
 export const metadata: Metadata = {
   title: "Forum",
   description: "A focused community forum for questions and discussion.",
+  metadataBase: new URL(getSiteUrl()),
 };
 
 const geistSans = Geist({

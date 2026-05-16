@@ -76,10 +76,18 @@ export default function LoginPage() {
                 className="input w-full rounded-lg border-2 border-border bg-background px-3 py-2.5 text-sm transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 placeholder="Enter your password"
               />
+              <div className="mt-2 text-right">
+                <a
+                  href="/forgot-password"
+                  className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  Forgot password?
+                </a>
+              </div>
             </div>
 
             {error && (
-              <div className="rounded-lg border-2 border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">
+              <div role="alert" className="rounded-lg border-2 border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">
                 {error}
               </div>
             )}
