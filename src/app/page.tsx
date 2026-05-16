@@ -2,17 +2,21 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { appRouter } from "@/server/api/root";
 import { db } from "@/server/db/prisma";
+import { auth } from "@/server/auth/config";
+import { createMetadata } from "@/lib/seo";
 import { TagPill } from "@/components/forum/tag-pill";
 import { MessageSquare, Users, TrendingUp, Hash, ArrowRight, Sparkles } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createMetadata({
   title: "Home",
-  description: "A focused community forum for questions and discussion.",
-};
+  description: "Browse public forum discussions, then create an account when you are ready to participate.",
+  path: "/",
+});
 
 export default async function Home() {
+  const session = await auth();
   const caller = appRouter.createCaller({ db, session: null });
   const data = await caller.discovery.home();
 
@@ -28,8 +32,9 @@ export default async function Home() {
             </div>
             <h1 className="heading-xl">Welcome to the Forums</h1>
             <p className="mt-2 text-sm text-muted-foreground max-w-xl">
-              A focused space for questions, ideas, and thoughtful discussion.
-              Browse conversations, share your knowledge, and connect with the community.
+              {session?.user
+                ? "Pick up a discussion, browse a forum, or start a new thread when you have something to share."
+                : "Browse public discussions first. Create an account when you are ready to ask questions or join the conversation."}
             </p>
           </div>
           <div className="hidden items-center gap-3 md:flex">
@@ -40,6 +45,14 @@ export default async function Home() {
               Browse All Forums
               <ArrowRight className="h-4 w-4" />
             </Link>
+            {!session?.user && (
+              <Link
+                href="/register"
+                className="inline-flex items-center gap-2 rounded-md border-2 border-border bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-[3px_3px_0px_var(--border)] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_var(--border)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none hover:no-underline"
+              >
+                Register to participate
+              </Link>
+            )}
           </div>
         </div>
       </div>
@@ -62,7 +75,15 @@ export default async function Home() {
                     <MessageSquare className="h-10 w-10" />
                   </div>
                   <p className="empty-state-title">No discussions yet</p>
-                  <p className="empty-state-text">Be the first to start a conversation.</p>
+                  <p className="empty-state-text">
+                    No public threads have been started yet. Browse a forum and start the first discussion.
+                  </p>
+                  <Link
+                    href="/forums"
+                    className="mt-4 inline-flex items-center gap-1.5 rounded-md border-2 border-border bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[2px_2px_0px_var(--border)] hover:no-underline"
+                  >
+                    Browse forums
+                  </Link>
                 </div>
               ) : (
                 <div>
@@ -117,7 +138,10 @@ export default async function Home() {
             <div className="section-panel">
               {data.latestMessages.length === 0 ? (
                 <div className="empty-state">
-                  <p className="empty-state-text">No messages yet.</p>
+                  <p className="empty-state-title">No replies yet</p>
+                  <p className="empty-state-text">
+                    Replies will appear here once members begin joining discussions.
+                  </p>
                 </div>
               ) : (
                 <div>
@@ -161,7 +185,7 @@ export default async function Home() {
             <div className="divide-y divide-border">
               {data.popularThreads.length === 0 ? (
                 <p className="px-4 py-6 text-sm text-muted-foreground text-center">
-                  No trending threads yet.
+                  Popular threads will appear once discussions pick up.
                 </p>
               ) : (
                 data.popularThreads.map((thread) => (
@@ -191,7 +215,7 @@ export default async function Home() {
             </div>
             <div className="px-4 py-3">
               {data.popularTags.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No tags yet.</p>
+                <p className="text-sm text-muted-foreground">Tags will appear after members start labeling threads.</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {data.popularTags.map((tag) => (
@@ -234,6 +258,14 @@ export default async function Home() {
             Browse All Forums
             <ArrowRight className="h-4 w-4" />
           </Link>
+          {!session?.user && (
+            <Link
+              href="/register"
+              className="flex items-center justify-center gap-2 rounded-md border-2 border-border bg-background px-5 py-3 text-sm font-semibold shadow-[2px_2px_0px_var(--border)] md:hidden hover:no-underline"
+            >
+              Register to participate
+            </Link>
+          )}
         </aside>
       </div>
     </div>

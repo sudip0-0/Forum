@@ -102,3 +102,15 @@ export const RL_SEARCH = {
   maxRequests: 60,
   keyPrefix: "search",
 } as const satisfies RateLimitConfig;
+
+export const RL_RESEND_VERIFICATION = {
+  windowMs: 60 * 60 * 1000,
+  maxRequests: 3,
+  keyPrefix: "resend-verification",
+} as const satisfies RateLimitConfig;
+
+export const RL_PASSWORD_RESET = {
+  windowMs: 60 * 60 * 1000,
+  maxRequests: 3,
+  keyPrefix: "password-reset",
+} as const satisfies RateLimitConfig;

@@ -15,7 +15,7 @@
 | Local repo | Confirmed |
 | App scaffold | Done |
 | Database migration | Implemented and applied locally |
-| Auth | Email/password auth with NextAuth v5, bcryptjs hashing, login/register/logout |
+| Auth | Email/password auth with NextAuth v5, bcryptjs hashing, real email verification, password reset, login/register/logout |
 | Category CRUD | Done — public listing, admin CRUD, tRPC router with tests |
 | Thread CRUD | Done — thread router, post router, category thread list, thread detail, reply form, 21 tests |
 | Core forum | Done — all CORE tasks complete |
@@ -108,7 +108,14 @@
 - POL-003 implemented: global error.tsx error boundary with retry; not-found.tsx custom 404 page; (public)/loading.tsx skeleton loader; all list pages already had empty states; all mutation forms already showed errors.
 
 ### In Progress
-- Staging deploy preparation.
+- Batch 2 — Core Content Completeness: own-content editing and self-service soft delete.
+
+### Latest Batch 2 Update
+- Added ownership-scoped editing for thread title/original body and reply body.
+- Added self-service soft delete for owned replies and zero-reply owned threads.
+- Reply self-delete now decrements `replyCount`; deleted replies remain excluded from public reply lists.
+- Thread detail UI now includes owner-only edit/delete controls, confirmation prompts, validation, loading, cancel, and blocked-delete messaging.
+- Added router regression coverage plus E2E journey coverage for edit/delete flows.
 
 ### Blockers
 - None.
@@ -121,15 +128,48 @@
 - Search uses PostgreSQL full-text search with to_tsvector/to_tsquery.
 
 ### Test Results
-- `pnpm lint` passed (0 errors, 0 warnings).
+- `pnpm lint` passed.
 - `pnpm typecheck` passed.
-- `pnpm test` passed (129 tests total, 13 files).
-- `pnpm build` passed (requires `NODE_ENV=production`).
+- `pnpm test` passed (238 tests total, 22 files).
+- `pnpm build` passed.
+- `pnpm test:e2e` ran on 2026-05-16 after Docker came up: Batch 2 thread flows passed, but the full suite still had one unrelated existing failure in `e2e/navigation-and-filters.spec.ts` because the category page rendered two breadcrumb navs where that spec expects one.
 
 ### Next Steps
 - Prepare staging deploy.
 - Run full E2E suite against staging.
 - Formal SEC-001 security review.
+
+### 2026-05-16
+
+### Completed
+- Added provider-agnostic email service boundary with SMTP delivery and Mailpit local infrastructure.
+- Replaced stubbed verification with expiring single-use verification tokens, verification UI, and safe resend flow.
+- Added password reset request/completion flow with generic request responses and expiring single-use tokens.
+- Blocked unverified users from creating threads, posting replies, and reporting content at the server layer.
+- Implemented Batch 3 launch-readiness polish: clearer onboarding/empty states, accessibility fixes across core controls/forms, explicit robots/canonical metadata, and tighter public-profile visibility filtering.
+
+### In Progress
+- None.
+
+### Blockers
+- None.
+
+### Decisions
+- Reused the existing `VerificationToken` table with purpose-prefixed identifiers for verification and reset flows.
+- Kept auth flows in server actions/App Router pages while leaving forum mutations in tRPC routers.
+- Chose `noindex,follow` for search pages and MVP profile pages; kept public discovery focused on home/forums/category/forum/thread URLs.
+
+### Test Results
+- `pnpm lint` passed.
+- `pnpm typecheck` passed.
+- `pnpm test` passed (242 tests total, 25 files).
+- `pnpm build` passed.
+- Mailpit was started locally and confirmed healthy on port `8025`.
+- Auth-focused E2E passed with Mailpit-backed verification and password-reset links (`6` tests).
+- Full `pnpm test:e2e` was attempted and still has unrelated failures outside this batch in existing admin/navigation coverage.
+
+### Next Steps
+- Address the remaining unrelated E2E failures separately, then rerun the full suite.
 
 ## 5. Blocker Log
 

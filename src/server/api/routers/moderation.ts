@@ -6,6 +6,7 @@ import {
   router,
 } from "@/server/api/trpc";
 import { checkRateLimit, RL_REPORT, assertNotSuspended } from "@/server/api/rate-limit";
+import { assertEmailVerified } from "@/server/auth/email-verification";
 
 const reportSchema = z
   .object({
@@ -80,6 +81,7 @@ export const moderationRouter = router({
     .mutation(async ({ ctx, input }) => {
       checkRateLimit(ctx.session.user.id, RL_REPORT);
       assertNotSuspended(ctx.session.user);
+      await assertEmailVerified(ctx.db, ctx.session.user.id);
       if (input.postId) {
         const post = await ctx.db.post.findUnique({
           where: { id: input.postId },

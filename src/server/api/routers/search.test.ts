@@ -18,6 +18,8 @@ describe("search router", () => {
 
     expect(result.results).toHaveLength(1);
     expect(result.results[0].title).toBe("Hello World");
+    expect(db.$queryRawUnsafe.mock.calls[0][0]).toContain('t."isDeleted" = false');
+    expect(db.$queryRawUnsafe.mock.calls[0][0]).toContain('p."isDeleted" = false');
   });
 
   it("returns empty for no matches", async () => {

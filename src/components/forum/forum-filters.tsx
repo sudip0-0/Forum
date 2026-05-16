@@ -34,6 +34,7 @@ export function ForumFilters({ forumSlug }: { forumSlug: string }) {
   const pinnedOnly = searchParams.get("pinnedOnly") === "1";
   const unanswered = searchParams.get("unanswered") === "1";
   const hasActiveFilters = !!(tagSlug || authorUsername || updatedWithinDays || pinnedOnly || unanswered);
+  const formId = `forum-filters-${forumSlug}`;
 
   function applyFilters(formData: FormData) {
     const params = new URLSearchParams();
@@ -56,6 +57,8 @@ export function ForumFilters({ forumSlug }: { forumSlug: string }) {
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
+        aria-controls={formId}
+        aria-expanded={open}
         className={`inline-flex items-center gap-1.5 rounded-sm border-2 px-3 py-1.5 text-xs font-semibold shadow-[1px_1px_0px_var(--border)] ${
           hasActiveFilters ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:bg-accent"
         }`}
@@ -66,6 +69,7 @@ export function ForumFilters({ forumSlug }: { forumSlug: string }) {
 
       {open && (
         <form
+          id={formId}
           action={applyFilters}
           className="absolute right-0 top-full z-20 mt-2 w-full max-w-md rounded-sm border-2 border-border bg-card shadow-[4px_4px_0px_var(--border)]"
         >

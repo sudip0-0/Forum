@@ -2,13 +2,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { appRouter } from "@/server/api/root";
 import { db } from "@/server/db/prisma";
+import { createMetadata } from "@/lib/seo";
 import { TagPill } from "@/components/forum/tag-pill";
 import { Search, SlidersHorizontal, X, ArrowRight } from "lucide-react";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createMetadata({
   title: "Search",
-  description: "Search forum threads by title, content, and filters.",
-};
+  description: "Search public forum threads by title, content, and filters.",
+  path: "/search",
+  index: false,
+});
 
 export default async function SearchPage({
   searchParams,
@@ -77,8 +80,10 @@ export default async function SearchPage({
       <form className="space-y-4" action="/search" method="GET">
         {/* Search Input */}
         <div className="relative">
+          <label htmlFor="forum-search" className="sr-only">Search threads</label>
           <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
+            id="forum-search"
             name="q"
             defaultValue={q ?? ""}
             className="w-full rounded-md border-2 border-border bg-card py-3 pl-10 pr-4 text-sm shadow-[2px_2px_0px_var(--border)] outline-none focus:shadow-[1px_1px_0px_var(--border)] focus:translate-x-[1px] focus:translate-y-[1px] transition-all"
@@ -97,8 +102,8 @@ export default async function SearchPage({
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <label className="mb-1 block text-xs font-semibold text-muted-foreground">Forum</label>
-              <select name="forum" defaultValue={selectedForum} className="w-full rounded-sm border-2 border-border bg-background px-2.5 py-2 text-sm shadow-[1px_1px_0px_var(--border)]">
+              <label htmlFor="search-forum" className="mb-1 block text-xs font-semibold text-muted-foreground">Forum</label>
+              <select id="search-forum" name="forum" defaultValue={selectedForum} className="w-full rounded-sm border-2 border-border bg-background px-2.5 py-2 text-sm shadow-[1px_1px_0px_var(--border)]">
                 <option value="">All forums</option>
                 {allForums.map((f) => (
                   <option key={f.slug} value={f.slug}>{f.name} ({f.section})</option>
@@ -107,23 +112,23 @@ export default async function SearchPage({
             </div>
 
             <div>
-              <label className="mb-1 block text-xs font-semibold text-muted-foreground">Tag</label>
-              <input name="tag" defaultValue={selectedTag} className="w-full rounded-sm border-2 border-border bg-background px-2.5 py-2 text-sm shadow-[1px_1px_0px_var(--border)]" placeholder="e.g. help" />
+              <label htmlFor="search-tag" className="mb-1 block text-xs font-semibold text-muted-foreground">Tag</label>
+              <input id="search-tag" name="tag" defaultValue={selectedTag} className="w-full rounded-sm border-2 border-border bg-background px-2.5 py-2 text-sm shadow-[1px_1px_0px_var(--border)]" placeholder="e.g. help" />
             </div>
 
             <div>
-              <label className="mb-1 block text-xs font-semibold text-muted-foreground">Author</label>
-              <input name="author" defaultValue={selectedAuthor} className="w-full rounded-sm border-2 border-border bg-background px-2.5 py-2 text-sm shadow-[1px_1px_0px_var(--border)]" placeholder="username" />
+              <label htmlFor="search-author" className="mb-1 block text-xs font-semibold text-muted-foreground">Author</label>
+              <input id="search-author" name="author" defaultValue={selectedAuthor} className="w-full rounded-sm border-2 border-border bg-background px-2.5 py-2 text-sm shadow-[1px_1px_0px_var(--border)]" placeholder="username" />
             </div>
 
             <div className="flex gap-2">
               <div className="flex-1">
-                <label className="mb-1 block text-xs font-semibold text-muted-foreground">From</label>
-                <input type="date" name="from" defaultValue={selectedFrom} className="w-full rounded-sm border-2 border-border bg-background px-2.5 py-2 text-sm shadow-[1px_1px_0px_var(--border)]" />
+                <label htmlFor="search-from" className="mb-1 block text-xs font-semibold text-muted-foreground">From</label>
+                <input id="search-from" type="date" name="from" defaultValue={selectedFrom} className="w-full rounded-sm border-2 border-border bg-background px-2.5 py-2 text-sm shadow-[1px_1px_0px_var(--border)]" />
               </div>
               <div className="flex-1">
-                <label className="mb-1 block text-xs font-semibold text-muted-foreground">To</label>
-                <input type="date" name="to" defaultValue={selectedTo} className="w-full rounded-sm border-2 border-border bg-background px-2.5 py-2 text-sm shadow-[1px_1px_0px_var(--border)]" />
+                <label htmlFor="search-to" className="mb-1 block text-xs font-semibold text-muted-foreground">To</label>
+                <input id="search-to" type="date" name="to" defaultValue={selectedTo} className="w-full rounded-sm border-2 border-border bg-background px-2.5 py-2 text-sm shadow-[1px_1px_0px_var(--border)]" />
               </div>
             </div>
           </div>
@@ -175,8 +180,14 @@ export default async function SearchPage({
               <p className="empty-state-title">No results found</p>
               <p className="empty-state-text">
                 No results for &ldquo;{q}&rdquo;{forum ? ` in ${allForums.find((f) => f.slug === forum)?.name}` : ""}.
-                Try different keywords or fewer filters.
+                Try fewer words, check spelling, or browse forums instead.
               </p>
+              <Link
+                href="/forums"
+                className="mt-4 inline-flex items-center rounded-md border-2 border-border bg-background px-4 py-2 text-sm font-semibold shadow-[2px_2px_0px_var(--border)] hover:no-underline"
+              >
+                Browse forums
+              </Link>
             </div>
           ) : (
             <>

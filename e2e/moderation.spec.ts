@@ -13,8 +13,8 @@ test.describe("Moderation flows", () => {
     await page.waitForURL(/\/forum\/general-discussion\//, { timeout: 10000 });
 
     await page.getByRole("button", { name: "Report this content" }).first().click();
-    await page.getByLabel("Report reason").selectOption("SPAM");
-    await page.getByLabel("Report note").fill("E2E test report");
+    await page.getByLabel("Reason").selectOption("SPAM");
+    await page.getByLabel(/Additional details/).fill("E2E test report");
     await page.getByRole("button", { name: "Submit Report" }).click();
 
     await page.click('button:has-text("Logout")');

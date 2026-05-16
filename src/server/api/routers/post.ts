@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { publicProcedure, protectedProcedure, router } from "@/server/api/trpc";
 import { checkRateLimit, RL_REPLY, assertNotSuspended } from "@/server/api/rate-limit";
+import { assertEmailVerified } from "@/server/auth/email-verification";
 
 const listByThreadSchema = z.object({
   threadId: z.string().min(1),
@@ -16,6 +17,23 @@ const createSchema = z.object({
   parentId: z.string().optional(),
   content: z.string().min(1).max(20000),
 });
+const updateOwnSchema = z.object({
+  postId: z.string().min(1),
+  content: createSchema.shape.content,
+});
+const deleteOwnSchema = z.object({ postId: z.string().min(1) });
+
+function isVisibleThread(thread: {
+  isDeleted: boolean;
+  forum: { isPublic: boolean; category: { isPublic: boolean; section: { isPublic: boolean } } };
+}) {
+  return (
+    !thread.isDeleted &&
+    thread.forum.isPublic &&
+    thread.forum.category.isPublic &&
+    thread.forum.category.section.isPublic
+  );
+}
 
 export const postRouter = router({
   listByThread: publicProcedure
@@ -55,6 +73,7 @@ export const postRouter = router({
             select: {
               id: true,
               content: true,
+              isDeleted: true,
               author: { select: { username: true, displayName: true } },
             },
           },
@@ -75,17 +94,7 @@ export const postRouter = router({
     .mutation(async ({ ctx, input }) => {
       checkRateLimit(ctx.session.user.id, RL_REPLY);
       assertNotSuspended(ctx.session.user);
-
-      const author = await ctx.db.user.findUnique({
-        where: { id: ctx.session.user.id },
-        select: { id: true },
-      });
-      if (!author) {
-        throw new TRPCError({
-          code: "UNAUTHORIZED",
-          message: "Your session has expired. Please sign in again.",
-        });
-      }
+      await assertEmailVerified(ctx.db, ctx.session.user.id);
 
       const thread = await ctx.db.thread.findUnique({
         where: { id: input.threadId },
@@ -170,5 +179,94 @@ export const postRouter = router({
       });
 
       return post;
+    }),
+
+  updateOwn: protectedProcedure
+    .input(updateOwnSchema)
+    .mutation(async ({ ctx, input }) => {
+      assertNotSuspended(ctx.session.user);
+
+      const post = await ctx.db.post.findUnique({
+        where: { id: input.postId },
+        include: {
+          thread: {
+            include: {
+              forum: { include: { category: { include: { section: true } } } },
+            },
+          },
+        },
+      });
+      if (!post || post.isDeleted || !isVisibleThread(post.thread)) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Post not found." });
+      }
+      if (post.authorId !== ctx.session.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "You can only edit your own replies." });
+      }
+
+      const originalPost = await ctx.db.post.findFirst({
+        where: { threadId: post.threadId },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        select: { id: true },
+      });
+      if (originalPost?.id === post.id) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Original thread content must be edited with the thread.",
+        });
+      }
+
+      await ctx.db.post.update({
+        where: { id: post.id },
+        data: { content: input.content },
+      });
+      return { success: true };
+    }),
+
+  deleteOwn: protectedProcedure
+    .input(deleteOwnSchema)
+    .mutation(async ({ ctx, input }) => {
+      assertNotSuspended(ctx.session.user);
+
+      const post = await ctx.db.post.findUnique({
+        where: { id: input.postId },
+        include: {
+          thread: {
+            include: {
+              forum: { include: { category: { include: { section: true } } } },
+            },
+          },
+        },
+      });
+      if (!post || post.isDeleted || !isVisibleThread(post.thread)) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Post not found." });
+      }
+      if (post.authorId !== ctx.session.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "You can only delete your own replies." });
+      }
+
+      const originalPost = await ctx.db.post.findFirst({
+        where: { threadId: post.threadId },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        select: { id: true },
+      });
+      if (originalPost?.id === post.id) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Original thread content must be deleted with the thread.",
+        });
+      }
+
+      await ctx.db.$transaction([
+        ctx.db.post.update({
+          where: { id: post.id },
+          data: { isDeleted: true },
+        }),
+        ctx.db.thread.update({
+          where: { id: post.threadId },
+          data: { replyCount: { decrement: 1 } },
+        }),
+      ]);
+
+      return { success: true };
     }),
 });

@@ -4,9 +4,25 @@ import type { Prisma } from "@prisma/client";
 import { publicProcedure, protectedProcedure, router } from "@/server/api/trpc";
 import { checkRateLimit, RL_CREATE_THREAD, assertNotSuspended } from "@/server/api/rate-limit";
 import { slugify } from "@/lib/slug";
+import { assertEmailVerified } from "@/server/auth/email-verification";
 
 const sortSchema = z.enum(["latest", "newest", "oldest", "views", "reactions", "reacted", "replies", "title", "unanswered"]);
 const directionSchema = z.enum(["asc", "desc"]).default("desc");
+const threadContentSchema = z.object({
+  title: z.string().min(5).max(150),
+  content: z.string().min(10).max(20000),
+});
+function isVisibleThread(thread: {
+  isDeleted: boolean;
+  forum: { isPublic: boolean; category: { isPublic: boolean; section: { isPublic: boolean } } };
+}) {
+  return (
+    !thread.isDeleted &&
+    thread.forum.isPublic &&
+    thread.forum.category.isPublic &&
+    thread.forum.category.section.isPublic
+  );
+}
 
 export const threadRouter = router({
   listByCategory: publicProcedure
@@ -147,13 +163,13 @@ export const threadRouter = router({
     .input(z.object({
       forumId: z.string().min(1).optional(),
       categoryId: z.string().min(1).optional(),
-      title: z.string().min(5).max(150),
-      content: z.string().min(10).max(20000),
+      ...threadContentSchema.shape,
       tags: z.array(z.string().min(1).max(40)).max(5).default([]),
     }).refine((value) => !!value.forumId || !!value.categoryId, { message: "Forum is required." }))
     .mutation(async ({ ctx, input }) => {
       checkRateLimit(ctx.session.user.id, RL_CREATE_THREAD);
       assertNotSuspended(ctx.session.user);
+      await assertEmailVerified(ctx.db, ctx.session.user.id);
       const forum =
         input.forumId
           ? await ctx.db.forum.findUnique({
@@ -194,5 +210,85 @@ export const threadRouter = router({
         });
         return thread;
       });
+    }),
+
+  updateOwn: protectedProcedure
+    .input(threadContentSchema.extend({ threadId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      assertNotSuspended(ctx.session.user);
+
+      const thread = await ctx.db.thread.findUnique({
+        where: { id: input.threadId },
+        select: {
+          id: true,
+          authorId: true,
+          isDeleted: true,
+          forum: { select: { isPublic: true, category: { select: { isPublic: true, section: { select: { isPublic: true } } } } } },
+        },
+      });
+      if (!thread || !isVisibleThread(thread)) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Thread not found." });
+      }
+      if (thread.authorId !== ctx.session.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "You can only edit your own threads." });
+      }
+
+      const originalPost = await ctx.db.post.findFirst({
+        where: { threadId: thread.id },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        select: { id: true, isDeleted: true },
+      });
+      if (!originalPost || originalPost.isDeleted) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Thread content not found." });
+      }
+
+      await ctx.db.$transaction([
+        ctx.db.thread.update({
+          where: { id: thread.id },
+          data: { title: input.title },
+        }),
+        ctx.db.post.update({
+          where: { id: originalPost.id },
+          data: { content: input.content },
+        }),
+      ]);
+
+      return { success: true };
+    }),
+
+  deleteOwn: protectedProcedure
+    .input(z.object({ threadId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      assertNotSuspended(ctx.session.user);
+
+      const thread = await ctx.db.thread.findUnique({
+        where: { id: input.threadId },
+        select: {
+          id: true,
+          authorId: true,
+          isDeleted: true,
+          replyCount: true,
+          forum: { select: { isPublic: true, category: { select: { isPublic: true, section: { select: { isPublic: true } } } } } },
+        },
+      });
+      if (!thread || !isVisibleThread(thread)) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Thread not found." });
+      }
+      if (thread.authorId !== ctx.session.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "You can only delete your own threads." });
+      }
+      if (thread.replyCount !== 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Threads with replies cannot be deleted by their author.",
+        });
+      }
+
+      await ctx.db.thread.update({
+        where: { id: thread.id },
+        data: { isDeleted: true },
+      });
+
+      return { success: true };
     }),
 });

@@ -1,17 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { getCsrfToken, signIn } from "next-auth/react";
-import { registerUser } from "@/server/auth/actions";
+import {
+  registerUser,
+  resendVerificationEmailAction,
+} from "@/server/auth/actions";
 import { Button } from "@/components/ui/button";
-import { UserPlus } from "lucide-react";
+import { MailCheck, UserPlus } from "lucide-react";
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
+  const [resending, setResending] = useState(false);
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
@@ -27,24 +30,56 @@ export default function RegisterPage() {
       return;
     }
 
-    const email = formData.get("email") as string;
-    const password = formData.get("password") as string;
+    setRegisteredEmail(formData.get("email") as string);
+    setLoading(false);
+  }
 
-    await getCsrfToken();
-    const signInResult = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
+  async function handleResend() {
+    if (!registeredEmail) return;
+    setResending(true);
+    setResendMessage(null);
+    const formData = new FormData();
+    formData.set("email", registeredEmail);
+    const result = await resendVerificationEmailAction(null, formData);
+    setResendMessage(
+      result.success
+        ? "If that account still needs verification, a new email has been sent."
+        : result.error ?? "We could not send another verification email.",
+    );
+    setResending(false);
+  }
 
-    if (signInResult?.error) {
-      setError("Account created but sign-in failed. Please log in.");
-      setLoading(false);
-      return;
-    }
-
-    router.push("/admin");
-    router.refresh();
+  if (registeredEmail) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-background via-muted/10 to-background p-6">
+        <div className="w-full max-w-md rounded-xl border-2 border-border bg-card p-6 text-center shadow-brutal-sm">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl border-2 border-border bg-primary shadow-brutal-sm">
+            <MailCheck className="h-6 w-6 text-primary-foreground" />
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight">Check your email</h1>
+          <p className="mt-3 text-sm text-muted-foreground">
+            We sent a verification link to <span className="font-medium text-foreground">{registeredEmail}</span>.
+            You can sign in now, but you will need to verify your email before posting or reporting content.
+          </p>
+          {resendMessage && (
+            <div className="mt-4 rounded-lg border-2 border-border bg-muted/30 px-4 py-3 text-sm">
+              {resendMessage}
+            </div>
+          )}
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <Button type="button" onClick={handleResend} disabled={resending}>
+              {resending ? "Sending..." : "Resend verification email"}
+            </Button>
+            <a
+              href="/login"
+              className="inline-flex min-h-11 items-center justify-center rounded-md border-2 border-border bg-background px-4 py-2 text-sm font-semibold shadow-[2px_2px_0px_var(--border)] hover:no-underline"
+            >
+              Go to sign in
+            </a>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -73,11 +108,13 @@ export default function RegisterPage() {
                 required
                 minLength={3}
                 maxLength={30}
+                aria-invalid={!!fieldErrors.username}
+                aria-describedby={fieldErrors.username ? "username-error" : undefined}
                 className="input w-full rounded-lg border-2 border-border bg-background px-3 py-2.5 text-sm transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 placeholder="your_username"
               />
               {fieldErrors.username && (
-                <p className="mt-1 text-sm text-destructive">
+                <p id="username-error" className="mt-1 text-sm text-destructive">
                   {fieldErrors.username[0]}
                 </p>
               )}
@@ -106,11 +143,13 @@ export default function RegisterPage() {
                 name="email"
                 type="email"
                 required
+                aria-invalid={!!fieldErrors.email}
+                aria-describedby={fieldErrors.email ? "email-error" : undefined}
                 className="input w-full rounded-lg border-2 border-border bg-background px-3 py-2.5 text-sm transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 placeholder="you@example.com"
               />
               {fieldErrors.email && (
-                <p className="mt-1 text-sm text-destructive">
+                <p id="email-error" className="mt-1 text-sm text-destructive">
                   {fieldErrors.email[0]}
                 </p>
               )}
@@ -126,18 +165,20 @@ export default function RegisterPage() {
                 type="password"
                 required
                 minLength={8}
+                aria-invalid={!!fieldErrors.password}
+                aria-describedby={fieldErrors.password ? "password-error" : undefined}
                 className="input w-full rounded-lg border-2 border-border bg-background px-3 py-2.5 text-sm transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 placeholder="Min. 8 characters"
               />
               {fieldErrors.password && (
-                <p className="mt-1 text-sm text-destructive">
+                <p id="password-error" className="mt-1 text-sm text-destructive">
                   {fieldErrors.password[0]}
                 </p>
               )}
             </div>
 
             {error && (
-              <div className="rounded-lg border-2 border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">
+              <div role="alert" className="rounded-lg border-2 border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">
                 {error}
               </div>
             )}

@@ -26,7 +26,10 @@ export const userRouter = router({
           role: true,
           createdAt: true,
           threads: {
-            where: { isDeleted: false },
+            where: {
+              isDeleted: false,
+              forum: { isPublic: true, category: { isPublic: true, section: { isPublic: true } } },
+            },
             orderBy: { createdAt: "desc" },
             take: 10,
             select: {

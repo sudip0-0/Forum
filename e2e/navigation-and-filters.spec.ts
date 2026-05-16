@@ -64,20 +64,21 @@ test.describe("Admin dashboard and navigation", () => {
 test.describe("Category pages and breadcrumbs", () => {
   test("category page renders with breadcrumbs and forums", async ({ page }) => {
     await page.goto("/category/general");
-    await expect(page.locator("h1")).toContainText("General", { timeout: 10000 });
+    await expect(page.getByRole("heading", { name: "General", exact: true })).toBeVisible({ timeout: 10000 });
 
-    await expect(page.locator("nav[aria-label='Breadcrumb']")).toBeVisible({ timeout: 5000 });
+    const breadcrumb = page.getByRole("navigation", { name: "Breadcrumb" }).first();
+    await expect(breadcrumb).toBeVisible({ timeout: 5000 });
     await expect(
-      page.locator("nav[aria-label='Breadcrumb']").getByRole("link", { name: "Forums", exact: true }),
+      breadcrumb.getByRole("link", { name: "Forums", exact: true }),
     ).toBeVisible();
     await expect(page.getByRole("link", { name: /General Discussion Questions/ })).toBeVisible();
   });
 
   test("forum page shows breadcrumbs", async ({ page }) => {
     await page.goto("/forum/general-discussion");
-    await expect(page.locator("h1")).toContainText("General Discussion", { timeout: 10000 });
+    await expect(page.getByRole("heading", { name: "General Discussion", exact: true })).toBeVisible({ timeout: 10000 });
 
-    const breadcrumb = page.locator("nav[aria-label='Breadcrumb']");
+    const breadcrumb = page.getByRole("navigation", { name: "Breadcrumb" }).first();
     await expect(breadcrumb).toBeVisible({ timeout: 5000 });
     await expect(breadcrumb).toContainText("Forums");
     await expect(breadcrumb).toContainText("Community");
@@ -89,7 +90,7 @@ test.describe("Category pages and breadcrumbs", () => {
     await page.locator("a:has-text('Seed thread')").first().click();
     await page.waitForURL(/\/forum\/general-discussion\//, { timeout: 10000 });
 
-    const breadcrumb = page.locator("nav[aria-label='Breadcrumb']");
+    const breadcrumb = page.getByRole("navigation", { name: "Breadcrumb" }).first();
     await expect(breadcrumb).toBeVisible({ timeout: 5000 });
     await expect(breadcrumb).toContainText("Forums");
     await expect(breadcrumb).toContainText("Community");
@@ -114,7 +115,7 @@ test.describe("Clickable tags", () => {
 
   test("tag page shows matching threads", async ({ page }) => {
     await page.goto("/tags/nextjs");
-    await expect(page.locator("h1")).toContainText("nextjs", { timeout: 10000 });
+    await expect(page.getByRole("heading", { name: "nextjs", exact: true }).first()).toBeVisible({ timeout: 10000 });
 
     const threadLinks = page.locator("a[href^='/forum/']");
     await expect(threadLinks.first()).toBeVisible({ timeout: 5000 });
@@ -122,7 +123,7 @@ test.describe("Clickable tags", () => {
 
   test("clicking tag on forum listing navigates to tag page", async ({ page }) => {
     await page.goto("/forum/general-discussion");
-    await expect(page.locator("h1")).toContainText("General Discussion", { timeout: 10000 });
+    await expect(page.getByRole("heading", { name: "General Discussion", exact: true }).first()).toBeVisible({ timeout: 10000 });
 
     const tagLink = page.locator("a[href^='/tags/']").first();
     await expect(tagLink).toBeVisible({ timeout: 5000 });
@@ -134,11 +135,21 @@ test.describe("Clickable tags", () => {
 });
 
 test.describe("Forum filters", () => {
+  test("filter toggle exposes expanded state and opens from keyboard", async ({ page }) => {
+    await page.goto("/forum/general-discussion");
+    const toggle = page.getByRole("button", { name: "Filters" });
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await toggle.focus();
+    await page.keyboard.press("Enter");
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await expect(page.locator("select[name='sort']")).toBeVisible();
+  });
+
   test("filter toggle opens filter form", async ({ page }) => {
     await page.goto("/forum/general-discussion");
-    await expect(page.locator("h1")).toContainText("General Discussion", { timeout: 10000 });
+    await expect(page.getByRole("heading", { name: "General Discussion", exact: true })).toBeVisible({ timeout: 10000 });
 
-    await page.locator("button:has-text('Filters')").click();
+    await page.getByRole("button", { name: "Filters", exact: true }).click();
     await expect(page.locator("select[name='sort']")).toBeVisible({ timeout: 5000 });
     await expect(page.locator("select[name='direction']")).toBeVisible();
     await expect(page.locator("input[name='tagSlug']")).toBeVisible();
@@ -149,14 +160,14 @@ test.describe("Forum filters", () => {
 
   test("filter form changes thread listing", async ({ page }) => {
     await page.goto("/forum/general-discussion");
-    await expect(page.locator("h1")).toContainText("General Discussion", { timeout: 10000 });
+    await expect(page.getByRole("heading", { name: "General Discussion", exact: true })).toBeVisible({ timeout: 10000 });
 
-    await page.locator("button:has-text('Filters')").click();
+    await page.getByRole("button", { name: "Filters", exact: true }).click();
     await page.locator("select[name='sort']").selectOption("title");
     await page.getByRole("button", { name: "Filter", exact: true }).click();
 
     await page.waitForURL(/sort=title/, { timeout: 10000 });
-    await expect(page.locator("h1")).toContainText("General Discussion");
+    await expect(page.getByRole("heading", { name: "General Discussion", exact: true }).first()).toBeVisible();
   });
 });
 
@@ -175,7 +186,7 @@ test.describe("Thread filters", () => {
 test.describe("View count dedup", () => {
   test("refreshing thread page does not double-count view", async ({ page }) => {
     await page.goto("/forum/general-discussion");
-    await expect(page.locator("h1")).toContainText("General Discussion", { timeout: 10000 });
+    await expect(page.getByRole("heading", { name: "General Discussion", exact: true }).first()).toBeVisible({ timeout: 10000 });
 
     const firstViewRecorded = page.waitForResponse((response) =>
       response.url().includes("/api/trpc/thread.incrementView") && response.ok(),

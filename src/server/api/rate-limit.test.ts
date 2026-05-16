@@ -1,5 +1,12 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { checkRateLimit, RL_LOGIN, RL_SEARCH, RL_CREATE_THREAD } from "@/server/api/rate-limit";
+import {
+  checkRateLimit,
+  RL_CREATE_THREAD,
+  RL_LOGIN,
+  RL_PASSWORD_RESET,
+  RL_RESEND_VERIFICATION,
+  RL_SEARCH,
+} from "@/server/api/rate-limit";
 
 describe("rate limiting", () => {
   beforeEach(() => {
@@ -52,6 +59,18 @@ describe("rate limiting", () => {
       }
       expect(() => checkRateLimit("user-c", RL_LOGIN)).toThrow();
       expect(() => checkRateLimit("user-c", RL_SEARCH)).not.toThrow();
+    });
+
+    it("rate-limits verification resends and password reset requests", () => {
+      for (let i = 0; i < RL_RESEND_VERIFICATION.maxRequests; i++) {
+        checkRateLimit("verify@example.com", RL_RESEND_VERIFICATION);
+      }
+      expect(() => checkRateLimit("verify@example.com", RL_RESEND_VERIFICATION)).toThrow();
+
+      for (let i = 0; i < RL_PASSWORD_RESET.maxRequests; i++) {
+        checkRateLimit("reset@example.com", RL_PASSWORD_RESET);
+      }
+      expect(() => checkRateLimit("reset@example.com", RL_PASSWORD_RESET)).toThrow();
     });
 
     it("handles partial window expiry correctly", () => {

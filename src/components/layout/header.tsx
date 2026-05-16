@@ -87,6 +87,8 @@ export function Header({ session }: HeaderProps) {
             onClick={() => setMenuOpen(!menuOpen)}
             className="flex h-10 w-10 items-center justify-center rounded-md border-2 border-border md:hidden"
             aria-label="Toggle menu"
+            aria-controls="mobile-navigation"
+            aria-expanded={menuOpen}
           >
             {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -95,7 +97,7 @@ export function Header({ session }: HeaderProps) {
 
       {/* Mobile menu */}
       {menuOpen && (
-        <div className="border-t-2 border-border bg-card md:hidden">
+        <div id="mobile-navigation" className="border-t-2 border-border bg-card md:hidden">
           <div className="space-y-1 px-6 py-4">
             <Link
               href="/"

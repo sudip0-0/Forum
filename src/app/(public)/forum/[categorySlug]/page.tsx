@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { appRouter } from "@/server/api/root";
 import { auth } from "@/server/auth/config";
 import { db } from "@/server/db/prisma";
+import { createMetadata } from "@/lib/seo";
 import { Breadcrumbs } from "@/components/navigation/breadcrumbs";
 import { TagPill } from "@/components/forum/tag-pill";
 import { ForumFilters } from "@/components/forum/forum-filters";
@@ -14,9 +15,18 @@ export async function generateMetadata({ params }: { params: Promise<{ categoryS
   const caller = appRouter.createCaller({ db, session: null });
   try {
     const forum = await caller.forum.getBySlug({ slug: forumSlug });
-    return { title: forum.name, description: forum.description ?? `Threads in ${forum.name}` };
+    return createMetadata({
+      title: forum.name,
+      description: forum.description ?? `Browse public threads in ${forum.name}.`,
+      path: `/forum/${forum.slug}`,
+    });
   } catch {
-    return { title: "Forum" };
+    return createMetadata({
+      title: "Forum",
+      description: "Browse forum discussions.",
+      path: `/forum/${forumSlug}`,
+      index: false,
+    });
   }
 }
 
@@ -71,6 +81,7 @@ export default async function ForumThreadListPage({
   }
 
   const { threads, forum } = data;
+  const hasActiveFilters = !!(pinnedOnly || tagSlug || authorUsername || updatedWithinDays || unanswered);
 
   const breadcrumbItems = [
     { label: "Forums", href: "/forums" },
@@ -106,11 +117,20 @@ export default async function ForumThreadListPage({
           <div className="empty-state-icon">
             <MessageSquare className="h-10 w-10" />
           </div>
-          <p className="empty-state-title">No threads yet</p>
+          <p className="empty-state-title">{hasActiveFilters ? "No matching threads" : "No threads yet"}</p>
           <p className="empty-state-text">
-            Be the first to start a discussion in this forum.
+            {hasActiveFilters
+              ? "No threads match the current filters. Clear filters or try a broader view."
+              : "No threads yet. Start the first discussion in this forum."}
           </p>
-          {session?.user && !forum.isLocked && (
+          {hasActiveFilters ? (
+            <Link
+              href={`/forum/${forumSlug}`}
+              className="mt-4 inline-flex items-center gap-1.5 rounded-md border-2 border-border bg-background px-4 py-2 text-sm font-semibold shadow-[2px_2px_0px_var(--border)] hover:no-underline"
+            >
+              Clear filters
+            </Link>
+          ) : session?.user && !forum.isLocked ? (
             <Link
               href={`/forum/${forumSlug}/new`}
               className="mt-4 inline-flex items-center gap-1.5 rounded-md border-2 border-border bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[2px_2px_0px_var(--border)] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_var(--border)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none hover:no-underline"
@@ -118,7 +138,22 @@ export default async function ForumThreadListPage({
               <Plus className="h-4 w-4" />
               Create Thread
             </Link>
-          )}
+          ) : !session?.user ? (
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              <Link
+                href="/login"
+                className="inline-flex items-center rounded-md border-2 border-border bg-background px-4 py-2 text-sm font-semibold shadow-[2px_2px_0px_var(--border)] hover:no-underline"
+              >
+                Log in to post
+              </Link>
+              <Link
+                href="/register"
+                className="inline-flex items-center rounded-md border-2 border-border bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[2px_2px_0px_var(--border)] hover:no-underline"
+              >
+                Create account
+              </Link>
+            </div>
+          ) : null}
         </div>
       ) : (
         <div className="section-panel mt-6">

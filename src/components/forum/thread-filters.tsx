@@ -16,6 +16,7 @@ export function ThreadFilters({
   const [open, setOpen] = useState(false);
   const sort = searchParams.get("postSort") ?? "oldest";
   const repliesOnly = searchParams.get("repliesOnly") === "1";
+  const formId = `thread-filters-${threadSlug}`;
 
   function applyFilters(formData: FormData) {
     const params = new URLSearchParams();
@@ -33,6 +34,8 @@ export function ThreadFilters({
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-label="Thread filters"
+        aria-controls={formId}
+        aria-expanded={open}
         className="inline-flex items-center gap-1.5 rounded-sm border-2 border-border bg-background px-3 py-1.5 text-xs font-semibold shadow-[1px_1px_0px_var(--border)] transition-all hover:bg-accent"
       >
         <SlidersHorizontal className="h-3.5 w-3.5" />
@@ -40,6 +43,7 @@ export function ThreadFilters({
       </button>
       {open && (
         <form
+          id={formId}
           action={applyFilters}
           className="absolute right-0 top-full z-20 mt-2 w-72 rounded-sm border-2 border-border bg-card p-4 shadow-[4px_4px_0px_var(--border)]"
         >

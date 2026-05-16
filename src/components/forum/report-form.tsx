@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { reportContent } from "@/app/(public)/forum/[categorySlug]/[threadSlug]/actions";
 import { Flag } from "lucide-react";
 
@@ -29,6 +29,10 @@ export function ReportForm({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const formId = useId();
+  const reasonId = `${formId}-reason`;
+  const noteId = `${formId}-note`;
+  const errorId = `${formId}-error`;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -61,6 +65,8 @@ export function ReportForm({
         onClick={() => setOpen(!open)}
         className="inline-flex items-center gap-1 rounded-sm px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
         aria-label="Report this content"
+        aria-expanded={open}
+        aria-controls={formId}
       >
         <Flag className="h-3 w-3" />
         Report
@@ -69,15 +75,20 @@ export function ReportForm({
       {open && (
         <div className="absolute right-0 top-full z-20 mt-1 w-72">
           <form
+            id={formId}
             onSubmit={handleSubmit}
             className="rounded-sm border-2 border-border bg-card p-4 shadow-[3px_3px_0px_var(--border)]"
           >
-            <div className="text-xs font-semibold mb-2">Report this {targetType}</div>
+            <div className="text-xs font-semibold mb-3">Report this {targetType}</div>
 
+            <label htmlFor={reasonId} className="mb-1 block text-xs font-medium">
+              Reason
+            </label>
             <select
+              id={reasonId}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              aria-label="Report reason"
+              aria-describedby={error ? errorId : undefined}
               className="w-full rounded-sm border-2 border-border bg-background px-2 py-1.5 text-sm shadow-[1px_1px_0px_var(--border)] mb-2"
               required
             >
@@ -89,17 +100,20 @@ export function ReportForm({
               ))}
             </select>
 
+            <label htmlFor={noteId} className="mb-1 block text-xs font-medium">
+              Additional details <span className="text-muted-foreground">(optional)</span>
+            </label>
             <textarea
+              id={noteId}
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              aria-label="Report note"
               className="w-full rounded-sm border-2 border-border bg-background px-2 py-1.5 text-sm shadow-[1px_1px_0px_var(--border)] mb-2 min-h-[60px]"
               placeholder="Optional: additional details..."
               rows={2}
             />
 
             {error && (
-              <div className="mb-2 text-xs text-destructive font-medium">{error}</div>
+              <div id={errorId} role="alert" className="mb-2 text-xs text-destructive font-medium">{error}</div>
             )}
 
             {success ? (

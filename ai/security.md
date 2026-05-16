@@ -15,6 +15,8 @@ MVP:
 
 - Email/password login
 - Password hashing with Argon2id or bcrypt if Argon2 setup blocks progress
+- Real email verification before posting or reporting
+- Password reset with expiring single-use tokens
 - Session handled by Auth.js
 - Secure cookies in production
 
@@ -22,7 +24,6 @@ Post-MVP:
 
 - OAuth
 - TOTP 2FA
-- password reset flow
 - device/session management
 
 ## Authorization

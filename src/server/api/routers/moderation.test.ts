@@ -56,6 +56,7 @@ describe("moderation router", () => {
   describe("report", () => {
     it("allows member to report a post", async () => {
       const db = {
+        user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
         post: {
           findUnique: vi.fn().mockResolvedValue({
             id: "post-1",
@@ -82,6 +83,7 @@ describe("moderation router", () => {
 
     it("allows member to report a thread", async () => {
       const db = {
+        user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
         thread: {
           findUnique: vi.fn().mockResolvedValue({
             id: "thread-1",
@@ -108,6 +110,7 @@ describe("moderation router", () => {
 
     it("allows an optional note", async () => {
       const db = {
+        user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
         post: {
           findUnique: vi.fn().mockResolvedValue({
             id: "post-1",
@@ -178,6 +181,7 @@ describe("moderation router", () => {
 
     it("rejects report for non-existent post", async () => {
       const db = {
+        user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
         post: {
           findUnique: vi.fn().mockResolvedValue(null),
         },
@@ -195,6 +199,7 @@ describe("moderation router", () => {
 
     it("rejects report for non-existent thread", async () => {
       const db = {
+        user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
         thread: {
           findUnique: vi.fn().mockResolvedValue(null),
         },
@@ -212,6 +217,7 @@ describe("moderation router", () => {
 
     it("rejects report for deleted post", async () => {
       const db = {
+        user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
         post: {
           findUnique: vi.fn().mockResolvedValue({
             id: "post-1",
@@ -232,6 +238,7 @@ describe("moderation router", () => {
 
     it("rejects report for deleted thread", async () => {
       const db = {
+        user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
         thread: {
           findUnique: vi.fn().mockResolvedValue({
             id: "thread-1",
@@ -256,6 +263,7 @@ describe("moderation router", () => {
       });
 
       const db = {
+        user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
         post: {
           findUnique: vi.fn().mockResolvedValue({
             id: "post-1",
@@ -282,6 +290,7 @@ describe("moderation router", () => {
       });
 
       const db = {
+        user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
         thread: {
           findUnique: vi.fn().mockResolvedValue({
             id: "thread-1",
@@ -304,6 +313,7 @@ describe("moderation router", () => {
 
     it("rejects self-report on own post", async () => {
       const db = {
+        user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
         post: {
           findUnique: vi.fn().mockResolvedValue({
             id: "post-1",
@@ -322,6 +332,7 @@ describe("moderation router", () => {
 
     it("rejects self-report on own thread", async () => {
       const db = {
+        user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
         thread: {
           findUnique: vi.fn().mockResolvedValue({
             id: "thread-1",
@@ -922,6 +933,18 @@ describe("moderation router", () => {
         openReports: 3,
         visibleForums: 8,
       });
+    });
+
+    it("rejects report by unverified user", async () => {
+      const db = {
+        user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: null }) },
+        post: { findUnique: vi.fn() },
+        report: { create: vi.fn() },
+      };
+      const caller = createCaller({ db: db as never, session: memberSession });
+      await expect(
+        caller.moderation.report({ postId: "post-1", reason: "SPAM" }),
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
     });
 
     it("rejects moderator", async () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type RefObject } from "react";
+import { useId, useRef, useState, type RefObject } from "react";
 import { Markdown } from "./markdown";
 import {
   Bold,
@@ -26,6 +26,7 @@ type EditorProps = {
   textareaRef?: RefObject<HTMLTextAreaElement | null>;
   textareaName?: string;
   textareaTestId?: string;
+  textareaDescriptionId?: string;
 };
 
 export function MarkdownEditor({
@@ -38,9 +39,12 @@ export function MarkdownEditor({
   textareaRef: externalRef,
   textareaName,
   textareaTestId,
+  textareaDescriptionId,
 }: EditorProps) {
   const internalRef = useRef<HTMLTextAreaElement | null>(null);
   const textareaRef = externalRef ?? internalRef;
+  const generatedTextareaId = useId();
+  const resolvedTextareaId = textareaId ?? generatedTextareaId;
   const [preview, setPreview] = useState(false);
 
   function insert(before: string, after: string) {
@@ -68,6 +72,7 @@ export function MarkdownEditor({
         key={label}
         type="button"
         title={label}
+        aria-label={label}
         disabled={disabled}
         onClick={() => insert(before, after)}
         className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-muted-foreground transition-all hover:bg-accent hover:text-foreground disabled:opacity-40"
@@ -128,8 +133,9 @@ export function MarkdownEditor({
       ) : (
         <textarea
           ref={textareaRef}
-          id={textareaId}
+          id={resolvedTextareaId}
           name={textareaName}
+          aria-describedby={textareaDescriptionId}
           data-testid={textareaTestId}
           value={value}
           onChange={(e) => onChange(e.target.value)}
