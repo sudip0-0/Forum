@@ -10,6 +10,8 @@ import {
 } from "@/lib/validators";
 import {
   checkRateLimit,
+  hashRateLimitIdentifier,
+  rateLimit,
   RL_PASSWORD_RESET,
   RL_REGISTER,
   RL_RESEND_VERIFICATION,
@@ -40,6 +42,7 @@ export interface EmailActionResult {
   error?: string;
   fieldErrors?: Record<string, string[]>;
   throttled?: boolean;
+  retryAfterSeconds?: number;
 }
 
 export interface ResetPasswordActionResult {
@@ -68,7 +71,7 @@ export async function registerUser(
   const clientIp = await getClientIp();
 
   try {
-    checkRateLimit(`register:${clientIp}`, RL_REGISTER);
+    await checkRateLimit(clientIp, RL_REGISTER);
   } catch {
     return {
       success: false,
@@ -153,12 +156,15 @@ export async function resendVerificationEmailAction(
   }
 
   const { email } = parsed.data;
-  try {
-    checkRateLimit(email, RL_RESEND_VERIFICATION);
-  } catch {
+  const rateLimitResult = await rateLimit(
+    hashRateLimitIdentifier(email),
+    RL_RESEND_VERIFICATION,
+  );
+  if (!rateLimitResult.allowed) {
     return {
       success: false,
       throttled: true,
+      retryAfterSeconds: rateLimitResult.retryAfterSeconds,
       error: "Too many verification email requests. Please try again later.",
     };
   }
@@ -193,12 +199,15 @@ export async function requestPasswordResetAction(
   }
 
   const { email } = parsed.data;
-  try {
-    checkRateLimit(email, RL_PASSWORD_RESET);
-  } catch {
+  const rateLimitResult = await rateLimit(
+    hashRateLimitIdentifier(email),
+    RL_PASSWORD_RESET,
+  );
+  if (!rateLimitResult.allowed) {
     return {
       success: false,
       throttled: true,
+      retryAfterSeconds: rateLimitResult.retryAfterSeconds,
       error: "Too many password reset requests. Please try again later.",
     };
   }

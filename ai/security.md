@@ -83,9 +83,9 @@ For non-tRPC route handlers that mutate state:
 
 ## Rate Limiting
 
-MVP can document and stub rate limits.
-
-Add Redis-backed rate limits before public launch.
+Public beta uses Redis-backed fixed-window rate limits when `REDIS_URL` is configured.
+Local development and tests may explicitly use the in-memory fallback with `RATE_LIMIT_BACKEND=memory` or `RATE_LIMIT_IN_MEMORY_FALLBACK=true`.
+Production should use `RATE_LIMIT_BACKEND=redis` and `RATE_LIMIT_IN_MEMORY_FALLBACK=false`.
 
 Recommended limits:
 
@@ -97,6 +97,15 @@ Recommended limits:
 | replies | 30 per hour for normal users |
 | report content | 20 per day |
 | search | 60 per minute |
+| resend verification email | 3 per hour |
+| password reset request | 3 per hour |
+
+Rules:
+
+- Auth-sensitive actions fail closed if Redis is configured but unavailable.
+- Redis keys must use action names plus user ID or IP address.
+- Email-specific throttles must hash normalized email addresses before key construction.
+- User-facing errors must not expose Redis failures or reveal whether an email exists.
 
 ## Secrets
 

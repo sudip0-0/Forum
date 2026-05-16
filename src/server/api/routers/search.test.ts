@@ -4,7 +4,7 @@ import type { TrpcContext } from "@/server/api/trpc";
 
 // Mock rate-limit to avoid side effects in tests
 vi.mock("@/server/api/rate-limit", () => ({
-  checkRateLimit: vi.fn(),
+  checkRateLimit: vi.fn().mockResolvedValue({ allowed: true, limit: 60, remaining: 59 }),
   RL_SEARCH: { windowMs: 60000, maxRequests: 60, keyPrefix: "search" },
 }));
 

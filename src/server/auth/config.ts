@@ -3,7 +3,12 @@ import Credentials from "next-auth/providers/credentials";
 import type { UserRole } from "@prisma/client";
 import { db } from "@/server/db/prisma";
 import { verifyPassword } from "@/server/auth/password";
-import { checkRateLimit, RL_LOGIN } from "@/server/api/rate-limit";
+import {
+  checkRateLimit,
+  hashRateLimitIdentifier,
+  resetRateLimit,
+  RL_LOGIN,
+} from "@/server/api/rate-limit";
 import { z } from "zod";
 
 declare module "next-auth" {
@@ -27,7 +32,7 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+export const authConfig = {
   providers: [
     Credentials({
       credentials: {
@@ -39,9 +44,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!parsed.success) return null;
 
         const { email, password } = parsed.data;
+        const loginLimitKey = hashRateLimitIdentifier(email);
 
         try {
-          checkRateLimit(`login:${email}`, RL_LOGIN);
+          await checkRateLimit(loginLimitKey, RL_LOGIN);
         } catch {
           return null;
         }
@@ -54,6 +60,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const valid = await verifyPassword(password, user.passwordHash);
         if (!valid) return null;
+        await resetRateLimit(loginLimitKey, RL_LOGIN);
 
         return {
           id: user.id,
@@ -92,4 +99,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
     strategy: "jwt",
   },
-});
+} satisfies Parameters<typeof NextAuth>[0];
+
+export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);

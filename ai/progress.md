@@ -20,7 +20,7 @@
 | Thread CRUD | Done — thread router, post router, category thread list, thread detail, reply form, 21 tests |
 | Core forum | Done — all CORE tasks complete |
 | Moderation | MOD-001/MOD-002/MOD-003 done — report, queue, resolve, user management, role change, suspend/unsuspend, thread actions, move thread, history log |
-| Tests | 298 unit/integration tests across 28 test files; 8 Playwright E2E spec files covering auth, threads, search, moderation, navigation, filters, admin |
+| Tests | 298+ unit/integration tests across 28+ test files; 8 Playwright E2E spec files covering auth, threads, search, moderation, navigation, filters, admin |
 | Staging deploy | Not started |
 | SEO / Polish | POL-001/POL-002/POL-003 done — metadata, sitemap (revalidate=3600, take:5000), header/nav, responsive, error/loading/404 |
 | Post-MVP features | Reactions (ENG-001) and Tags implemented ahead of staging milestone |
@@ -42,6 +42,7 @@
 | Sitemap fix | agent-frontend | Done | `/category/[slug]` pages added to sitemap |
 | QA-003 | agent-qa | Done | Full Playwright E2E release gate stabilized; 41/41 tests passing locally |
 | SEC-001 | agent-security | Done | Formal security review completed; no open Critical/High findings |
+| SEC-002 | agent-security/backend | Done | Redis-backed fixed-window rate limiting added; KI-013 resolved |
 
 ### Completed Sprints
 
@@ -156,6 +157,9 @@
 - SEC-001 completed: created `ai/security-review.md` covering auth, authorization, moderation, UGC, tokens, content visibility, secrets, and rate limiting.
 - Fixed security findings for hidden thread post listing, reporting hidden targets, moderator access to user suspension, last-active-admin suspension, and suspended profile updates.
 - Added regression tests for the SEC-001 fixes.
+- SEC-002 completed: added Redis-backed fixed-window rate limiting for login, registration, thread creation, replies, reports, search, verification resend, and password reset requests.
+- Added hashed email identifiers for email-specific throttles, retry-after result metadata, auth-sensitive fail-closed behavior when Redis is configured but unavailable, and explicit memory fallback for local/test use.
+- Updated `.env.example`, README, and security docs for Redis-backed rate limiting configuration.
 
 ### In Progress
 - None.
@@ -189,7 +193,7 @@
 
 ### Remaining Risks
 - Playwright still relies on local Mailpit at `localhost:8025` for auth email flows.
-- Rate limiting is still in-memory and must be replaced with Redis-backed counters before public production launch (KI-013).
+- Redis-backed rate limiting depends on `REDIS_URL` being configured and reachable in staging/production; local/test memory fallback is explicit.
 - Registration duplicate email/username responses and JWT claim freshness are documented as Low/Medium deferred findings in `ai/security-review.md`.
 
 ### Next Steps
@@ -244,6 +248,7 @@ Full records are in `decisions.md`.
 | POL-003 | 2026-05-14 | - | error.tsx, not-found.tsx, (public)/loading.tsx |
 | QA-003 | 2026-05-16 | - | Full Playwright E2E gate stabilized; lint, typecheck, unit/integration, and 41-test E2E suite passing |
 | SEC-001 | 2026-05-16 | - | Formal security review completed; scoped server-side authorization fixes and 305-test unit/integration suite passing |
+| SEC-002 | 2026-05-16 | - | Redis-backed fixed-window rate limiting implemented for public beta; KI-013 resolved |
 
 ## 9. Metrics
 

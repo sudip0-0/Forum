@@ -10,7 +10,6 @@
 | KI-004 | High | Security | Markdown rendering can introduce XSS | Resolved | security | react-markdown escapes all raw HTML by default |
 | KI-005 | Medium | Progress | Existing progress logs may imply implementation already happened | Resolved | coordinator | Docs now audited and synced to actual repo state (2026-05-15) |
 | KI-010 | Low | Architecture | Category softDelete conflates visibility with deletion (isPublic=false) | Open | architect | Intentional for MVP — document and defer isDeleted field to post-MVP |
-| KI-013 | Medium | Security | Rate limits use an in-memory per-process store and reset on restart; they do not coordinate across multiple production instances | Open | backend | Implement Redis-backed rate limiting before public production launch; see SEC-001 review and Redis hardening task |
 
 ## Deferred Features
 
@@ -51,3 +50,4 @@ Do not implement until MVP passes staging:
 | KI-009 | 2026-05-15 | `createCaller` extracted to `src/server/api/caller.ts`. Was duplicated across all server action files; all updated to import shared helper. |
 | KI-011 | 2026-05-15 | GIN indexes on `to_tsvector('english', title)` (Thread) and `to_tsvector('english', content)` (Post) added via migration `20260515_gin_fts_indexes`. |
 | KI-012 | 2026-05-15 | Header converted to accept `session` prop from server layout; `useSession` removed from header. `ClientShell` now reads session server-side and passes it down. |
+| KI-013 | 2026-05-16 | Redis-backed fixed-window rate limiting added for login, registration, thread creation, replies, reports, search, verification resend, and password reset requests. Auth-sensitive actions fail closed when Redis is configured but unavailable; local/test fallback requires explicit memory mode. |

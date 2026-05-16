@@ -22,6 +22,7 @@ pnpm dev
 The app runs at `http://localhost:3000`.
 The Docker PostgreSQL service is exposed on `localhost:5433` to avoid conflicts with local PostgreSQL installs that use `5432`.
 Mailpit captures local auth emails so verification and password-reset links can be tested without sending real mail.
+Redis backs rate limiting when `REDIS_URL` is set. For local tests or development without Redis, set `RATE_LIMIT_BACKEND=memory`; production should use Redis and keep `RATE_LIMIT_IN_MEMORY_FALLBACK=false`.
 
 ## Optional Search Service
 

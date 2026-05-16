@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { appRouter } from "@/server/api/root";
 import type { TrpcContext } from "@/server/api/trpc";
+import { clearInMemoryRateLimitsForTests } from "@/server/api/rate-limit";
 
 function createCaller(ctx: TrpcContext) {
   return appRouter.createCaller(ctx);
@@ -22,6 +23,10 @@ const visibleForum = {
 };
 
 describe("post router", () => {
+  beforeEach(() => {
+    clearInMemoryRateLimitsForTests();
+  });
+
   describe("listByThread", () => {
     it("returns posts excluding deleted", async () => {
       const posts = [{ id: "p1", content: "Hello", parentId: null, createdAt: new Date(), author: { id: "u1", username: "user1", displayName: null } }];

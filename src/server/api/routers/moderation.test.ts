@@ -1,7 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Report, User } from "@prisma/client";
 import { appRouter } from "@/server/api/root";
 import type { TrpcContext } from "@/server/api/trpc";
+import { clearInMemoryRateLimitsForTests, RL_REPORT } from "@/server/api/rate-limit";
 
 function createCaller(ctx: TrpcContext) {
   return appRouter.createCaller(ctx);
@@ -81,6 +82,10 @@ function makeReportablePost(overrides: Record<string, unknown> = {}) {
 }
 
 describe("moderation router", () => {
+  beforeEach(() => {
+    clearInMemoryRateLimitsForTests();
+  });
+
   describe("report", () => {
     it("allows member to report a post", async () => {
       const db = {
@@ -961,6 +966,38 @@ describe("moderation router", () => {
           role: "MODERATOR",
         }),
       ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    });
+
+    it("blocks repeated reports after the configured daily limit", async () => {
+      const db = {
+        user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
+        thread: {
+          findUnique: vi.fn().mockResolvedValue(makeReportableThread()),
+        },
+        report: {
+          create: vi.fn().mockImplementation((args: { data: { threadId: string; reason: string } }) =>
+            Promise.resolve(makeReport({ threadId: args.data.threadId, reason: args.data.reason as Report["reason"] })),
+          ),
+        },
+      };
+      const caller = createCaller({ db: db as never, session: memberSession });
+
+      for (let i = 0; i < RL_REPORT.maxRequests; i++) {
+        await caller.moderation.report({
+          threadId: `thread-${i}`,
+          reason: "SPAM",
+        });
+      }
+
+      await expect(
+        caller.moderation.report({
+          threadId: "blocked-thread",
+          reason: "SPAM",
+        }),
+      ).rejects.toMatchObject({
+        code: "TOO_MANY_REQUESTS",
+        message: expect.stringContaining("Try again"),
+      });
     });
   });
 

@@ -109,7 +109,7 @@ export const postRouter = router({
   create: protectedProcedure
     .input(createSchema)
     .mutation(async ({ ctx, input }) => {
-      checkRateLimit(ctx.session.user.id, RL_REPLY);
+      await checkRateLimit(ctx.session.user.id, RL_REPLY);
       assertNotSuspended(ctx.session.user);
       await assertEmailVerified(ctx.db, ctx.session.user.id);
 

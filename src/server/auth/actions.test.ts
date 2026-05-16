@@ -5,6 +5,8 @@ import {
   resendVerificationEmailAction,
 } from "@/server/auth/actions";
 import {
+  clearInMemoryRateLimitsForTests,
+  hashRateLimitIdentifier,
   resetRateLimit,
   RL_PASSWORD_RESET,
   RL_RESEND_VERIFICATION,
@@ -53,6 +55,7 @@ function formDataOf(values: Record<string, string>) {
 describe("auth actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearInMemoryRateLimitsForTests();
   });
 
   it("creates a verification token and requests email after registration", async () => {
@@ -128,7 +131,7 @@ describe("auth actions", () => {
 
   it("throttles password reset requests", async () => {
     const email = "reset-throttle@example.com";
-    resetRateLimit(email, RL_PASSWORD_RESET);
+    await resetRateLimit(hashRateLimitIdentifier(email), RL_PASSWORD_RESET);
     vi.mocked(db.user.findUnique).mockResolvedValue(null);
 
     for (let i = 0; i < RL_PASSWORD_RESET.maxRequests; i++) {
@@ -140,12 +143,13 @@ describe("auth actions", () => {
     ).resolves.toMatchObject({
       success: false,
       throttled: true,
+      retryAfterSeconds: expect.any(Number),
     });
   });
 
   it("throttles verification resend requests", async () => {
     const email = "throttle@example.com";
-    resetRateLimit(email, RL_RESEND_VERIFICATION);
+    await resetRateLimit(hashRateLimitIdentifier(email), RL_RESEND_VERIFICATION);
     vi.mocked(db.user.findUnique).mockResolvedValue(null);
 
     for (let i = 0; i < RL_RESEND_VERIFICATION.maxRequests; i++) {
@@ -157,6 +161,30 @@ describe("auth actions", () => {
     ).resolves.toMatchObject({
       success: false,
       throttled: true,
+      retryAfterSeconds: expect.any(Number),
     });
+  });
+
+  it("does not leak account existence when a password reset request is throttled", async () => {
+    const email = "existing-throttled@example.com";
+    await resetRateLimit(hashRateLimitIdentifier(email), RL_PASSWORD_RESET);
+    vi.mocked(db.user.findUnique).mockResolvedValue({
+      id: "user-1",
+      email,
+      passwordHash: "hash",
+    } as never);
+
+    for (let i = 0; i < RL_PASSWORD_RESET.maxRequests; i++) {
+      await requestPasswordResetAction(null, formDataOf({ email }));
+    }
+
+    const result = await requestPasswordResetAction(null, formDataOf({ email }));
+
+    expect(result).toMatchObject({
+      success: false,
+      throttled: true,
+    });
+    expect(result.error).toBe("Too many password reset requests. Please try again later.");
+    expect(result.error).not.toContain("account");
   });
 });

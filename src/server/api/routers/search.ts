@@ -21,7 +21,7 @@ const querySchema = z.object({
 export const searchRouter = router({
   query: publicProcedure.input(querySchema).query(async ({ ctx, input }) => {
     const rateLimitKey = ctx.session?.user.id ?? ctx.clientIp ?? "127.0.0.1";
-    checkRateLimit(rateLimitKey, RL_SEARCH);
+    await checkRateLimit(rateLimitKey, RL_SEARCH);
 
     const params: (string | number)[] = [input.q.trim()];
     let paramIndex = 2;

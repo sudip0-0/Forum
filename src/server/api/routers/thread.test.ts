@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { appRouter } from "@/server/api/root";
 import type { TrpcContext } from "@/server/api/trpc";
+import { clearInMemoryRateLimitsForTests, RL_CREATE_THREAD } from "@/server/api/rate-limit";
 
 function createCaller(ctx: TrpcContext) {
   return appRouter.createCaller(ctx);
@@ -20,6 +21,10 @@ const publicForum = {
 };
 
 describe("thread router", () => {
+  beforeEach(() => {
+    clearInMemoryRateLimitsForTests();
+  });
+
   it("returns threads for a public forum", async () => {
     const db = {
       forum: { findUnique: vi.fn().mockResolvedValue(publicForum) },
@@ -73,6 +78,37 @@ describe("thread router", () => {
     expect(result.slug).toBe("my-thread");
     expect(tx.thread.create).toHaveBeenCalled();
     expect(tx.post.create).toHaveBeenCalled();
+  });
+
+  it("blocks repeated thread creation after the configured window limit", async () => {
+    const thread = { id: "thread-1", slug: "my-thread" };
+    const tx = { thread: { create: vi.fn().mockResolvedValue(thread) }, post: { create: vi.fn() } };
+    const db = {
+      user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
+      forum: { findUnique: vi.fn().mockResolvedValue(publicForum) },
+      thread: { findUnique: vi.fn().mockResolvedValue(null) },
+      $transaction: vi.fn().mockImplementation((fn) => fn(tx)),
+    };
+    const caller = createCaller({ db: db as never, session: memberSession });
+
+    for (let i = 0; i < RL_CREATE_THREAD.maxRequests; i++) {
+      await caller.thread.create({
+        forumId: "forum-1",
+        title: `My Thread ${i}`,
+        content: "This is the content of my thread.",
+      });
+    }
+
+    await expect(
+      caller.thread.create({
+        forumId: "forum-1",
+        title: "Blocked Thread",
+        content: "This is the content of my blocked thread.",
+      }),
+    ).rejects.toMatchObject({
+      code: "TOO_MANY_REQUESTS",
+      message: expect.stringContaining("Try again"),
+    });
   });
 
   it("rejects locked forums", async () => {

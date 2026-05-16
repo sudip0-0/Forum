@@ -167,7 +167,7 @@ export const threadRouter = router({
       tags: z.array(z.string().min(1).max(40)).max(5).default([]),
     }).refine((value) => !!value.forumId || !!value.categoryId, { message: "Forum is required." }))
     .mutation(async ({ ctx, input }) => {
-      checkRateLimit(ctx.session.user.id, RL_CREATE_THREAD);
+      await checkRateLimit(ctx.session.user.id, RL_CREATE_THREAD);
       assertNotSuspended(ctx.session.user);
       await assertEmailVerified(ctx.db, ctx.session.user.id);
       const forum =

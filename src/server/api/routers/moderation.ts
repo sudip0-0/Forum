@@ -79,7 +79,7 @@ export const moderationRouter = router({
   report: protectedProcedure
     .input(reportSchema)
     .mutation(async ({ ctx, input }) => {
-      checkRateLimit(ctx.session.user.id, RL_REPORT);
+      await checkRateLimit(ctx.session.user.id, RL_REPORT);
       assertNotSuspended(ctx.session.user);
       await assertEmailVerified(ctx.db, ctx.session.user.id);
       if (input.postId) {
