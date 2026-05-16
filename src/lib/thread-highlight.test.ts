@@ -149,10 +149,15 @@ describe("highlightPostContent - Property 6: Empty highlight parameter produces 
   });
 
   it("returns single unhighlighted segment for param that becomes empty after HTML stripping", () => {
+    const tagNameArb = fc.array(
+      fc.constantFrom(...'abcdefghijklmnopqrstuvwxyz0123456789'.split('')),
+      { minLength: 1, maxLength: 10 },
+    ).map((chars) => chars.join(""));
+
     fc.assert(
       fc.property(
         fc.string({ minLength: 1 }),
-        fc.array(fc.string({ minLength: 1, maxLength: 10 }), {
+        fc.array(tagNameArb, {
           minLength: 1,
           maxLength: 5,
         }),
@@ -181,7 +186,7 @@ describe("Property 5: Thread-page highlighting produces correct substring matche
       { minLength, maxLength },
     ).map((chars) => chars.join(""));
 
-  it("all case-insensitive substring occurrences of each term are highlighted", () => {
+  it("all non-overlapping case-insensitive substring occurrences of each term are highlighted", () => {
     // Generate a non-empty term (alphanumeric to avoid regex edge cases)
     const termArb = alphanumArb(1, 5);
 
@@ -203,7 +208,7 @@ describe("Property 5: Thread-page highlighting produces correct substring matche
         const reconstructed = result.map((s) => s.text).join("");
         expect(reconstructed).toBe(content);
 
-        // Find all case-insensitive substring occurrences of the term in content
+        // Find all non-overlapping case-insensitive substring occurrences of the term in content.
         const lowerContent = content.toLowerCase();
         const lowerTerm = term.toLowerCase();
         const expectedPositions: { start: number; end: number }[] = [];
@@ -212,7 +217,7 @@ describe("Property 5: Thread-page highlighting produces correct substring matche
           const idx = lowerContent.indexOf(lowerTerm, searchFrom);
           if (idx === -1) break;
           expectedPositions.push({ start: idx, end: idx + lowerTerm.length });
-          searchFrom = idx + 1;
+          searchFrom = idx + lowerTerm.length;
         }
 
         // Verify all highlighted segments correspond to actual term occurrences
@@ -413,7 +418,6 @@ describe("Property 7: Highlight parameter sanitization and truncation", () => {
         paramWithHtmlTags,
         (content, param) => {
           const result = highlightPostContent(content, param);
-          const fullOutput = result.map((s) => s.text).join("");
           // The highlighted segments should not contain raw HTML tags that were in the param
           // Extract HTML tags from the original param
           const htmlTagPattern = /<[^>]*>/g;

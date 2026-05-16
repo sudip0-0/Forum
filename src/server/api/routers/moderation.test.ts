@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Post, Thread, Report, User } from "@prisma/client";
+import type { Report, User } from "@prisma/client";
 import { appRouter } from "@/server/api/root";
 import type { TrpcContext } from "@/server/api/trpc";
 
@@ -52,16 +52,41 @@ function makeReport(overrides: Partial<Report> = {}): Report {
   } as Report;
 }
 
+const visibleForum = {
+  isPublic: true,
+  category: {
+    isPublic: true,
+    section: { isPublic: true },
+  },
+};
+
+function makeReportableThread(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "thread-1",
+    authorId: "author-1",
+    isDeleted: false,
+    forum: visibleForum,
+    ...overrides,
+  };
+}
+
+function makeReportablePost(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "post-1",
+    authorId: "author-1",
+    isDeleted: false,
+    thread: makeReportableThread(),
+    ...overrides,
+  };
+}
+
 describe("moderation router", () => {
   describe("report", () => {
     it("allows member to report a post", async () => {
       const db = {
         user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
         post: {
-          findUnique: vi.fn().mockResolvedValue({
-            id: "post-1",
-            isDeleted: false,
-          } as Post),
+          findUnique: vi.fn().mockResolvedValue(makeReportablePost()),
         },
         report: {
           create: vi.fn().mockResolvedValue(
@@ -85,10 +110,7 @@ describe("moderation router", () => {
       const db = {
         user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
         thread: {
-          findUnique: vi.fn().mockResolvedValue({
-            id: "thread-1",
-            isDeleted: false,
-          } as Thread),
+          findUnique: vi.fn().mockResolvedValue(makeReportableThread()),
         },
         report: {
           create: vi.fn().mockResolvedValue(
@@ -112,10 +134,7 @@ describe("moderation router", () => {
       const db = {
         user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
         post: {
-          findUnique: vi.fn().mockResolvedValue({
-            id: "post-1",
-            isDeleted: false,
-          } as Post),
+          findUnique: vi.fn().mockResolvedValue(makeReportablePost()),
         },
         report: {
           create: vi.fn().mockResolvedValue(
@@ -219,10 +238,7 @@ describe("moderation router", () => {
       const db = {
         user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
         post: {
-          findUnique: vi.fn().mockResolvedValue({
-            id: "post-1",
-            isDeleted: true,
-          } as Post),
+          findUnique: vi.fn().mockResolvedValue(makeReportablePost({ isDeleted: true })),
         },
         report: { create: vi.fn() },
       };
@@ -240,10 +256,7 @@ describe("moderation router", () => {
       const db = {
         user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
         thread: {
-          findUnique: vi.fn().mockResolvedValue({
-            id: "thread-1",
-            isDeleted: true,
-          } as Thread),
+          findUnique: vi.fn().mockResolvedValue(makeReportableThread({ isDeleted: true })),
         },
         report: { create: vi.fn() },
       };
@@ -257,6 +270,54 @@ describe("moderation router", () => {
       ).rejects.toMatchObject({ code: "NOT_FOUND" });
     });
 
+    it("rejects report for a post in a hidden forum", async () => {
+      const db = {
+        user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
+        post: {
+          findUnique: vi.fn().mockResolvedValue(
+            makeReportablePost({
+              thread: makeReportableThread({
+                forum: { ...visibleForum, isPublic: false },
+              }),
+            }),
+          ),
+        },
+        report: { create: vi.fn() },
+      };
+
+      const caller = createCaller({ db: db as never, session: memberSession });
+      await expect(
+        caller.moderation.report({
+          postId: "post-1",
+          reason: "SPAM",
+        }),
+      ).rejects.toMatchObject({ code: "NOT_FOUND" });
+      expect(db.report.create).not.toHaveBeenCalled();
+    });
+
+    it("rejects report for a hidden thread", async () => {
+      const db = {
+        user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
+        thread: {
+          findUnique: vi.fn().mockResolvedValue(
+            makeReportableThread({
+              forum: { ...visibleForum, isPublic: false },
+            }),
+          ),
+        },
+        report: { create: vi.fn() },
+      };
+
+      const caller = createCaller({ db: db as never, session: memberSession });
+      await expect(
+        caller.moderation.report({
+          threadId: "thread-1",
+          reason: "SPAM",
+        }),
+      ).rejects.toMatchObject({ code: "NOT_FOUND" });
+      expect(db.report.create).not.toHaveBeenCalled();
+    });
+
     it("rejects duplicate report with CONFLICT", async () => {
       const p2002Error = Object.assign(new Error("Unique constraint failed"), {
         code: "P2002",
@@ -265,10 +326,7 @@ describe("moderation router", () => {
       const db = {
         user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
         post: {
-          findUnique: vi.fn().mockResolvedValue({
-            id: "post-1",
-            isDeleted: false,
-          } as Post),
+          findUnique: vi.fn().mockResolvedValue(makeReportablePost()),
         },
         report: {
           create: vi.fn().mockRejectedValue(p2002Error),
@@ -292,10 +350,7 @@ describe("moderation router", () => {
       const db = {
         user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
         thread: {
-          findUnique: vi.fn().mockResolvedValue({
-            id: "thread-1",
-            isDeleted: false,
-          } as Thread),
+          findUnique: vi.fn().mockResolvedValue(makeReportableThread()),
         },
         report: {
           create: vi.fn().mockRejectedValue(p2002Error),
@@ -315,11 +370,7 @@ describe("moderation router", () => {
       const db = {
         user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
         post: {
-          findUnique: vi.fn().mockResolvedValue({
-            id: "post-1",
-            isDeleted: false,
-            authorId: "member-1",
-          }),
+          findUnique: vi.fn().mockResolvedValue(makeReportablePost({ authorId: "member-1" })),
         },
         report: { create: vi.fn() },
       };
@@ -334,11 +385,7 @@ describe("moderation router", () => {
       const db = {
         user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
         thread: {
-          findUnique: vi.fn().mockResolvedValue({
-            id: "thread-1",
-            isDeleted: false,
-            authorId: "member-1",
-          }),
+          findUnique: vi.fn().mockResolvedValue(makeReportableThread({ authorId: "member-1" })),
         },
         report: { create: vi.fn() },
       };
@@ -914,6 +961,68 @@ describe("moderation router", () => {
           role: "MODERATOR",
         }),
       ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    });
+  });
+
+  describe("suspendUser", () => {
+    it("allows admin to suspend a user", async () => {
+      const db = {
+        user: {
+          findUnique: vi.fn().mockResolvedValue({ id: "user-1", role: "MEMBER" }),
+          update: vi.fn().mockResolvedValue({}),
+          count: vi.fn(),
+        },
+        moderationLog: { create: vi.fn().mockResolvedValue({}) },
+        $transaction: vi.fn().mockResolvedValue([]),
+      };
+
+      const caller = createCaller({ db: db as never, session: adminSession });
+      await expect(
+        caller.moderation.suspendUser({
+          userId: "user-1",
+          isSuspended: true,
+          reason: "Repeated spam",
+        }),
+      ).resolves.toEqual({ success: true });
+    });
+
+    it("rejects user suspension by moderator", async () => {
+      const db = {
+        user: { findUnique: vi.fn(), update: vi.fn(), count: vi.fn() },
+        moderationLog: { create: vi.fn() },
+      };
+
+      const caller = createCaller({ db: db as never, session: moderatorSession });
+      await expect(
+        caller.moderation.suspendUser({
+          userId: "user-1",
+          isSuspended: true,
+          reason: "Repeated spam",
+        }),
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+      expect(db.user.findUnique).not.toHaveBeenCalled();
+    });
+
+    it("prevents suspending the last active admin", async () => {
+      const db = {
+        user: {
+          findUnique: vi.fn().mockResolvedValue({ id: "admin-1", role: "ADMIN" }),
+          update: vi.fn(),
+          count: vi.fn().mockResolvedValue(1),
+        },
+        moderationLog: { create: vi.fn() },
+        $transaction: vi.fn(),
+      };
+
+      const caller = createCaller({ db: db as never, session: adminSession });
+      await expect(
+        caller.moderation.suspendUser({
+          userId: "admin-1",
+          isSuspended: true,
+          reason: "Emergency lockout",
+        }),
+      ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+      expect(db.user.update).not.toHaveBeenCalled();
     });
   });
 

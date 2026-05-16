@@ -320,7 +320,7 @@ Definition of done:
 ### SEC-001 — Security Review
 
 **Owner:** agent-security  
-**Status:** ⏳ Review
+**Status:** ✅ Done
 
 **Acceptance Criteria**
 - Auth routes reviewed.
@@ -329,7 +329,7 @@ Definition of done:
 - No secrets committed.
 - Rate-limit plan documented.
 
-**Notes:** In-memory rate limiting is implemented for login, register, create-thread, reply, report, and search. Suspension checks are enforced on mutations. XSS safe via react-markdown (no raw HTML). Formal security review document not yet written.
+**Notes:** Formal review completed in `ai/security-review.md` on 2026-05-16. Fixed scoped Medium/Low findings for hidden post visibility, hidden report targets, admin-only suspension, last-active-admin suspension guard, and suspended profile edits. In-memory rate limiting remains a documented production risk (KI-013) pending Redis-backed implementation.
 
 ## Phase 5 — Post-MVP Enhancements
 

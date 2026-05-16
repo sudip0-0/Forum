@@ -39,6 +39,23 @@ export const postRouter = router({
   listByThread: publicProcedure
     .input(listByThreadSchema)
     .query(async ({ ctx, input }) => {
+      const thread = await ctx.db.thread.findUnique({
+        where: { id: input.threadId },
+        include: {
+          forum: {
+            include: {
+              category: {
+                include: { section: true },
+              },
+            },
+          },
+        },
+      });
+
+      if (!thread || !isVisibleThread(thread)) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Thread not found." });
+      }
+
       const where: Record<string, unknown> = {
         threadId: input.threadId,
         isDeleted: false,

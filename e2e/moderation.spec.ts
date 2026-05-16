@@ -17,8 +17,8 @@ test.describe("Moderation flows", () => {
     await page.getByLabel(/Additional details/).fill("E2E test report");
     await page.getByRole("button", { name: "Submit Report" }).click();
 
-    await page.click('button:has-text("Logout")');
-    await page.goto("/login");
+    await page.getByRole("button", { name: "Logout" }).click();
+    await expect(page).toHaveURL("/login", { timeout: 10000 });
     await page.fill('input[name="email"]', "moderator@example.com");
     await page.fill('input[name="password"]', "password123");
     await page.click('button[type="submit"]');

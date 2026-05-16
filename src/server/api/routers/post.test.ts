@@ -26,6 +26,7 @@ describe("post router", () => {
     it("returns posts excluding deleted", async () => {
       const posts = [{ id: "p1", content: "Hello", parentId: null, createdAt: new Date(), author: { id: "u1", username: "user1", displayName: null } }];
       const db = {
+        thread: { findUnique: vi.fn().mockResolvedValue({ id: "t1", isDeleted: false, forum: visibleForum }) },
         post: { findMany: vi.fn().mockResolvedValue(posts) },
       };
 
@@ -36,6 +37,25 @@ describe("post router", () => {
       expect(db.post.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: expect.objectContaining({ isDeleted: false }) }),
       );
+    });
+
+    it("rejects posts for hidden threads", async () => {
+      const db = {
+        thread: {
+          findUnique: vi.fn().mockResolvedValue({
+            id: "t1",
+            isDeleted: false,
+            forum: { ...visibleForum, isPublic: false },
+          }),
+        },
+        post: { findMany: vi.fn() },
+      };
+
+      const caller = createCaller({ db: db as never, session: null });
+      await expect(caller.post.listByThread({ threadId: "t1" })).rejects.toMatchObject({
+        code: "NOT_FOUND",
+      });
+      expect(db.post.findMany).not.toHaveBeenCalled();
     });
   });
 

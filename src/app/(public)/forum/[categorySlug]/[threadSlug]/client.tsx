@@ -274,7 +274,7 @@ function ThreadOwnerControls({
       if (result.error) setError(result.error);
       else {
         setIsEditing(false);
-        window.location.reload();
+        router.refresh();
       }
     } finally {
       setIsPending(false);
@@ -289,8 +289,7 @@ function ThreadOwnerControls({
       const result = await deleteOwnThread(categorySlug, threadSlug, { threadId });
       if (result.error) setError(result.error);
       else {
-        router.push(`/forum/${categorySlug}`);
-        router.refresh();
+        router.replace(`/forum/${categorySlug}`);
       }
     } finally {
       setIsPending(false);

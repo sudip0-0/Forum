@@ -79,5 +79,19 @@ describe("user router", () => {
       const caller = createCaller({ db: db as never, session: null });
       await expect(caller.user.updateProfile({ displayName: "X" })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     });
+
+    it("rejects profile updates by suspended users", async () => {
+      const db = { user: { update: vi.fn() } };
+      const suspendedSession = {
+        ...memberSession,
+        user: { ...memberSession.user, isSuspended: true },
+      };
+
+      const caller = createCaller({ db: db as never, session: suspendedSession });
+      await expect(caller.user.updateProfile({ displayName: "X" })).rejects.toMatchObject({
+        code: "FORBIDDEN",
+      });
+      expect(db.user.update).not.toHaveBeenCalled();
+    });
   });
 });

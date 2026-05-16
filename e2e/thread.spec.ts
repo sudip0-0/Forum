@@ -19,9 +19,9 @@ test.describe("Thread creation and replies", () => {
     const title = `E2E Test Thread ${Date.now()}`;
     await page.getByTestId("thread-title").fill(title);
     await page.getByTestId("thread-content").fill("This is an E2E test thread created by Playwright.");
-    await page.getByText("Create Thread").click();
+    await page.getByRole("button", { name: "Create Thread" }).click();
 
-    await expect(page.locator("h1")).toContainText(title, { timeout: 15000 });
+    await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible({ timeout: 15000 });
   });
 
   test("reply to an existing thread", async ({ page }) => {
@@ -43,15 +43,16 @@ test.describe("Thread creation and replies", () => {
     const title = `Editable thread ${Date.now()}`;
     await page.getByTestId("thread-title").fill(title);
     await page.getByTestId("thread-content").fill("Original body for an editable E2E thread.");
-    await page.getByText("Create Thread").click();
+    await page.getByRole("button", { name: "Create Thread" }).click();
+    await expect(page.getByRole("heading", { level: 1, name: title }).first()).toBeVisible({ timeout: 15000 });
 
     const updatedTitle = `${title} updated`;
-    await page.getByText("Edit thread").click();
+    await page.getByRole("button", { name: "Edit thread" }).click();
     await page.getByTestId("edit-thread-title").fill(updatedTitle);
     await page.getByTestId("edit-thread-content").fill("Updated body for the editable E2E thread.");
-    await page.getByText("Save changes").click();
+    await page.getByRole("button", { name: "Save changes" }).click();
 
-    await expect(page.locator("h1")).toContainText(updatedTitle);
+    await expect(page.getByRole("heading", { level: 1, name: updatedTitle }).first()).toBeVisible();
     await expect(page.locator("body")).toContainText("Updated body for the editable E2E thread.");
   });
 
@@ -89,10 +90,11 @@ test.describe("Thread creation and replies", () => {
     const title = `Disposable thread ${Date.now()}`;
     await page.getByTestId("thread-title").fill(title);
     await page.getByTestId("thread-content").fill("This disposable thread has no replies.");
-    await page.getByText("Create Thread").click();
+    await page.getByRole("button", { name: "Create Thread" }).click();
+    await expect(page.getByRole("heading", { level: 1, name: title }).first()).toBeVisible({ timeout: 15000 });
 
     page.once("dialog", (dialog) => dialog.accept());
-    await page.getByText("Delete thread").click();
+    await page.getByRole("button", { name: "Delete thread" }).click();
     await expect(page).toHaveURL(/\/forum\/general-discussion$/);
     await expect(page.locator("body")).not.toContainText(title);
   });
@@ -103,7 +105,7 @@ test.describe("Thread creation and replies", () => {
     await page.click('a:has-text("New Thread")');
     await page.getByTestId("thread-title").fill(`Thread with reply ${Date.now()}`);
     await page.getByTestId("thread-content").fill("This thread will receive a reply before deletion.");
-    await page.getByText("Create Thread").click();
+    await page.getByRole("button", { name: "Create Thread" }).click();
     await page.getByTestId("reply-content").fill("A reply that blocks author deletion.");
     await page.getByText("Post reply").click();
     await expect(page.locator("body")).toContainText("Threads with replies cannot be deleted by their author.");

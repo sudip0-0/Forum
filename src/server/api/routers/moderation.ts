@@ -85,9 +85,23 @@ export const moderationRouter = router({
       if (input.postId) {
         const post = await ctx.db.post.findUnique({
           where: { id: input.postId },
+          include: {
+            thread: {
+              include: {
+                forum: { include: { category: { include: { section: true } } } },
+              },
+            },
+          },
         });
 
-        if (!post || post.isDeleted) {
+        if (
+          !post ||
+          post.isDeleted ||
+          post.thread.isDeleted ||
+          !post.thread.forum.isPublic ||
+          !post.thread.forum.category.isPublic ||
+          !post.thread.forum.category.section.isPublic
+        ) {
           throw new TRPCError({
             code: "NOT_FOUND",
             message: "Post not found.",
@@ -130,9 +144,16 @@ export const moderationRouter = router({
       if (input.threadId) {
         const thread = await ctx.db.thread.findUnique({
           where: { id: input.threadId },
+          include: { forum: { include: { category: { include: { section: true } } } } },
         });
 
-        if (!thread || thread.isDeleted) {
+        if (
+          !thread ||
+          thread.isDeleted ||
+          !thread.forum.isPublic ||
+          !thread.forum.category.isPublic ||
+          !thread.forum.category.section.isPublic
+        ) {
           throw new TRPCError({
             code: "NOT_FOUND",
             message: "Thread not found.",
@@ -479,9 +500,34 @@ export const moderationRouter = router({
       return { success: true };
     }),
 
-  suspendUser: roleProcedure(["MODERATOR", "ADMIN"])
+  suspendUser: roleProcedure(["ADMIN"])
     .input(suspendUserSchema)
     .mutation(async ({ ctx, input }) => {
+      const target = await ctx.db.user.findUnique({
+        where: { id: input.userId },
+        select: { id: true, role: true },
+      });
+
+      if (!target) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "User not found.",
+        });
+      }
+
+      if (input.isSuspended && target.role === "ADMIN") {
+        const activeAdminCount = await ctx.db.user.count({
+          where: { role: "ADMIN", isSuspended: false },
+        });
+
+        if (activeAdminCount <= 1) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Cannot suspend the last active admin.",
+          });
+        }
+      }
+
       await ctx.db.$transaction([
         ctx.db.user.update({ where: { id: input.userId }, data: { isSuspended: input.isSuspended } }),
         ctx.db.moderationLog.create({

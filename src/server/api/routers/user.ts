@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { publicProcedure, protectedProcedure, router } from "@/server/api/trpc";
+import { assertNotSuspended } from "@/server/api/rate-limit";
 
 const getPublicProfileSchema = z.object({
   username: z.string().min(1),
@@ -53,6 +54,8 @@ export const userRouter = router({
   updateProfile: protectedProcedure
     .input(updateProfileSchema)
     .mutation(async ({ ctx, input }) => {
+      assertNotSuspended(ctx.session.user);
+
       await ctx.db.user.update({
         where: { id: ctx.session.user.id },
         data: {

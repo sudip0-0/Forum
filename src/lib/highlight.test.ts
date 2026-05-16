@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as fc from "fast-check";
-import { highlightSnippet, type HighlightSegment } from "@/lib/highlight";
+import { highlightSnippet } from "@/lib/highlight";
 
 describe("highlightSnippet", () => {
   it("highlights a single term with case-insensitive matching", () => {
