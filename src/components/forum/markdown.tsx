@@ -1,4 +1,5 @@
 import ReactMarkdown from "react-markdown";
+import rehypeRaw from "rehype-raw";
 import remarkEmoji from "remark-emoji";
 import remarkGfm from "remark-gfm";
 
@@ -7,6 +8,7 @@ export function Markdown({ content }: { content: string }) {
     <div className="prose prose-sm max-w-none dark:prose-invert">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, [remarkEmoji, { emoticon: false }]]}
+        rehypePlugins={[rehypeRaw]}
         components={{
           code({ className, children, ...props }) {
             const isBlock = className?.startsWith("language-");

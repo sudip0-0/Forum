@@ -4,7 +4,7 @@ import { appRouter } from "@/server/api/root";
 import { db } from "@/server/db/prisma";
 import { createMetadata } from "@/lib/seo";
 import { TagPill } from "@/components/forum/tag-pill";
-import { Search, SlidersHorizontal, X, ArrowRight } from "lucide-react";
+import { Search, SlidersHorizontal, X, ArrowRight, Calendar } from "lucide-react";
 
 export const metadata: Metadata = createMetadata({
   title: "Search",
@@ -79,28 +79,50 @@ export default async function SearchPage({
 
       <form className="space-y-4" action="/search" method="GET">
         {/* Search Input */}
-        <div className="relative">
-          <label htmlFor="forum-search" className="sr-only">Search threads</label>
-          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            id="forum-search"
-            name="q"
-            defaultValue={q ?? ""}
-            className="w-full rounded-md border-2 border-border bg-card py-3 pl-10 pr-4 text-sm shadow-[2px_2px_0px_var(--border)] outline-none focus:shadow-[1px_1px_0px_var(--border)] focus:translate-x-[1px] focus:translate-y-[1px] transition-all"
-            placeholder="Search threads..."
-          />
+        <div className="flex gap-3">
+          <div className="relative flex-1">
+            <label htmlFor="forum-search" className="sr-only">Search threads</label>
+            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              id="forum-search"
+              name="q"
+              defaultValue={q ?? ""}
+              className="w-full rounded-md border-2 border-border bg-card py-3 pl-10 pr-4 text-sm shadow-[2px_2px_0px_var(--border)] outline-none focus:shadow-[1px_1px_0px_var(--border)] focus:translate-x-[1px] focus:translate-y-[1px] transition-all"
+              placeholder="Search threads..."
+            />
+          </div>
+          <button
+            type="submit"
+            className="inline-flex items-center gap-2 rounded-md border-2 border-border bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-[2px_2px_0px_var(--border)] transition-shadow hover:shadow-[1px_1px_0px_var(--border)] active:shadow-none shrink-0"
+          >
+            <Search className="h-4 w-4" />
+            Search
+          </button>
         </div>
 
         {/* Filters */}
-        <div className="filter-panel">
-          <div className="flex items-center gap-2 mb-3">
-            <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Filters</span>
+        <div className="filter-panel overflow-hidden">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Filters</span>
+              {hasActiveFilters && (
+                <span className="badge-orange text-xs">Active</span>
+              )}
+            </div>
             {hasActiveFilters && (
-              <span className="badge-orange text-xs">Active</span>
+              <a
+                href={`/search?q=${encodeURIComponent(q ?? "")}`}
+                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:no-underline transition-colors"
+              >
+                <X className="h-3 w-3" />
+                Clear
+              </a>
             )}
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+
+          {/* Row 1: Forum, Tag, Author */}
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
             <div>
               <label htmlFor="search-forum" className="mb-1 block text-xs font-semibold text-muted-foreground">Forum</label>
               <select id="search-forum" name="forum" defaultValue={selectedForum} className="w-full rounded-sm border-2 border-border bg-background px-2.5 py-2 text-sm shadow-[1px_1px_0px_var(--border)]">
@@ -120,38 +142,25 @@ export default async function SearchPage({
               <label htmlFor="search-author" className="mb-1 block text-xs font-semibold text-muted-foreground">Author</label>
               <input id="search-author" name="author" defaultValue={selectedAuthor} className="w-full rounded-sm border-2 border-border bg-background px-2.5 py-2 text-sm shadow-[1px_1px_0px_var(--border)]" placeholder="username" />
             </div>
+          </div>
 
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <label htmlFor="search-from" className="mb-1 block text-xs font-semibold text-muted-foreground">From</label>
-                <input id="search-from" type="date" name="from" defaultValue={selectedFrom} className="w-full rounded-sm border-2 border-border bg-background px-2.5 py-2 text-sm shadow-[1px_1px_0px_var(--border)]" />
-              </div>
-              <div className="flex-1">
-                <label htmlFor="search-to" className="mb-1 block text-xs font-semibold text-muted-foreground">To</label>
-                <input id="search-to" type="date" name="to" defaultValue={selectedTo} className="w-full rounded-sm border-2 border-border bg-background px-2.5 py-2 text-sm shadow-[1px_1px_0px_var(--border)]" />
-              </div>
+          {/* Row 2: Date range */}
+          <div className="mt-3 grid gap-3 grid-cols-1 sm:grid-cols-2">
+            <div>
+              <label htmlFor="search-from" className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                <Calendar className="h-3 w-3" />
+                From
+              </label>
+              <input id="search-from" type="date" name="from" defaultValue={selectedFrom} className="w-full min-w-0 rounded-sm border-2 border-border bg-background px-2.5 py-2 text-sm shadow-[1px_1px_0px_var(--border)]" />
+            </div>
+            <div>
+              <label htmlFor="search-to" className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                <Calendar className="h-3 w-3" />
+                To
+              </label>
+              <input id="search-to" type="date" name="to" defaultValue={selectedTo} className="w-full min-w-0 rounded-sm border-2 border-border bg-background px-2.5 py-2 text-sm shadow-[1px_1px_0px_var(--border)]" />
             </div>
           </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="submit"
-            className="inline-flex items-center gap-2 rounded-md border-2 border-border bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-[3px_3px_0px_var(--border)] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_var(--border)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-          >
-            <Search className="h-4 w-4" />
-            Search
-          </button>
-          {hasActiveFilters && (
-            <a
-              href={`/search?q=${encodeURIComponent(q ?? "")}`}
-              className="inline-flex items-center gap-1.5 rounded-md border-2 border-border bg-background px-4 py-2.5 text-sm font-semibold shadow-[2px_2px_0px_var(--border)] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_var(--border)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none hover:no-underline"
-            >
-              <X className="h-4 w-4" />
-              Clear filters
-            </a>
-          )}
         </div>
       </form>
 

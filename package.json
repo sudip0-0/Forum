@@ -16,6 +16,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
+    "db:reset": "prisma migrate reset --force",
     "db:studio": "prisma studio"
   },
   "dependencies": {
@@ -33,6 +34,7 @@
     "react": "latest",
     "react-dom": "latest",
     "react-markdown": "^9.1.0",
+    "rehype-raw": "^7.0.0",
     "remark-emoji": "^5.0.2",
     "remark-gfm": "^4.0.1",
     "superjson": "^2.2.6",
