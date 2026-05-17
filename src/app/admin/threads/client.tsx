@@ -1,15 +1,26 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import type { AppRouterOutputs } from "@/server/api/root";
 import { Button } from "@/components/ui/button";
 import { moveThread, runThreadAction } from "../mod/actions";
 import { Search, Lock, Unlock, Pin, PinOff, ArrowRight } from "lucide-react";
 
-type ThreadItem = AppRouterOutputs["moderation"]["listThreads"][number];
+type ThreadPageItem = AppRouterOutputs["moderation"]["listThreads"]["threads"][number];
 type ForumItem = AppRouterOutputs["forum"]["listForModeration"][number];
 
-export function ThreadManagement({ threads, forums }: { threads: ThreadItem[]; forums: ForumItem[] }) {
+export function ThreadManagement({
+  threads,
+  forums,
+  nextHref,
+  filters,
+}: {
+  threads: ThreadPageItem[];
+  forums: ForumItem[];
+  nextHref: string | null;
+  filters: { q?: string; forumId?: string; status?: "all" | "locked" | "pinned"; cursor?: string };
+}) {
   return (
     <div className="mt-6 space-y-4">
       {/* Search & Filter */}
@@ -21,6 +32,7 @@ export function ThreadManagement({ threads, forums }: { threads: ThreadItem[]; f
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 name="q"
+                defaultValue={filters.q ?? ""}
                 className="w-full rounded-sm border-2 border-border bg-background py-2 pl-9 pr-3 text-sm shadow-[1px_1px_0px_var(--border)]"
                 placeholder="Search thread titles..."
               />
@@ -28,14 +40,14 @@ export function ThreadManagement({ threads, forums }: { threads: ThreadItem[]; f
           </div>
           <div>
             <label className="mb-1 block text-xs font-semibold text-muted-foreground uppercase tracking-wider">Forum</label>
-            <select name="forumId" className="rounded-sm border-2 border-border bg-background px-3 py-2 text-sm shadow-[1px_1px_0px_var(--border)]">
+            <select name="forumId" defaultValue={filters.forumId ?? ""} className="rounded-sm border-2 border-border bg-background px-3 py-2 text-sm shadow-[1px_1px_0px_var(--border)]">
               <option value="">All forums</option>
               {forums.map((forum) => <option key={forum.id} value={forum.id}>{forum.name}</option>)}
             </select>
           </div>
           <div>
             <label className="mb-1 block text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</label>
-            <select name="status" className="rounded-sm border-2 border-border bg-background px-3 py-2 text-sm shadow-[1px_1px_0px_var(--border)]">
+            <select name="status" defaultValue={filters.status ?? "all"} className="rounded-sm border-2 border-border bg-background px-3 py-2 text-sm shadow-[1px_1px_0px_var(--border)]">
               <option value="all">All</option>
               <option value="locked">Locked</option>
               <option value="pinned">Pinned</option>
@@ -59,12 +71,22 @@ export function ThreadManagement({ threads, forums }: { threads: ThreadItem[]; f
             <p className="empty-state-text">Try adjusting your search or filters.</p>
           </div>
         )}
+        {nextHref && (
+          <div className="flex justify-center pt-2">
+            <Link
+              href={nextHref}
+              className="inline-flex min-h-[44px] items-center rounded-md border-2 border-border bg-background px-4 py-2 text-sm font-semibold shadow-[2px_2px_0px_var(--border)] hover:no-underline"
+            >
+              Next page
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function ThreadRow({ thread, forums }: { thread: ThreadItem; forums: ForumItem[] }) {
+function ThreadRow({ thread, forums }: { thread: ThreadPageItem; forums: ForumItem[] }) {
   const [reason, setReason] = useState("");
   const [forumId, setForumId] = useState(thread.forum.id);
   const [error, setError] = useState<string | null>(null);

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { resolveReport } from "./actions";
 import type { AppRouterOutputs } from "@/server/api/root";
@@ -156,7 +157,7 @@ function targetPreview(report: ReportItem) {
   return { type: "Unknown" as const, content: "(deleted)", deleted: true };
 }
 
-export function ModerationQueue({ reports }: { reports: ReportItem[] }) {
+export function ModerationQueue({ reports, nextCursor }: { reports: ReportItem[]; nextCursor: string | null }) {
   if (reports.length === 0) {
     return (
       <div className="empty-state mt-6">
@@ -222,6 +223,16 @@ export function ModerationQueue({ reports }: { reports: ReportItem[] }) {
           </div>
         );
       })}
+      {nextCursor && (
+        <div className="flex justify-center pt-2">
+          <Link
+            href={`/admin/mod?cursor=${encodeURIComponent(nextCursor)}`}
+            className="inline-flex min-h-[44px] items-center rounded-md border-2 border-border bg-background px-4 py-2 text-sm font-semibold shadow-[2px_2px_0px_var(--border)] hover:no-underline"
+          >
+            Next page
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

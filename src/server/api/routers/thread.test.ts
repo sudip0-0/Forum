@@ -36,6 +36,61 @@ describe("thread router", () => {
     expect(db.thread.findMany).toHaveBeenCalled();
   });
 
+  it("returns first page with bounded limit, next cursor, and deterministic ordering", async () => {
+    const rows = [
+      { id: "thread-1", lastActivityAt: new Date(), author: {}, tags: [], _count: { reactions: 0 } },
+      { id: "thread-2", lastActivityAt: new Date(), author: {}, tags: [], _count: { reactions: 0 } },
+      { id: "thread-3", lastActivityAt: new Date(), author: {}, tags: [], _count: { reactions: 0 } },
+    ];
+    const db = {
+      forum: { findUnique: vi.fn().mockResolvedValue(publicForum) },
+      thread: { findMany: vi.fn().mockResolvedValue(rows) },
+    };
+    const caller = createCaller({ db: db as never, session: null });
+
+    const result = await caller.thread.listByForum({ forumSlug: "general-discussion", limit: 2 });
+
+    expect(result.threads.map((thread) => thread.id)).toEqual(["thread-1", "thread-2"]);
+    expect(result.nextCursor).toBe("thread-3");
+    expect(db.thread.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        take: 3,
+        orderBy: [{ isPinned: "desc" }, { lastActivityAt: "desc" }, { id: "desc" }],
+      }),
+    );
+  });
+
+  it("uses cursor pagination for the next forum page", async () => {
+    const db = {
+      forum: { findUnique: vi.fn().mockResolvedValue(publicForum) },
+      thread: { findMany: vi.fn().mockResolvedValue([]) },
+    };
+    const caller = createCaller({ db: db as never, session: null });
+
+    await caller.thread.listByForum({ forumSlug: "general-discussion", cursor: "thread-3", limit: 2 });
+
+    expect(db.thread.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cursor: { id: "thread-3" },
+        skip: 1,
+        take: 3,
+      }),
+    );
+  });
+
+  it("rejects unbounded forum list limits", async () => {
+    const db = {
+      forum: { findUnique: vi.fn() },
+      thread: { findMany: vi.fn() },
+    };
+    const caller = createCaller({ db: db as never, session: null });
+
+    await expect(
+      caller.thread.listByForum({ forumSlug: "general-discussion", limit: 1000 }),
+    ).rejects.toThrow();
+    expect(db.thread.findMany).not.toHaveBeenCalled();
+  });
+
   it("rejects hidden forums", async () => {
     const db = {
       forum: { findUnique: vi.fn().mockResolvedValue({ ...publicForum, isPublic: false }) },

@@ -62,8 +62,8 @@ export const discoveryRouter = router({
       tagSlug: z.string().min(1),
       sort: z.enum(["latest", "newest", "oldest", "views", "replies", "reactions"]).default("latest"),
       direction: z.enum(["asc", "desc"]).default("desc"),
-      cursor: z.string().optional(),
-      limit: z.number().min(1).max(50).default(20),
+      cursor: z.string().min(1).optional(),
+      limit: z.number().int().min(1).max(50).default(20),
     }))
     .query(async ({ ctx, input }) => {
       const tag = await ctx.db.tag.findUnique({ where: { slug: input.tagSlug } });
@@ -101,7 +101,7 @@ export const discoveryRouter = router({
         },
       });
 
-      let nextCursor: string | undefined;
+      let nextCursor: string | null = null;
       if (threads.length > input.limit) nextCursor = threads.pop()!.id;
 
       return { threads, nextCursor, tag };

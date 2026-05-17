@@ -3,14 +3,16 @@
 import { useState } from "react";
 import Link from "next/link";
 import { getCsrfToken, signOut } from "next-auth/react";
-import { Menu, X, MessageSquareText, Search } from "lucide-react";
+import { MailWarning, Menu, ShieldAlert, X, MessageSquareText, Search } from "lucide-react";
 import type { Session } from "next-auth";
+import type { AccountState } from "@/lib/account-state";
 
 interface HeaderProps {
   session: Session | null;
+  accountState: AccountState;
 }
 
-export function Header({ session }: HeaderProps) {
+export function Header({ session, accountState }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   async function handleSignOut() {
@@ -20,6 +22,27 @@ export function Header({ session }: HeaderProps) {
 
   return (
     <header className="border-b-2 border-border bg-card shadow-[0_2px_0px_var(--border)]">
+      {session?.user && accountState.kind === "unverified" && (
+        <div className="border-b-2 border-border bg-warning/10 px-6 py-2 text-sm">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-2 font-medium text-foreground">
+              <MailWarning className="h-4 w-4" />
+              Verify your email to post, reply, or report.
+            </span>
+            <Link href="/verify-email" className="font-semibold text-link hover:no-underline">
+              Resend verification
+            </Link>
+          </div>
+        </div>
+      )}
+      {session?.user && accountState.kind === "suspended" && (
+        <div className="border-b-2 border-border bg-destructive/10 px-6 py-2 text-sm">
+          <div className="mx-auto flex max-w-6xl items-center gap-2 font-medium text-foreground">
+            <ShieldAlert className="h-4 w-4" />
+            Your account is suspended. You can read public discussions, but posting and reporting are unavailable.
+          </div>
+        </div>
+      )}
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
         <div className="flex items-center gap-6">
           <Link

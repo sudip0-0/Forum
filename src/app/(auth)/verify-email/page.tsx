@@ -1,4 +1,5 @@
 import { MailCheck, MailWarning } from "lucide-react";
+import Link from "next/link";
 import { db } from "@/server/db/prisma";
 import { verifyEmailToken } from "@/server/auth/email-verification";
 import { ResendVerificationForm } from "./resend-form";
@@ -8,6 +9,10 @@ type VerifyEmailPageProps = {
 };
 
 const copy = {
+  request: {
+    title: "Verify your email",
+    body: "Enter your email address and we will send a verification link if the account still needs one.",
+  },
   success: {
     title: "Email verified",
     body: "Your email address has been verified. You can now post and report content.",
@@ -28,7 +33,7 @@ const copy = {
 
 export default async function VerifyEmailPage({ searchParams }: VerifyEmailPageProps) {
   const { token } = await searchParams;
-  const status = token ? await verifyEmailToken(db, token) : "invalid";
+  const status = token ? await verifyEmailToken(db, token) : "request";
   const content = copy[status];
   const Icon = status === "success" || status === "already-verified" ? MailCheck : MailWarning;
 
@@ -40,7 +45,17 @@ export default async function VerifyEmailPage({ searchParams }: VerifyEmailPageP
         </div>
         <h1 className="text-2xl font-bold tracking-tight">{content.title}</h1>
         <p className="mt-3 text-sm text-muted-foreground">{content.body}</p>
-        {(status === "expired" || status === "invalid") && <ResendVerificationForm />}
+        {(status === "expired" || status === "invalid" || status === "request") && <ResendVerificationForm />}
+        {(status === "success" || status === "already-verified") && (
+          <div className="mt-6">
+            <Link
+              href="/forums"
+              className="inline-flex min-h-11 items-center justify-center rounded-md border-2 border-border bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[2px_2px_0px_var(--border)] hover:no-underline"
+            >
+              Browse forums
+            </Link>
+          </div>
+        )}
         <p className="mt-6 text-sm text-muted-foreground">
           <a href="/login" className="font-medium text-primary underline-offset-4 hover:underline">
             Go to sign in

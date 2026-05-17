@@ -167,6 +167,61 @@ describe("discovery router", () => {
       );
     });
 
+    it("returns first tag page with next cursor and deterministic ordering", async () => {
+      const threads = [
+        { id: "thread-1", author: {}, forum: {}, tags: [], _count: { reactions: 0 } },
+        { id: "thread-2", author: {}, forum: {}, tags: [], _count: { reactions: 0 } },
+        { id: "thread-3", author: {}, forum: {}, tags: [], _count: { reactions: 0 } },
+      ];
+      const db = {
+        tag: { findUnique: vi.fn().mockResolvedValue({ id: "tag-1", name: "help", slug: "help" }) },
+        thread: { findMany: vi.fn().mockResolvedValue(threads) },
+      };
+      const caller = createCaller({ db: db as never, session: null });
+
+      const result = await caller.discovery.listThreadsByTag({ tagSlug: "help", limit: 2 });
+
+      expect(result.threads.map((thread) => thread.id)).toEqual(["thread-1", "thread-2"]);
+      expect(result.nextCursor).toBe("thread-3");
+      expect(db.thread.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          take: 3,
+          orderBy: [{ lastActivityAt: "desc" }, { id: "desc" }],
+        }),
+      );
+    });
+
+    it("uses cursor pagination for tag pages", async () => {
+      const db = {
+        tag: { findUnique: vi.fn().mockResolvedValue({ id: "tag-1", name: "help", slug: "help" }) },
+        thread: { findMany: vi.fn().mockResolvedValue([]) },
+      };
+      const caller = createCaller({ db: db as never, session: null });
+
+      await caller.discovery.listThreadsByTag({ tagSlug: "help", cursor: "thread-2", limit: 2 });
+
+      expect(db.thread.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cursor: { id: "thread-2" },
+          skip: 1,
+          take: 3,
+        }),
+      );
+    });
+
+    it("rejects unbounded tag page limits", async () => {
+      const db = {
+        tag: { findUnique: vi.fn() },
+        thread: { findMany: vi.fn() },
+      };
+      const caller = createCaller({ db: db as never, session: null });
+
+      await expect(
+        caller.discovery.listThreadsByTag({ tagSlug: "help", limit: 1000 }),
+      ).rejects.toThrow();
+      expect(db.thread.findMany).not.toHaveBeenCalled();
+    });
+
     it("works for guests", async () => {
       const db = {
         tag: { findUnique: vi.fn().mockResolvedValue({ id: "tag-1", name: "help", slug: "help" }) },

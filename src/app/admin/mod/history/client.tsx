@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Clock } from "lucide-react";
 
 function actionLabel(action: string): string {
@@ -41,7 +42,7 @@ export interface HistoryLog {
   createdAt: string;
 }
 
-export function ModerationHistoryList({ logs }: { logs: HistoryLog[] }) {
+export function ModerationHistoryList({ logs, nextCursor }: { logs: HistoryLog[]; nextCursor: string | null }) {
   if (logs.length === 0) {
     return (
       <div className="empty-state mt-6">
@@ -55,8 +56,9 @@ export function ModerationHistoryList({ logs }: { logs: HistoryLog[] }) {
   }
 
   return (
-    <div className="mt-6 overflow-x-auto rounded-sm border-2 border-border shadow-[2px_2px_0px_var(--border)]">
-      <table className="w-full min-w-[700px]">
+    <div className="mt-6 space-y-4">
+      <div className="overflow-x-auto rounded-sm border-2 border-border shadow-[2px_2px_0px_var(--border)]">
+        <table className="w-full min-w-[700px]">
         <thead>
           <tr className="border-b-2 border-border bg-muted/50 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             <th className="px-4 py-3">Moderator</th>
@@ -95,7 +97,18 @@ export function ModerationHistoryList({ logs }: { logs: HistoryLog[] }) {
             </tr>
           ))}
         </tbody>
-      </table>
+        </table>
+      </div>
+      {nextCursor && (
+        <div className="flex justify-center">
+          <Link
+            href={`/admin/mod/history?cursor=${encodeURIComponent(nextCursor)}`}
+            className="inline-flex min-h-[44px] items-center rounded-md border-2 border-border bg-background px-4 py-2 text-sm font-semibold shadow-[2px_2px_0px_var(--border)] hover:no-underline"
+          >
+            Next page
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

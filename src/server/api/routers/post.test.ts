@@ -40,8 +40,60 @@ describe("post router", () => {
 
       expect(result.posts).toHaveLength(1);
       expect(db.post.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: expect.objectContaining({ isDeleted: false }) }),
+        expect.objectContaining({
+          where: expect.objectContaining({ isDeleted: false }),
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          take: 51,
+        }),
       );
+    });
+
+    it("uses cursor pagination without adding conflicting id filters", async () => {
+      const db = {
+        thread: { findUnique: vi.fn().mockResolvedValue({ id: "t1", isDeleted: false, forum: visibleForum }) },
+        post: { findMany: vi.fn().mockResolvedValue([]) },
+      };
+
+      const caller = createCaller({ db: db as never, session: null });
+      await caller.post.listByThread({ threadId: "t1", cursor: "post-1", limit: 2 });
+
+      expect(db.post.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { threadId: "t1", isDeleted: false },
+          cursor: { id: "post-1" },
+          skip: 1,
+          take: 3,
+        }),
+      );
+    });
+
+    it("returns next cursor for post pages", async () => {
+      const posts = [
+        { id: "post-1", content: "First" },
+        { id: "post-2", content: "Second" },
+        { id: "post-3", content: "Third" },
+      ];
+      const db = {
+        thread: { findUnique: vi.fn().mockResolvedValue({ id: "t1", isDeleted: false, forum: visibleForum }) },
+        post: { findMany: vi.fn().mockResolvedValue(posts) },
+      };
+
+      const caller = createCaller({ db: db as never, session: null });
+      const result = await caller.post.listByThread({ threadId: "t1", limit: 2 });
+
+      expect(result.posts.map((post) => post.id)).toEqual(["post-1", "post-2"]);
+      expect(result.nextCursor).toBe("post-3");
+    });
+
+    it("rejects unbounded post limits", async () => {
+      const db = {
+        thread: { findUnique: vi.fn() },
+        post: { findMany: vi.fn() },
+      };
+
+      const caller = createCaller({ db: db as never, session: null });
+      await expect(caller.post.listByThread({ threadId: "t1", limit: 1000 })).rejects.toThrow();
+      expect(db.post.findMany).not.toHaveBeenCalled();
     });
 
     it("rejects posts for hidden threads", async () => {

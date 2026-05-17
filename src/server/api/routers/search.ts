@@ -15,7 +15,7 @@ const querySchema = z.object({
       id: z.string().min(1),
     })
     .optional(),
-  limit: z.number().min(1).max(50).default(20),
+  limit: z.number().int().min(1).max(50).default(20),
 });
 
 export const searchRouter = router({
@@ -160,7 +160,7 @@ export const searchRouter = router({
       ...params,
     );
 
-    let nextCursor: { createdAt: string; id: string } | undefined;
+    let nextCursor: { createdAt: string; id: string } | null = null;
     if (results.length > input.limit) {
       const last = results.pop()!;
       nextCursor = {

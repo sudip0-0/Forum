@@ -3,7 +3,7 @@
 **Version:** 1.2
 **Status:** MVP Feature-Complete — Testing and Hardening Phase
 **Owner:** Project Coordinator
-**Last Updated:** 2026-05-16
+**Last Updated:** 2026-05-17
 
 ## 1. Current State
 
@@ -20,7 +20,7 @@
 | Thread CRUD | Done — thread router, post router, category thread list, thread detail, reply form, 21 tests |
 | Core forum | Done — all CORE tasks complete |
 | Moderation | MOD-001/MOD-002/MOD-003 done — report, queue, resolve, user management, role change, suspend/unsuspend, thread actions, move thread, history log |
-| Tests | 298+ unit/integration tests across 28+ test files; 8 Playwright E2E spec files covering auth, threads, search, moderation, navigation, filters, admin |
+| Tests | 334 unit/integration tests across 30 test files; 9 Playwright E2E spec files covering auth, account state, threads, search, moderation, navigation, filters, admin |
 | Staging deploy | Not started |
 | SEO / Polish | POL-001/POL-002/POL-003 done — metadata, sitemap (revalidate=3600, take:5000), header/nav, responsive, error/loading/404 |
 | Post-MVP features | Reactions (ENG-001) and Tags implemented ahead of staging milestone |
@@ -43,6 +43,8 @@
 | QA-003 | agent-qa | Done | Full Playwright E2E release gate stabilized; 41/41 tests passing locally |
 | SEC-001 | agent-security | Done | Formal security review completed; no open Critical/High findings |
 | SEC-002 | agent-security/backend | Done | Redis-backed fixed-window rate limiting added; KI-013 resolved |
+| PERF-002 | agent-fullstack | Done | Cursor pagination and bounded list limits added for public/admin growth guardrails |
+| UX-004 | agent-fullstack | Done | Account-state UX added for login, verification, suspension, reporting, posting, and recovery paths |
 
 ### Completed Sprints
 
@@ -160,6 +162,9 @@
 - SEC-002 completed: added Redis-backed fixed-window rate limiting for login, registration, thread creation, replies, reports, search, verification resend, and password reset requests.
 - Added hashed email identifiers for email-specific throttles, retry-after result metadata, auth-sensitive fail-closed behavior when Redis is configured but unavailable, and explicit memory fallback for local/test use.
 - Updated `.env.example`, README, and security docs for Redis-backed rate limiting configuration.
+- PERF-002 completed: added bounded cursor pagination to forum thread lists, tag pages, search results, profile activity, moderation queue/history, admin threads, admin users, and post lists.
+- Added pagination controls that preserve current filters/search params across public and admin list views.
+- Added router regression coverage for first/next pages, bounded limits, visibility filters, deterministic ordering, and search pagination; added a targeted Playwright pagination journey for the public forum list.
 
 ### In Progress
 - None.
@@ -177,8 +182,10 @@
 ### Test Results
 - `pnpm lint` passed.
 - `pnpm typecheck` passed.
-- `pnpm test` passed (305 tests total, 28 files).
+- `pnpm test` passed (334 tests total, 30 files).
 - Targeted `pnpm exec vitest run src/server/api/routers/post.test.ts src/server/api/routers/moderation.test.ts src/server/api/routers/user.test.ts` passed (77 tests).
+- Targeted `pnpm exec vitest run src/server/api/routers/thread.test.ts src/server/api/routers/post.test.ts src/server/api/routers/search.test.ts src/server/api/routers/user.test.ts src/server/api/routers/moderation.test.ts src/server/api/routers/discovery.test.ts` passed (139 tests).
+- Targeted `pnpm exec playwright test e2e/navigation-and-filters.spec.ts -g "forum thread list paginates with next page control"` passed (1 test).
 - Targeted `pnpm exec playwright test e2e/moderation.spec.ts e2e/thread.spec.ts` passed (7 tests).
 - Full `pnpm test:e2e` passed (41 tests).
 - SEC-001 reran full `pnpm test:e2e` after security-sensitive router fixes; it passed (41 tests).
@@ -194,12 +201,55 @@
 ### Remaining Risks
 - Playwright still relies on local Mailpit at `localhost:8025` for auth email flows.
 - Redis-backed rate limiting depends on `REDIS_URL` being configured and reachable in staging/production; local/test memory fallback is explicit.
+- Pagination is one-way cursor pagination for MVP; there is no numbered-page or previous-page navigation yet.
 - Registration duplicate email/username responses and JWT claim freshness are documented as Low/Medium deferred findings in `ai/security-review.md`.
 
 ### Next Steps
 - Prepare staging deploy.
 - Run the same full quality gate against staging.
 - Formal SEC-001 security review.
+
+### 2026-05-17
+
+### Completed
+- UX-004 completed: added shared account-state helpers and callouts for logged-out, unverified, suspended, and ready users.
+- Added account-state banners in the header for unverified and suspended sessions.
+- Updated forum/thread/new-thread/report surfaces so blocked create, reply, report, and edit actions show clear login, verification resend, or suspended-account messaging without exposing moderation internals.
+- Improved verification resend, password reset request, and reset form accessibility by connecting field errors to inputs.
+- Added seeded unverified and suspended users for E2E coverage.
+- Added focused account-state unit and Playwright coverage, plus stabilized affected thread reply E2E waits.
+- Files touched for UX-004 include `src/lib/account-state.ts`, `src/server/auth/account-state.ts`, `src/components/account/account-state-callout.tsx`, auth pages/forms, forum create/detail/list clients/pages/actions, `src/components/forum/report-form.tsx`, layout header/shell, `prisma/seed.ts`, `e2e/account-state.spec.ts`, and `e2e/thread.spec.ts`.
+
+### In Progress
+- None.
+
+### Blockers
+- None.
+
+### Decisions
+- Preserved server-side enforcement in tRPC routers and server actions; UI state is explanatory only.
+- Used generic verification and password reset responses so arbitrary email existence is not revealed.
+- Suspended-user UX is non-actionable and does not expose moderation logs, reasons, or internal suspension details.
+- Kept public reading uncluttered; account-state callouts are shown around interaction surfaces.
+
+### Test Results
+- `pnpm lint` passed.
+- `pnpm typecheck` passed.
+- `pnpm test` passed (334 tests total, 30 files).
+- `pnpm build` passed.
+- Targeted browser coverage passed on a fresh production server at `http://localhost:3001`: `pnpm exec playwright test e2e/thread.spec.ts e2e/account-state.spec.ts e2e/auth.spec.ts e2e/moderation.spec.ts` (16 tests).
+
+### Failed Checks During UX-004
+- Initial `pnpm test:e2e` run timed out while using the default Playwright webServer on port `3000`; subsequent investigation found stale `next start` processes/listeners contaminating the run.
+- Earlier targeted browser attempts failed until the test server was rebuilt and moved to a fresh port; final targeted account-state/auth/thread/moderation coverage passed on port `3001`.
+
+### Remaining Risks
+- Full Playwright suite was not rerun end-to-end after UX-004 because the default webServer command was unreliable in this local session; targeted specs covering the changed flows passed.
+- Playwright auth email flows still depend on local Mailpit at `localhost:8025`.
+
+### Next Steps
+- Run the full Playwright suite in a clean shell or CI worker with no stale `next start` listener on port `3000`.
+- Prepare staging deploy and repeat the quality gate against staging.
 
 ## 5. Blocker Log
 
@@ -249,6 +299,8 @@ Full records are in `decisions.md`.
 | QA-003 | 2026-05-16 | - | Full Playwright E2E gate stabilized; lint, typecheck, unit/integration, and 41-test E2E suite passing |
 | SEC-001 | 2026-05-16 | - | Formal security review completed; scoped server-side authorization fixes and 305-test unit/integration suite passing |
 | SEC-002 | 2026-05-16 | - | Redis-backed fixed-window rate limiting implemented for public beta; KI-013 resolved |
+| PERF-002 | 2026-05-16 | - | Public/admin list pagination and bounded query guardrails added for beta scale |
+| UX-004 | 2026-05-17 | - | Account-state UX added for verification, suspension, login-required actions, and recovery paths |
 
 ## 9. Metrics
 

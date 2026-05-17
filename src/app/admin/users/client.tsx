@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { changeUserRole, toggleSuspension } from "./actions";
@@ -164,10 +165,11 @@ function UserRow({ user }: { user: UserItem }) {
   );
 }
 
-export function UserList({ users }: { users: UserItem[] }) {
+export function UserList({ users, nextCursor }: { users: UserItem[]; nextCursor: string | null }) {
   return (
-    <div className="admin-card overflow-x-auto">
-      <table className="w-full min-w-[750px]">
+    <div className="space-y-4">
+      <div className="admin-card overflow-x-auto">
+        <table className="w-full min-w-[750px]">
         <thead>
           <tr className="border-b border-border/50 text-left text-xs font-medium text-muted-foreground/70">
             <th className="px-4 py-3">User</th>
@@ -182,7 +184,18 @@ export function UserList({ users }: { users: UserItem[] }) {
             <UserRow key={user.id} user={user} />
           ))}
         </tbody>
-      </table>
+        </table>
+      </div>
+      {nextCursor && (
+        <div className="flex justify-center">
+          <Link
+            href={`/admin/users?cursor=${encodeURIComponent(nextCursor)}`}
+            className="inline-flex min-h-[44px] items-center rounded-md border-2 border-border bg-background px-4 py-2 text-sm font-semibold shadow-[2px_2px_0px_var(--border)] hover:no-underline"
+          >
+            Next page
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

@@ -8,6 +8,8 @@ import { assertEmailVerified } from "@/server/auth/email-verification";
 
 const sortSchema = z.enum(["latest", "newest", "oldest", "views", "reactions", "reacted", "replies", "title", "unanswered"]);
 const directionSchema = z.enum(["asc", "desc"]).default("desc");
+const cursorSchema = z.string().min(1).optional();
+const publicListLimitSchema = z.number().int().min(1).max(50).default(20);
 const threadContentSchema = z.object({
   title: z.string().min(5).max(150),
   content: z.string().min(10).max(20000),
@@ -29,8 +31,8 @@ export const threadRouter = router({
     .input(z.object({
       categorySlug: z.string().min(1),
       sort: z.enum(["latest", "newest", "unanswered"]).default("latest"),
-      cursor: z.string().optional(),
-      limit: z.number().min(1).max(50).default(20),
+      cursor: cursorSchema,
+      limit: publicListLimitSchema,
     }))
     .query(async ({ ctx, input }) => {
       const category = await ctx.db.category.findUnique({
@@ -55,7 +57,7 @@ export const threadRouter = router({
           _count: { select: { reactions: true } },
         },
       });
-      let nextCursor: string | undefined;
+      let nextCursor: string | null = null;
       if (threads.length > input.limit) nextCursor = threads.pop()!.id;
       return { threads, nextCursor, category };
     }),
@@ -70,8 +72,8 @@ export const threadRouter = router({
       authorUsername: z.string().min(1).optional(),
       updatedWithinDays: z.number().int().min(1).optional(),
       unanswered: z.boolean().optional(),
-      cursor: z.string().optional(),
-      limit: z.number().min(1).max(50).default(20),
+      cursor: cursorSchema,
+      limit: publicListLimitSchema,
     }))
     .query(async ({ ctx, input }) => {
       const forum = await ctx.db.forum.findUnique({
@@ -117,7 +119,7 @@ export const threadRouter = router({
           _count: { select: { reactions: true } },
         },
       });
-      let nextCursor: string | undefined;
+      let nextCursor: string | null = null;
       if (threads.length > input.limit) nextCursor = threads.pop()!.id;
       return { threads, nextCursor, forum };
     }),

@@ -5,9 +5,12 @@ import { appRouter } from "@/server/api/root";
 import { auth } from "@/server/auth/config";
 import { db } from "@/server/db/prisma";
 import { createMetadata } from "@/lib/seo";
+import { buildCursorHref } from "@/lib/pagination";
 import { Breadcrumbs } from "@/components/navigation/breadcrumbs";
+import { AccountStateCallout } from "@/components/account/account-state-callout";
 import { TagPill } from "@/components/forum/tag-pill";
 import { ForumFilters } from "@/components/forum/forum-filters";
+import { getCurrentAccountState } from "@/server/auth/account-state";
 import { MessageSquare, Plus, Pin, Lock } from "lucide-react";
 
 export async function generateMetadata({ params }: { params: Promise<{ categorySlug: string }> }): Promise<Metadata> {
@@ -43,6 +46,7 @@ export default async function ForumThreadListPage({
     authorUsername?: string;
     updatedWithinDays?: string;
     unanswered?: string;
+    cursor?: string;
   }>;
 }) {
   const { categorySlug: forumSlug } = await params;
@@ -55,12 +59,23 @@ export default async function ForumThreadListPage({
   const authorUsername = sp.authorUsername;
   const updatedWithinDays = sp.updatedWithinDays ? parseInt(sp.updatedWithinDays, 10) : undefined;
   const unanswered = sp.unanswered === "1";
+  const cursor = sp.cursor;
 
   const session = await auth();
+  const accountState = await getCurrentAccountState(session);
   const caller = appRouter.createCaller({
     db,
     session: session?.user
-      ? { user: { id: session.user.id, email: session.user.email ?? "", name: session.user.name ?? null, role: session.user.role }, expires: session.expires }
+      ? {
+          user: {
+            id: session.user.id,
+            email: session.user.email ?? "",
+            name: session.user.name ?? null,
+            role: session.user.role,
+            isSuspended: session.user.isSuspended,
+          },
+          expires: session.expires,
+        }
       : null,
   });
 
@@ -75,12 +90,14 @@ export default async function ForumThreadListPage({
       authorUsername,
       updatedWithinDays,
       unanswered: unanswered || undefined,
+      cursor,
+      limit: 20,
     });
   } catch {
     notFound();
   }
 
-  const { threads, forum } = data;
+  const { threads, forum, nextCursor } = data;
   const hasActiveFilters = !!(pinnedOnly || tagSlug || authorUsername || updatedWithinDays || unanswered);
 
   const breadcrumbItems = [
@@ -99,7 +116,7 @@ export default async function ForumThreadListPage({
           <h1 className="heading-xl">{forum.name}</h1>
           {forum.description && <p className="mt-1 text-sm text-muted-foreground">{forum.description}</p>}
         </div>
-        {session?.user && !forum.isLocked && (
+        {accountState.kind === "ready" && !forum.isLocked && (
           <Link
             href={`/forum/${forumSlug}/new`}
             className="inline-flex items-center gap-2 rounded-md border-2 border-border bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-[3px_3px_0px_var(--border)] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_var(--border)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none hover:no-underline"
@@ -109,6 +126,14 @@ export default async function ForumThreadListPage({
           </Link>
         )}
       </div>
+
+      {!forum.isLocked && accountState.kind !== "ready" && (
+        <AccountStateCallout
+          accountState={accountState}
+          action="create-thread"
+          className="mt-4"
+        />
+      )}
 
       <ForumFilters forumSlug={forumSlug} />
 
@@ -130,7 +155,7 @@ export default async function ForumThreadListPage({
             >
               Clear filters
             </Link>
-          ) : session?.user && !forum.isLocked ? (
+          ) : accountState.kind === "ready" && !forum.isLocked ? (
             <Link
               href={`/forum/${forumSlug}/new`}
               className="mt-4 inline-flex items-center gap-1.5 rounded-md border-2 border-border bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[2px_2px_0px_var(--border)] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_var(--border)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none hover:no-underline"
@@ -138,21 +163,12 @@ export default async function ForumThreadListPage({
               <Plus className="h-4 w-4" />
               Create Thread
             </Link>
-          ) : !session?.user ? (
-            <div className="mt-4 flex flex-wrap justify-center gap-2">
-              <Link
-                href="/login"
-                className="inline-flex items-center rounded-md border-2 border-border bg-background px-4 py-2 text-sm font-semibold shadow-[2px_2px_0px_var(--border)] hover:no-underline"
-              >
-                Log in to post
-              </Link>
-              <Link
-                href="/register"
-                className="inline-flex items-center rounded-md border-2 border-border bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[2px_2px_0px_var(--border)] hover:no-underline"
-              >
-                Create account
-              </Link>
-            </div>
+          ) : !forum.isLocked && accountState.kind !== "ready" ? (
+            <AccountStateCallout
+              accountState={accountState}
+              action="create-thread"
+              className="mt-4 text-left"
+            />
           ) : null}
         </div>
       ) : (
@@ -207,6 +223,29 @@ export default async function ForumThreadListPage({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {nextCursor && (
+        <div className="mt-6 flex justify-center">
+          <Link
+            href={buildCursorHref(
+              `/forum/${forumSlug}`,
+              {
+                sort: sort === "latest" ? undefined : sort,
+                direction: direction === "desc" ? undefined : direction,
+                pinnedOnly: pinnedOnly ? "1" : undefined,
+                tagSlug,
+                authorUsername,
+                updatedWithinDays,
+                unanswered: unanswered ? "1" : undefined,
+              },
+              nextCursor,
+            )}
+            className="inline-flex min-h-[44px] items-center rounded-md border-2 border-border bg-background px-4 py-2 text-sm font-semibold shadow-[2px_2px_0px_var(--border)] hover:no-underline"
+          >
+            Next page
+          </Link>
         </div>
       )}
 

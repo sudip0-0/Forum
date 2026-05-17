@@ -5,6 +5,7 @@ import { appRouter } from "@/server/api/root";
 import { auth } from "@/server/auth/config";
 import { db } from "@/server/db/prisma";
 import { createMetadata } from "@/lib/seo";
+import { buildCursorHref } from "@/lib/pagination";
 import { ProfileEditForm } from "./client";
 import { Calendar, MessageSquare } from "lucide-react";
 
@@ -37,10 +38,13 @@ export async function generateMetadata({
 
 export default async function UserProfilePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ username: string }>;
+  searchParams: Promise<{ cursor?: string }>;
 }) {
   const { username } = await params;
+  const { cursor } = await searchParams;
   const session = await auth();
 
   const caller = appRouter.createCaller({
@@ -60,7 +64,7 @@ export default async function UserProfilePage({
 
   let profile;
   try {
-    profile = await caller.user.getPublicProfile({ username });
+    profile = await caller.user.getPublicProfile({ username, threadCursor: cursor, threadLimit: 20 });
   } catch {
     notFound();
   }
@@ -154,6 +158,16 @@ export default async function UserProfilePage({
             </div>
           )}
         </div>
+        {profile.nextThreadCursor && (
+          <div className="border-t border-border px-4 py-3 text-center">
+            <Link
+              href={buildCursorHref(`/u/${profile.username}`, {}, profile.nextThreadCursor)}
+              className="inline-flex min-h-[44px] items-center rounded-md border-2 border-border bg-background px-4 py-2 text-sm font-semibold shadow-[2px_2px_0px_var(--border)] hover:no-underline"
+            >
+              Next page
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );

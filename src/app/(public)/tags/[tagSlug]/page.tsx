@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/server/db/prisma";
 import { appRouter } from "@/server/api/root";
 import { createMetadata } from "@/lib/seo";
+import { buildCursorHref } from "@/lib/pagination";
 import { TagPill } from "@/components/forum/tag-pill";
 import { Hash, ArrowLeft } from "lucide-react";
 
@@ -19,13 +20,14 @@ export default async function TagPage({
   searchParams,
 }: {
   params: Promise<{ tagSlug: string }>;
-  searchParams: Promise<{ sort?: string; direction?: "asc" | "desc" }>;
+  searchParams: Promise<{ sort?: string; direction?: "asc" | "desc"; cursor?: string }>;
 }) {
   const { tagSlug } = await params;
   const sp = await searchParams;
 
   const sort = sp.sort || "latest";
   const direction = (sp.direction || "desc") as "asc" | "desc";
+  const cursor = sp.cursor;
 
   const caller = appRouter.createCaller({ db, session: null });
 
@@ -35,12 +37,14 @@ export default async function TagPage({
       tagSlug,
       sort: sort as "latest" | "newest" | "oldest" | "views" | "replies" | "reactions",
       direction,
+      cursor,
+      limit: 20,
     });
   } catch {
     notFound();
   }
 
-  const { threads, tag } = data;
+  const { threads, tag, nextCursor } = data;
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-8">
@@ -142,6 +146,24 @@ export default async function TagPage({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {nextCursor && (
+        <div className="mt-6 flex justify-center">
+          <Link
+            href={buildCursorHref(
+              `/tags/${tagSlug}`,
+              {
+                sort: sort === "latest" ? undefined : sort,
+                direction: direction === "desc" ? undefined : direction,
+              },
+              nextCursor,
+            )}
+            className="inline-flex min-h-[44px] items-center rounded-md border-2 border-border bg-background px-4 py-2 text-sm font-semibold shadow-[2px_2px_0px_var(--border)] hover:no-underline"
+          >
+            Next page
+          </Link>
         </div>
       )}
     </div>

@@ -1001,6 +1001,91 @@ describe("moderation router", () => {
     });
   });
 
+  describe("pagination", () => {
+    it("paginates moderation queue with createdAt and id ordering", async () => {
+      const reports = [
+        makeReport({ id: "report-1" }),
+        makeReport({ id: "report-2" }),
+        makeReport({ id: "report-3" }),
+      ];
+      const db = {
+        report: { findMany: vi.fn().mockResolvedValue(reports) },
+      };
+      const caller = createCaller({ db: db as never, session: moderatorSession });
+
+      const result = await caller.moderation.listQueue({ limit: 2, cursor: "report-0" });
+
+      expect(result.reports.map((report) => report.id)).toEqual(["report-1", "report-2"]);
+      expect(result.nextCursor).toBe("report-3");
+      expect(db.report.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { status: "OPEN" },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          cursor: { id: "report-0" },
+          skip: 1,
+          take: 3,
+        }),
+      );
+    });
+
+    it("paginates admin thread list and excludes deleted threads", async () => {
+      const threads = [
+        { id: "thread-1", forum: { id: "forum-1", name: "General", slug: "general" }, author: { username: "a", displayName: null } },
+        { id: "thread-2", forum: { id: "forum-1", name: "General", slug: "general" }, author: { username: "b", displayName: null } },
+      ];
+      const db = {
+        thread: { findMany: vi.fn().mockResolvedValue(threads) },
+      };
+      const caller = createCaller({ db: db as never, session: moderatorSession });
+
+      const result = await caller.moderation.listThreads({ limit: 1, cursor: "thread-0" });
+
+      expect(result.threads.map((thread) => thread.id)).toEqual(["thread-1"]);
+      expect(result.nextCursor).toBe("thread-2");
+      expect(db.thread.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ isDeleted: false }),
+          orderBy: [{ lastActivityAt: "desc" }, { id: "desc" }],
+          cursor: { id: "thread-0" },
+          skip: 1,
+          take: 2,
+        }),
+      );
+    });
+
+    it("paginates admin user list with bounded limits", async () => {
+      const users = [
+        { id: "user-1", username: "alice", displayName: null, email: "a@example.com", role: "MEMBER", createdAt: new Date() },
+        { id: "user-2", username: "bob", displayName: null, email: "b@example.com", role: "MEMBER", createdAt: new Date() },
+      ] as User[];
+      const db = {
+        user: { findMany: vi.fn().mockResolvedValue(users) },
+      };
+      const caller = createCaller({ db: db as never, session: adminSession });
+
+      const result = await caller.moderation.listUsers({ limit: 1, cursor: "user-0" });
+
+      expect(result.users.map((user) => user.id)).toEqual(["user-1"]);
+      expect(result.nextCursor).toBe("user-2");
+      expect(db.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          cursor: { id: "user-0" },
+          skip: 1,
+          take: 2,
+        }),
+      );
+    });
+
+    it("rejects unbounded admin list limits", async () => {
+      const db = { thread: { findMany: vi.fn() } };
+      const caller = createCaller({ db: db as never, session: moderatorSession });
+
+      await expect(caller.moderation.listThreads({ limit: 1000 })).rejects.toThrow();
+      expect(db.thread.findMany).not.toHaveBeenCalled();
+    });
+  });
+
   describe("suspendUser", () => {
     it("allows admin to suspend a user", async () => {
       const db = {

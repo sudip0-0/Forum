@@ -5,6 +5,7 @@ import { db } from "@/server/db/prisma";
 import { createMetadata } from "@/lib/seo";
 import { highlightSnippet } from "@/lib/highlight";
 import { buildSearchResultLink } from "@/lib/search-link";
+import { buildCursorHref, parseSearchCursor, serializeSearchCursor } from "@/lib/pagination";
 import { TagPill } from "@/components/forum/tag-pill";
 import { HighlightedText } from "@/components/forum/highlighted-text";
 import { Search, SlidersHorizontal, X, ArrowRight, Calendar } from "lucide-react";
@@ -19,9 +20,9 @@ export const metadata: Metadata = createMetadata({
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; forum?: string; tag?: string; author?: string; from?: string; to?: string }>;
+  searchParams: Promise<{ q?: string; forum?: string; tag?: string; author?: string; from?: string; to?: string; cursor?: string }>;
 }) {
-  const { q, forum, tag, author, from, to } = await searchParams;
+  const { q, forum, tag, author, from, to, cursor } = await searchParams;
 
   const caller = appRouter.createCaller({ db, session: null });
 
@@ -43,6 +44,7 @@ export default async function SearchPage({
     matchedPostId: string;
   };
   let results: ResultRow[] = [];
+  let nextCursor: string | null = null;
   let searchError: string | null = null;
 
   if (q?.trim()) {
@@ -54,11 +56,14 @@ export default async function SearchPage({
         authorUsername: author || undefined,
         dateFrom: from || undefined,
         dateTo: to || undefined,
+        cursor: parseSearchCursor(cursor),
+        limit: 20,
       });
       results = data.results.map((r) => ({
         ...r,
         createdAt: r.createdAt.toISOString(),
       }));
+      nextCursor = serializeSearchCursor(data.nextCursor);
     } catch (error) {
       searchError = (error as Error).message || "Search filters are invalid.";
     }
@@ -246,6 +251,20 @@ export default async function SearchPage({
                   ))}
                 </div>
               </div>
+              {nextCursor && (
+                <div className="mt-6 flex justify-center">
+                  <Link
+                    href={buildCursorHref(
+                      "/search",
+                      { q, forum, tag, author, from, to },
+                      nextCursor,
+                    )}
+                    className="inline-flex min-h-[44px] items-center rounded-md border-2 border-border bg-background px-4 py-2 text-sm font-semibold shadow-[2px_2px_0px_var(--border)] hover:no-underline"
+                  >
+                    Next page
+                  </Link>
+                </div>
+              )}
             </>
           )}
         </div>

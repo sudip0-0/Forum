@@ -20,8 +20,8 @@ const reportSchema = z
   });
 
 const listQueueSchema = z.object({
-  cursor: z.string().optional(),
-  limit: z.number().min(1).max(50).default(20),
+  cursor: z.string().min(1).optional(),
+  limit: z.number().int().min(1).max(50).default(25),
 });
 
 const resolveSchema = z.object({
@@ -41,8 +41,8 @@ const resolveSchema = z.object({
 });
 
 const listUsersSchema = z.object({
-  cursor: z.string().optional(),
-  limit: z.number().min(1).max(50).default(20),
+  cursor: z.string().min(1).optional(),
+  limit: z.number().int().min(1).max(50).default(25),
 });
 
 const changeRoleSchema = z.object({
@@ -72,7 +72,8 @@ const listThreadsSchema = z.object({
   q: z.string().max(100).optional(),
   forumId: z.string().optional(),
   status: z.enum(["all", "locked", "pinned"]).default("all"),
-  limit: z.number().min(1).max(100).default(50),
+  cursor: z.string().min(1).optional(),
+  limit: z.number().int().min(1).max(50).default(25),
 });
 
 export const moderationRouter = router({
@@ -204,7 +205,7 @@ export const moderationRouter = router({
     .query(async ({ ctx, input }) => {
       const reports = await ctx.db.report.findMany({
         where: { status: "OPEN" },
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: input.limit + 1,
         ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
         include: {
@@ -225,7 +226,7 @@ export const moderationRouter = router({
         },
       });
 
-      let nextCursor: string | undefined;
+      let nextCursor: string | null = null;
       if (reports.length > input.limit) {
         nextCursor = reports.pop()!.id;
       }
@@ -367,12 +368,12 @@ export const moderationRouter = router({
           isSuspended: true,
           createdAt: true,
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: input.limit + 1,
         ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
       });
 
-      let nextCursor: string | undefined;
+      let nextCursor: string | null = null;
       if (users.length > input.limit) {
         nextCursor = users.pop()!.id;
       }
@@ -383,7 +384,7 @@ export const moderationRouter = router({
   listThreads: roleProcedure(["MODERATOR", "ADMIN"])
     .input(listThreadsSchema)
     .query(async ({ ctx, input }) => {
-      return ctx.db.thread.findMany({
+      const threads = await ctx.db.thread.findMany({
         where: {
           isDeleted: false,
           ...(input.forumId ? { forumId: input.forumId } : {}),
@@ -391,13 +392,21 @@ export const moderationRouter = router({
           ...(input.status === "pinned" ? { isPinned: true } : {}),
           ...(input.q ? { title: { contains: input.q, mode: "insensitive" } } : {}),
         },
-        orderBy: { lastActivityAt: "desc" },
-        take: input.limit,
+        orderBy: [{ lastActivityAt: "desc" }, { id: "desc" }],
+        take: input.limit + 1,
+        ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
         include: {
           author: { select: { username: true, displayName: true } },
           forum: { select: { id: true, name: true, slug: true } },
         },
       });
+
+      let nextCursor: string | null = null;
+      if (threads.length > input.limit) {
+        nextCursor = threads.pop()!.id;
+      }
+
+      return { threads, nextCursor };
     }),
 
   changeRole: roleProcedure(["ADMIN"])
@@ -557,12 +566,12 @@ export const moderationRouter = router({
 
   listHistory: roleProcedure(["MODERATOR", "ADMIN"])
     .input(z.object({
-      cursor: z.string().optional(),
-      limit: z.number().min(1).max(100).default(50),
+      cursor: z.string().min(1).optional(),
+      limit: z.number().int().min(1).max(50).default(25),
     }))
     .query(async ({ ctx, input }) => {
       const logs = await ctx.db.moderationLog.findMany({
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: input.limit + 1,
         ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
         include: {
@@ -573,7 +582,7 @@ export const moderationRouter = router({
         },
       });
 
-      let nextCursor: string | undefined;
+      let nextCursor: string | null = null;
       if (logs.length > input.limit) {
         nextCursor = logs.pop()!.id;
       }

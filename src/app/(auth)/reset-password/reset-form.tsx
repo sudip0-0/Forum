@@ -53,11 +53,15 @@ export function ResetPasswordForm({ token }: { token: string }) {
           type="password"
           minLength={8}
           required
+          aria-invalid={!!fieldErrors.password}
+          aria-describedby={fieldErrors.password ? "reset-password-error" : undefined}
           className="input w-full rounded-lg border-2 border-border bg-background px-3 py-2.5 text-sm"
           placeholder="Min. 8 characters"
         />
         {fieldErrors.password && (
-          <p className="mt-1 text-sm text-destructive">{fieldErrors.password[0]}</p>
+          <p id="reset-password-error" className="mt-1 text-sm text-destructive">
+            {fieldErrors.password[0]}
+          </p>
         )}
       </div>
       {error && (

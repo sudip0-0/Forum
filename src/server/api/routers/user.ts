@@ -5,6 +5,8 @@ import { assertNotSuspended } from "@/server/api/rate-limit";
 
 const getPublicProfileSchema = z.object({
   username: z.string().min(1),
+  threadCursor: z.string().min(1).optional(),
+  threadLimit: z.number().int().min(1).max(50).default(20),
 });
 
 const updateProfileSchema = z.object({
@@ -31,8 +33,9 @@ export const userRouter = router({
               isDeleted: false,
               forum: { isPublic: true, category: { isPublic: true, section: { isPublic: true } } },
             },
-            orderBy: { createdAt: "desc" },
-            take: 10,
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            take: input.threadLimit + 1,
+            ...(input.threadCursor ? { cursor: { id: input.threadCursor }, skip: 1 } : {}),
             select: {
               id: true,
               title: true,
@@ -48,7 +51,12 @@ export const userRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "User not found." });
       }
 
-      return user;
+      let nextThreadCursor: string | null = null;
+      if (user.threads.length > input.threadLimit) {
+        nextThreadCursor = user.threads.pop()!.id;
+      }
+
+      return { ...user, nextThreadCursor };
     }),
 
   updateProfile: protectedProcedure

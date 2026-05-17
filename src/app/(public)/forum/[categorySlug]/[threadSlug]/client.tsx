@@ -7,9 +7,11 @@ import { Markdown } from "@/components/forum/markdown";
 import { MarkdownEditor } from "@/components/forum/markdown-editor";
 import { ReactionButtons } from "@/components/forum/reaction-buttons";
 import { ReportForm } from "@/components/forum/report-form";
+import { AccountStateCallout } from "@/components/account/account-state-callout";
 import { useHighlight } from "@/components/forum/thread-highlight-provider";
 import { highlightPostContent } from "@/lib/thread-highlight";
 import { HighlightedText } from "@/components/forum/highlighted-text";
+import type { AccountState } from "@/lib/account-state";
 import { createReply, deleteOwnReply, deleteOwnThread, updateOwnReply, updateOwnThread } from "./actions";
 import { MessageSquare, Pencil, Reply, Trash2 } from "lucide-react";
 
@@ -64,7 +66,7 @@ export function ThreadConversation({
   threadSlug,
   currentUserId,
   canReply,
-  isLoggedIn,
+  accountState,
   isThreadOwner,
 }: {
   posts: PostItem[];
@@ -76,7 +78,7 @@ export function ThreadConversation({
   threadSlug: string;
   currentUserId?: string;
   canReply: boolean;
-  isLoggedIn: boolean;
+  accountState: AccountState;
   isThreadOwner: boolean;
 }) {
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
@@ -179,14 +181,13 @@ export function ThreadConversation({
                     currentUserId={currentUserId}
                   />
                   <div className="flex items-center gap-2">
-                    {isLoggedIn && (
-                      <ReportForm
-                        targetId={post.id}
-                        targetType="post"
-                        categorySlug={categorySlug}
-                        threadSlug={threadSlug}
-                      />
-                    )}
+                    <ReportForm
+                      targetId={post.id}
+                      targetType="post"
+                      categorySlug={categorySlug}
+                      threadSlug={threadSlug}
+                      accountState={accountState}
+                    />
                     {canReply && (
                       <Button
                         type="button"
@@ -199,7 +200,7 @@ export function ThreadConversation({
                         Reply
                       </Button>
                     )}
-                    {currentUserId === post.author.id && post.id !== originalPost?.id && (
+                    {accountState.kind !== "suspended" && currentUserId === post.author.id && post.id !== originalPost?.id && (
                       <ReplyOwnerControls
                         postId={post.id}
                         initialContent={post.content}
@@ -232,6 +233,9 @@ export function ThreadConversation({
           replyTarget={replyTarget}
           onClearReplyTarget={() => setReplyTarget(null)}
         />
+      )}
+      {!canReply && accountState.kind !== "ready" && (
+        <AccountStateCallout accountState={accountState} action="reply" className="mt-10" />
       )}
     </>
   );
@@ -317,12 +321,12 @@ function ThreadOwnerControls({
           )}
         </div>
       </div>
-      {error && <p className="mt-3 text-sm font-medium text-destructive">{error}</p>}
+      {error && <p id="edit-thread-error" className="mt-3 text-sm font-medium text-destructive">{error}</p>}
       {isEditing && (
         <div className="mt-4 space-y-4">
           <div>
             <label htmlFor="edit-thread-title" className="mb-1 block text-sm font-medium">Title</label>
-            <input id="edit-thread-title" data-testid="edit-thread-title" value={title} onChange={(event) => setTitle(event.target.value)} disabled={isPending} aria-describedby="edit-thread-title-error" aria-invalid={title.trim().length < 5} className="w-full rounded-sm border-2 border-border bg-background px-3 py-2 text-sm" />
+            <input id="edit-thread-title" data-testid="edit-thread-title" value={title} onChange={(event) => setTitle(event.target.value)} disabled={isPending} aria-describedby={error ? "edit-thread-error edit-thread-title-error" : "edit-thread-title-error"} aria-invalid={title.trim().length < 5 || !!error} className="w-full rounded-sm border-2 border-border bg-background px-3 py-2 text-sm" />
             {title.trim().length < 5 && <p id="edit-thread-title-error" className="mt-1 text-xs text-destructive">Title must be at least 5 characters.</p>}
           </div>
           <div>
@@ -501,7 +505,7 @@ function ReplyComposer({
             )}
 
             {error && (
-              <div className="mb-3 rounded-sm border-2 border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive font-medium">
+              <div id="reply-content-error" role="alert" className="mb-3 rounded-sm border-2 border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive font-medium">
                 {error}
               </div>
             )}
@@ -513,7 +517,7 @@ function ReplyComposer({
               rows={6}
               disabled={isPending}
               textareaId="thread-reply-textarea"
-              textareaDescriptionId="thread-reply-hint"
+              textareaDescriptionId={error ? "reply-content-error" : "thread-reply-hint"}
               textareaName="content"
               textareaTestId="reply-content"
               textareaRef={textareaRef}

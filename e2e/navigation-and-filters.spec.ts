@@ -1,4 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
 
 async function loginAsAdmin(page: Page) {
   await page.goto("/login");
@@ -169,6 +172,51 @@ test.describe("Forum filters", () => {
     await page.waitForURL(/sort=title/, { timeout: 10000 });
     await expect(page.getByRole("heading", { name: "General Discussion", exact: true }).first()).toBeVisible();
   });
+
+  test("forum thread list paginates with next page control", async ({ page }) => {
+    const forum = await prisma.forum.findUniqueOrThrow({ where: { slug: "general-discussion" } });
+    const author = await prisma.user.findUniqueOrThrow({ where: { username: "member1" } });
+    const createdAtBase = new Date("2026-05-16T00:00:00.000Z");
+
+    for (let index = 0; index < 22; index += 1) {
+      const title = `Pagination E2E thread ${index + 1}`;
+      await prisma.thread.upsert({
+        where: { slug: `pagination-e2e-thread-${index + 1}` },
+        update: {
+          isDeleted: false,
+          lastActivityAt: new Date(createdAtBase.getTime() + index * 60000),
+        },
+        create: {
+          forumId: forum.id,
+          authorId: author.id,
+          title,
+          slug: `pagination-e2e-thread-${index + 1}`,
+          createdAt: new Date(createdAtBase.getTime() + index * 60000),
+          lastActivityAt: new Date(createdAtBase.getTime() + index * 60000),
+          posts: {
+            create: {
+              authorId: author.id,
+              content: `Opening post for ${title}.`,
+              createdAt: new Date(createdAtBase.getTime() + index * 60000),
+            },
+          },
+        },
+      });
+    }
+
+    await page.goto("/forum/general-discussion");
+    await expect(page.getByRole("heading", { name: "General Discussion", exact: true })).toBeVisible({ timeout: 10000 });
+
+    const nextPage = page.getByRole("link", { name: "Next page" });
+    await expect(nextPage).toBeVisible({ timeout: 10000 });
+    await Promise.all([
+      page.waitForURL(/cursor=/, { timeout: 10000 }),
+      nextPage.click(),
+    ]);
+
+    await expect(page.getByRole("heading", { name: "General Discussion", exact: true })).toBeVisible();
+    expect(new URL(page.url()).searchParams.get("cursor")).toBeTruthy();
+  });
 });
 
 test.describe("Thread filters", () => {
@@ -213,4 +261,8 @@ test.describe("View count dedup", () => {
     expect(viewsAfterSecondRefresh).toBeTruthy();
     expect(Number.parseInt(viewsAfterSecondRefresh!, 10)).toBe(initialViews + 1);
   });
+});
+
+test.afterAll(async () => {
+  await prisma.$disconnect();
 });

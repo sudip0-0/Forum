@@ -36,11 +36,15 @@ export function ResendVerificationForm() {
           name="email"
           type="email"
           required
+          aria-invalid={!!fieldErrors.email}
+          aria-describedby={fieldErrors.email ? "resend-email-error" : undefined}
           className="input w-full rounded-lg border-2 border-border bg-background px-3 py-2.5 text-sm"
           placeholder="you@example.com"
         />
         {fieldErrors.email && (
-          <p className="mt-1 text-sm text-destructive">{fieldErrors.email[0]}</p>
+          <p id="resend-email-error" className="mt-1 text-sm text-destructive">
+            {fieldErrors.email[0]}
+          </p>
         )}
       </div>
       {message && (

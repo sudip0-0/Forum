@@ -3,6 +3,8 @@
 import { useId, useState, useTransition } from "react";
 import { reportContent } from "@/app/(public)/forum/[categorySlug]/[threadSlug]/actions";
 import { Flag } from "lucide-react";
+import { AccountStateCallout } from "@/components/account/account-state-callout";
+import type { AccountState } from "@/lib/account-state";
 
 const REASONS = [
   { value: "SPAM", label: "Spam" },
@@ -17,11 +19,13 @@ export function ReportForm({
   targetType,
   categorySlug,
   threadSlug,
+  accountState,
 }: {
   targetId: string;
   targetType: "post" | "thread";
   categorySlug: string;
   threadSlug: string;
+  accountState: AccountState;
 }) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
@@ -33,6 +37,30 @@ export function ReportForm({
   const reasonId = `${formId}-reason`;
   const noteId = `${formId}-note`;
   const errorId = `${formId}-error`;
+
+  if (accountState.kind !== "ready") {
+    return (
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className="inline-flex items-center gap-1 rounded-sm px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          aria-label="Report this content"
+          aria-expanded={open}
+          aria-controls={formId}
+        >
+          <Flag className="h-3 w-3" />
+          Report
+        </button>
+
+        {open && (
+          <div className="absolute right-0 top-full z-20 mt-1 w-[min(20rem,calc(100vw-2rem))]">
+            <AccountStateCallout accountState={accountState} action="report" />
+          </div>
+        )}
+      </div>
+    );
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -73,7 +101,7 @@ export function ReportForm({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-20 mt-1 w-72">
+        <div className="absolute right-0 top-full z-20 mt-1 w-[min(18rem,calc(100vw-2rem))]">
           <form
             id={formId}
             onSubmit={handleSubmit}

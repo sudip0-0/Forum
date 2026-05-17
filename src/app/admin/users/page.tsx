@@ -6,7 +6,12 @@ import { db } from "@/server/db/prisma";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { UserList } from "./client";
 
-export default async function AdminUsersPage() {
+export default async function AdminUsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ cursor?: string }>;
+}) {
+  const { cursor } = await searchParams;
   const session = await auth();
 
   if (!session) {
@@ -30,12 +35,12 @@ export default async function AdminUsersPage() {
     },
   });
 
-  const { users } = await caller.moderation.listUsers({ limit: 50 });
+  const { users, nextCursor } = await caller.moderation.listUsers({ limit: 25, cursor });
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
       <AdminHeader title="Manage Users" description="View users and manage roles." backHref="/admin" />
-      <UserList users={users} />
+      <UserList users={users} nextCursor={nextCursor} />
     </main>
   );
 }

@@ -27,10 +27,10 @@ function createMockContext(queryResult: unknown[]): TrpcContext {
  */
 async function callSearchQuery(
   ctx: TrpcContext,
-  input: { q: string; limit?: number },
+  input: { q: string; limit?: number; cursor?: { createdAt: string; id: string } },
 ) {
   const caller = searchRouter.createCaller(ctx);
-  return caller.query({ q: input.q, limit: input.limit ?? 20 });
+  return caller.query({ q: input.q, limit: input.limit ?? 20, cursor: input.cursor });
 }
 
 describe("search router - matchedPostId logic", () => {
@@ -219,11 +219,37 @@ describe("search router - matchedPostId logic", () => {
     });
   });
 
+  it("passes bounded limit and cursor params into the SQL query", async () => {
+    const ctx = createMockContext([]);
+
+    await callSearchQuery(ctx, {
+      q: "test",
+      limit: 20,
+      cursor: { createdAt: "2024-06-01T10:00:00.000Z", id: "thread-a" },
+    });
+
+    expect(ctx.db.$queryRawUnsafe).toHaveBeenCalledWith(
+      expect.stringContaining('t."createdAt" < $3::timestamptz'),
+      "test",
+      21,
+      "2024-06-01T10:00:00.000Z",
+      "thread-a",
+    );
+  });
+
+  it("rejects unbounded search limits", async () => {
+    const ctx = createMockContext([]);
+    const caller = searchRouter.createCaller(ctx);
+
+    await expect(caller.query({ q: "test", limit: 1000 })).rejects.toThrow();
+    expect(ctx.db.$queryRawUnsafe).not.toHaveBeenCalled();
+  });
+
   it("returns empty results with no nextCursor when no matches", async () => {
     const ctx = createMockContext([]);
     const result = await callSearchQuery(ctx, { q: "nonexistent" });
 
     expect(result.results).toHaveLength(0);
-    expect(result.nextCursor).toBeUndefined();
+    expect(result.nextCursor).toBeNull();
   });
 });

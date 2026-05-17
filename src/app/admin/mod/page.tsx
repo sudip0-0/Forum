@@ -6,7 +6,12 @@ import { db } from "@/server/db/prisma";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { ModerationQueue } from "./client";
 
-export default async function ModQueuePage() {
+export default async function ModQueuePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ cursor?: string }>;
+}) {
+  const { cursor } = await searchParams;
   const session = await auth();
 
   if (!session) {
@@ -30,12 +35,12 @@ export default async function ModQueuePage() {
     },
   });
 
-  const { reports } = await caller.moderation.listQueue({ limit: 50 });
+  const { reports, nextCursor } = await caller.moderation.listQueue({ limit: 25, cursor });
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
       <AdminHeader title="Moderation Queue" description="Review and resolve open reports." backHref="/admin" />
-      <ModerationQueue reports={reports} />
+      <ModerationQueue reports={reports} nextCursor={nextCursor} />
     </main>
   );
 }

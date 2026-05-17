@@ -50,7 +50,7 @@ export function NewThreadForm({
         </label>
         <input
           id="thread-title"
-          aria-describedby="thread-title-hint"
+          aria-describedby={error ? "new-thread-error thread-title-hint" : "thread-title-hint"}
           aria-invalid={!!error}
           data-testid="thread-title"
           className="w-full rounded-md border-2 border-border bg-card px-4 py-3 text-sm shadow-[2px_2px_0px_var(--border)] outline-none focus:shadow-[1px_1px_0px_var(--border)] focus:translate-x-[1px] focus:translate-y-[1px] transition-all"
@@ -78,7 +78,7 @@ export function NewThreadForm({
           textareaId="thread-content"
           textareaName="content"
           textareaTestId="thread-content"
-          textareaDescriptionId="thread-content-hint"
+          textareaDescriptionId={error ? "new-thread-error thread-content-hint" : "thread-content-hint"}
         />
         <p id="thread-content-hint" className="mt-1 text-xs text-muted-foreground">
           Add the context, question, or details others need before replying.

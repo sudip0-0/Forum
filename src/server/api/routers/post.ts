@@ -8,8 +8,8 @@ const listByThreadSchema = z.object({
   threadId: z.string().min(1),
   sort: z.enum(["oldest", "newest", "reactions"]).default("oldest"),
   repliesOnly: z.boolean().optional(),
-  cursor: z.string().optional(),
-  limit: z.number().min(1).max(100).default(50),
+  cursor: z.string().min(1).optional(),
+  limit: z.number().int().min(1).max(100).default(50),
 });
 
 const createSchema = z.object({
@@ -62,12 +62,9 @@ export const postRouter = router({
         ...(input.repliesOnly ? { parentId: { not: null } } : {}),
       };
 
-      if (input.cursor) {
-        where.id = { gt: input.cursor };
-      }
-
       const posts = await ctx.db.post.findMany({
         where,
+        ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
         orderBy:
           input.sort === "newest"
             ? [{ createdAt: "desc" }, { id: "desc" }]
@@ -98,7 +95,7 @@ export const postRouter = router({
         },
       });
 
-      let nextCursor: string | undefined;
+      let nextCursor: string | null = null;
       if (posts.length > input.limit) {
         nextCursor = posts.pop()!.id;
       }

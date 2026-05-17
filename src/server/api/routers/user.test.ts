@@ -41,10 +41,65 @@ describe("user router", () => {
                 isDeleted: false,
                 forum: { isPublic: true, category: { isPublic: true, section: { isPublic: true } } },
               },
+              orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+              take: 21,
             }),
           }),
         }),
       );
+    });
+
+    it("paginates public profile activity", async () => {
+      const user = {
+        id: "u1",
+        username: "testuser",
+        displayName: "Test",
+        image: null,
+        bio: "Hello",
+        role: "MEMBER",
+        createdAt: new Date(),
+        threads: Array.from({ length: 3 }, (_, index) => ({
+          id: `thread-${index + 1}`,
+          title: `Thread ${index + 1}`,
+          slug: `thread-${index + 1}`,
+          createdAt: new Date(),
+          forum: { slug: "general-discussion", name: "General Discussion" },
+        })),
+      };
+      const db = {
+        user: { findUnique: vi.fn().mockResolvedValue(user) },
+      };
+      const caller = createCaller({ db: db as never, session: null });
+
+      const result = await caller.user.getPublicProfile({
+        username: "testuser",
+        threadCursor: "thread-0",
+        threadLimit: 2,
+      });
+
+      expect(result.threads.map((thread) => thread.id)).toEqual(["thread-1", "thread-2"]);
+      expect(result.nextThreadCursor).toBe("thread-3");
+      expect(db.user.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          select: expect.objectContaining({
+            threads: expect.objectContaining({
+              cursor: { id: "thread-0" },
+              skip: 1,
+              take: 3,
+            }),
+          }),
+        }),
+      );
+    });
+
+    it("rejects unbounded profile activity limits", async () => {
+      const db = { user: { findUnique: vi.fn() } };
+      const caller = createCaller({ db: db as never, session: null });
+
+      await expect(
+        caller.user.getPublicProfile({ username: "testuser", threadLimit: 500 }),
+      ).rejects.toThrow();
+      expect(db.user.findUnique).not.toHaveBeenCalled();
     });
 
     it("returns NOT_FOUND for missing user", async () => {

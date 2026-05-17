@@ -1,9 +1,11 @@
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import { auth } from "@/server/auth/config";
 import { appRouter } from "@/server/api/root";
 import { db } from "@/server/db/prisma";
 import { NewThreadForm } from "./client";
 import { Breadcrumbs } from "@/components/navigation/breadcrumbs";
+import { AccountStateCallout } from "@/components/account/account-state-callout";
+import { getCurrentAccountState } from "@/server/auth/account-state";
 
 export default async function NewThreadPage({
   params,
@@ -12,22 +14,22 @@ export default async function NewThreadPage({
 }) {
   const { categorySlug } = await params;
   const session = await auth();
-
-  if (!session?.user) {
-    redirect("/login");
-  }
+  const accountState = await getCurrentAccountState(session);
 
   const caller = appRouter.createCaller({
     db,
-    session: {
-      user: {
-        id: session.user.id,
-        email: session.user.email ?? "",
-        name: session.user.name ?? null,
-        role: session.user.role,
-      },
-      expires: session.expires,
-    },
+    session: session?.user
+      ? {
+          user: {
+            id: session.user.id,
+            email: session.user.email ?? "",
+            name: session.user.name ?? null,
+            role: session.user.role,
+            isSuspended: session.user.isSuspended,
+          },
+          expires: session.expires,
+        }
+      : null,
   });
 
   let forum;
@@ -57,7 +59,11 @@ export default async function NewThreadPage({
         </p>
       </div>
       <div className="mt-6">
-        <NewThreadForm categorySlug={categorySlug} forumId={forum.id} forumName={forum.name} />
+        {accountState.kind === "ready" ? (
+          <NewThreadForm categorySlug={categorySlug} forumId={forum.id} forumName={forum.name} />
+        ) : (
+          <AccountStateCallout accountState={accountState} action="create-thread" />
+        )}
       </div>
     </main>
   );

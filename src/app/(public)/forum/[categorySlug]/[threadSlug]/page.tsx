@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { appRouter } from "@/server/api/root";
 import { auth } from "@/server/auth/config";
 import { db } from "@/server/db/prisma";
+import { AccountStateCallout } from "@/components/account/account-state-callout";
 import { createMetadata } from "@/lib/seo";
 import { ReportForm } from "@/components/forum/report-form";
 import { ReactionButtons } from "@/components/forum/reaction-buttons";
@@ -15,6 +16,7 @@ import { TagPill } from "@/components/forum/tag-pill";
 import { isModeratorOrAbove } from "@/server/auth/permissions";
 import { Pin, Lock, Eye } from "lucide-react";
 import { ThreadFilters } from "@/components/forum/thread-filters";
+import { getCurrentAccountState } from "@/server/auth/account-state";
 
 export const dynamic = "force-dynamic";
 
@@ -49,10 +51,20 @@ export default async function ThreadDetailPage({
   const { categorySlug: forumSlug, threadSlug } = await params;
   const sp = await searchParams;
   const session = await auth();
+  const accountState = await getCurrentAccountState(session);
   const caller = appRouter.createCaller({
     db,
     session: session?.user
-      ? { user: { id: session.user.id, email: session.user.email ?? "", name: session.user.name ?? null, role: session.user.role }, expires: session.expires }
+      ? {
+          user: {
+            id: session.user.id,
+            email: session.user.email ?? "",
+            name: session.user.name ?? null,
+            role: session.user.role,
+            isSuspended: session.user.isSuspended,
+          },
+          expires: session.expires,
+        }
       : null,
   });
 
@@ -75,8 +87,7 @@ export default async function ThreadDetailPage({
     sort: "oldest",
   });
   const originalPost = originalPosts[0];
-  const canReply = !!session?.user && !thread.isLocked;
-  const isLoggedIn = !!session?.user;
+  const canReply = accountState.kind === "ready" && !thread.isLocked;
   const canModerate = isModeratorOrAbove(session?.user?.role);
   const moderationForums = canModerate ? await caller.forum.listForModeration() : [];
 
@@ -137,14 +148,13 @@ export default async function ThreadDetailPage({
             reactions={thread.reactions}
             currentUserId={session?.user?.id}
           />
-          {isLoggedIn && (
-            <ReportForm
-              targetId={thread.id}
-              targetType="thread"
-              categorySlug={forumSlug}
-              threadSlug={threadSlug}
-            />
-          )}
+          <ReportForm
+            targetId={thread.id}
+            targetType="thread"
+            categorySlug={forumSlug}
+            threadSlug={threadSlug}
+            accountState={accountState}
+          />
         </div>
 
         <div className="mt-4 flex justify-end">
@@ -185,8 +195,8 @@ export default async function ThreadDetailPage({
           threadSlug={threadSlug}
           currentUserId={session?.user?.id}
           canReply={canReply}
-          isLoggedIn={isLoggedIn}
-          isThreadOwner={session?.user?.id === thread.author.id}
+          accountState={accountState}
+          isThreadOwner={accountState.kind !== "suspended" && session?.user?.id === thread.author.id}
         />
       </ThreadHighlightProvider>
 
@@ -195,6 +205,11 @@ export default async function ThreadDetailPage({
           This thread is locked. No new replies can be posted.
         </div>
       )}
+
+      {!thread.isLocked && accountState.kind !== "ready" && (
+        <AccountStateCallout accountState={accountState} action="reply" className="mt-8" />
+      )}
+
     </div>
   );
 }

@@ -7,6 +7,8 @@ function friendlyActionError(error: unknown, fallback: string) {
   const message = (error as { message?: string }).message ?? "";
   if (message.includes("Your session has expired")) return message;
   if (message.includes("UNAUTHORIZED")) return "Please sign in again to continue.";
+  if (message.includes("Verify your email")) return "Verify your email before posting or reporting. You can request a new verification email if the link expired.";
+  if (message.includes("suspended")) return "Your account is suspended, so this action is unavailable.";
   if (message.includes("Foreign key constraint")) return "We could not post your reply because your session is no longer valid. Please sign in again.";
   if (message.includes("Thread is locked")) return "This thread is locked and is no longer accepting replies.";
   if (message.includes("Posting is locked")) return "Posting is currently locked in this forum.";

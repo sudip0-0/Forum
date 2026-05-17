@@ -65,6 +65,31 @@ async function main() {
     ),
   );
 
+  await prisma.user.create({
+    data: {
+      email: "unverified@example.com",
+      username: "unverified",
+      displayName: "Unverified User",
+      passwordHash: demoPasswordHash,
+      role: UserRole.MEMBER,
+      bio: "Seeded unverified member for account-state testing.",
+      emailVerified: null,
+    },
+  });
+
+  await prisma.user.create({
+    data: {
+      email: "suspended@example.com",
+      username: "suspended",
+      displayName: "Suspended User",
+      passwordHash: demoPasswordHash,
+      role: UserRole.MEMBER,
+      bio: "Seeded suspended member for account-state testing.",
+      emailVerified: new Date(),
+      isSuspended: true,
+    },
+  });
+
   const generalSection = await prisma.section.create({
     data: {
       name: "Community",

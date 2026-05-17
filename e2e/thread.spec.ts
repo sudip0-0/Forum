@@ -31,8 +31,7 @@ test.describe("Thread creation and replies", () => {
 
     const replyContent = `E2E reply ${Date.now()}`;
     await page.getByTestId("reply-content").fill(replyContent);
-    await page.getByText("Post reply").click();
-
+    await page.getByRole("button", { name: "Post Reply" }).click();
     await expect(page.locator("article").filter({ hasText: replyContent }).last()).toBeVisible({ timeout: 20000 });
   });
 
@@ -61,7 +60,7 @@ test.describe("Thread creation and replies", () => {
     await page.getByText(/Seed thread/).first().click();
     const replyContent = `Editable reply ${Date.now()}`;
     await page.getByTestId("reply-content").fill(replyContent);
-    await page.getByText("Post reply").click();
+    await page.getByRole("button", { name: "Post Reply" }).click();
     const replyArticle = page.locator("article").filter({ hasText: replyContent }).last();
     await expect(replyArticle).toBeVisible({ timeout: 20000 });
     const replyArticleId = await replyArticle.getAttribute("id");
@@ -72,15 +71,13 @@ test.describe("Thread creation and replies", () => {
     await savedReplyArticle.getByRole("button", { name: "Edit", exact: true }).click();
     const editor = savedReplyArticle.locator('[data-testid^="edit-reply-"]');
     await editor.fill(updatedReply);
-    await savedReplyArticle.getByText("Save reply").click();
-    await page.waitForLoadState("networkidle", { timeout: 10000 });
-    const updatedReplyArticle = page.locator("article").filter({ hasText: updatedReply }).first();
-    await expect(updatedReplyArticle).toBeVisible({ timeout: 10000 });
+    await savedReplyArticle.getByRole("button", { name: "Save reply" }).click();
+    const updatedReplyArticle = page.locator(`article[id="${replyArticleId}"]`);
+    await expect(updatedReplyArticle).toContainText(updatedReply);
 
     page.once("dialog", (dialog) => dialog.accept());
-    await updatedReplyArticle.getByText("Delete").click();
-    await page.waitForLoadState("networkidle", { timeout: 10000 });
-    await expect(page.locator("article").filter({ hasText: updatedReply })).toHaveCount(0);
+    await updatedReplyArticle.getByRole("button", { name: "Delete", exact: true }).click();
+    await expect(page.locator(`article[id="${replyArticleId}"]`)).toHaveCount(0);
   });
 
   test("delete own zero-reply thread and redirect", async ({ page }) => {
@@ -107,7 +104,7 @@ test.describe("Thread creation and replies", () => {
     await page.getByTestId("thread-content").fill("This thread will receive a reply before deletion.");
     await page.getByRole("button", { name: "Create Thread" }).click();
     await page.getByTestId("reply-content").fill("A reply that blocks author deletion.");
-    await page.getByText("Post reply").click();
+    await page.getByRole("button", { name: "Post Reply" }).click();
     await expect(page.locator("body")).toContainText("Threads with replies cannot be deleted by their author.");
     await expect(page.getByText("Delete thread")).toHaveCount(0);
   });
