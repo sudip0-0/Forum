@@ -20,6 +20,10 @@ export async function reorderSections(items: { id: string; sortOrder: number }[]
   try { await (await makeServerCaller()).section.reorder({ items }); refresh(); return { success: true }; }
   catch (error) { return { error: (error as Error).message }; }
 }
+export async function softDeleteSection(id: string) {
+  try { await (await makeServerCaller()).section.softDelete({ id }); refresh(); return { success: true }; }
+  catch (error) { return { error: (error as Error).message }; }
+}
 export async function createCategory(input: { sectionId: string; name: string; description?: string }) {
   try { await (await makeServerCaller()).category.create(input); refresh(); return { success: true }; }
   catch (error) { return { error: (error as Error).message }; }
@@ -32,6 +36,10 @@ export async function reorderCategories(items: { id: string; sortOrder: number }
   try { await (await makeServerCaller()).category.reorder({ items }); refresh(); return { success: true }; }
   catch (error) { return { error: (error as Error).message }; }
 }
+export async function softDeleteCategory(id: string) {
+  try { await (await makeServerCaller()).category.softDelete({ id }); refresh(); return { success: true }; }
+  catch (error) { return { error: (error as Error).message }; }
+}
 export async function createForum(input: { categoryId: string; name: string; description?: string }) {
   try { await (await makeServerCaller()).forum.create(input); refresh(); return { success: true }; }
   catch (error) { return { error: (error as Error).message }; }
@@ -42,5 +50,9 @@ export async function updateForum(input: { id: string; categoryId?: string; name
 }
 export async function reorderForums(items: { id: string; sortOrder: number }[]) {
   try { await (await makeServerCaller()).forum.reorder({ items }); refresh(); return { success: true }; }
+  catch (error) { return { error: (error as Error).message }; }
+}
+export async function softDeleteForum(id: string) {
+  try { await (await makeServerCaller()).forum.softDelete({ id }); refresh(); return { success: true }; }
   catch (error) { return { error: (error as Error).message }; }
 }

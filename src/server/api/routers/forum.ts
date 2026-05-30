@@ -13,6 +13,7 @@ const createSchema = z.object({
 });
 
 const updateSchema = createSchema.partial().extend({ id: z.string().min(1) });
+const idSchema = z.object({ id: z.string().min(1) });
 const reorderSchema = z.object({
   items: z.array(z.object({ id: z.string().min(1), sortOrder: z.number().int().min(0) })).min(1),
 });
@@ -55,12 +56,19 @@ export const forumRouter = router({
   update: roleProcedure(["ADMIN"]).input(updateSchema).mutation(async ({ ctx, input }) => {
     const forum = await ctx.db.forum.findUnique({ where: { id: input.id } });
     if (!forum) throw new TRPCError({ code: "NOT_FOUND", message: "Forum not found." });
+    const slug = input.name ? slugify(input.name) : undefined;
+    if (slug && slug !== forum.slug) {
+      const existing = await ctx.db.forum.findUnique({ where: { slug } });
+      if (existing && existing.id !== forum.id) {
+        throw new TRPCError({ code: "CONFLICT", message: "Forum slug already exists." });
+      }
+    }
     return ctx.db.forum.update({
       where: { id: input.id },
       data: {
         categoryId: input.categoryId,
         name: input.name,
-        slug: input.name ? slugify(input.name) : undefined,
+        slug,
         description: input.description,
         isPublic: input.isPublic,
         isLocked: input.isLocked,
@@ -76,5 +84,15 @@ export const forumRouter = router({
       ),
     );
     return { success: true };
+  }),
+
+  softDelete: roleProcedure(["ADMIN"]).input(idSchema).mutation(async ({ ctx, input }) => {
+    const forum = await ctx.db.forum.findUnique({ where: { id: input.id } });
+    if (!forum) throw new TRPCError({ code: "NOT_FOUND", message: "Forum not found." });
+
+    return ctx.db.forum.update({
+      where: { id: input.id },
+      data: { isPublic: false },
+    });
   }),
 });

@@ -51,7 +51,7 @@ describe("category router", () => {
       const result = await caller.category.listPublic();
 
       expect(db.category.findMany).toHaveBeenCalledWith({
-        where: { isPublic: true },
+        where: { isPublic: true, section: { isPublic: true } },
         orderBy: { sortOrder: "asc" },
       });
       expect(result).toHaveLength(2);
@@ -72,7 +72,7 @@ describe("category router", () => {
       const result = await caller.category.listPublic();
 
       expect(db.category.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { isPublic: true } }),
+        expect.objectContaining({ where: { isPublic: true, section: { isPublic: true } } }),
       );
       expect(result).toHaveLength(1);
     });

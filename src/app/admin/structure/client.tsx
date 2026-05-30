@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowUp, ArrowDown, Edit3, Eye, EyeOff, Lock, Unlock, GripVertical } from "lucide-react";
+import { Plus, ArrowUp, ArrowDown, Edit3, Eye, EyeOff, Lock, Unlock, GripVertical, Trash2, CheckCircle2 } from "lucide-react";
 import {
   createCategory,
   createForum,
@@ -10,6 +10,9 @@ import {
   reorderCategories,
   reorderForums,
   reorderSections,
+  softDeleteCategory,
+  softDeleteForum,
+  softDeleteSection,
   updateCategory,
   updateForum,
   updateSection,
@@ -23,9 +26,21 @@ export function StructureManager({ initialSections }: { initialSections: Section
   const [sections, setSections] = useState(initialSections);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [newSection, setNewSection] = useState("");
   const [dragging, setDragging] = useState<{ kind: "category" | "forum"; id: string } | null>(null);
   const [dropTarget, setDropTarget] = useState<{ kind: "section" | "category"; id: string } | null>(null);
+
+  function setResult(result: { error?: string } | undefined, message: string) {
+    if (result?.error) {
+      setSuccess(null);
+      setError(result.error);
+      return false;
+    }
+    setError(null);
+    setSuccess(message);
+    return true;
+  }
 
   function moveSection(index: number, dir: -1 | 1) {
     const next = [...sections];
@@ -80,8 +95,21 @@ export function StructureManager({ initialSections }: { initialSections: Section
         kind === "section" ? await updateSection({ id: ids[0], ...data }) :
         kind === "category" ? await updateCategory({ id: ids[0], ...data }) :
         await updateForum({ id: ids[0], ...data });
-      if (result?.error) setError(result.error);
-      else location.reload();
+      if (!setResult(result, `${kind[0].toUpperCase()}${kind.slice(1)} updated.`)) return;
+      setSections((prev) => updateLocalNode(prev, kind, ids[0], data));
+    });
+  }
+
+  function softDelete(kind: "section" | "category" | "forum", id: string, name: string) {
+    const label = kind === "section" ? "section" : kind;
+    if (!window.confirm(`Hide "${name}" from public browsing? Existing content stays in the database and can be shown again later.`)) return;
+    startTransition(async () => {
+      const result =
+        kind === "section" ? await softDeleteSection(id) :
+        kind === "category" ? await softDeleteCategory(id) :
+        await softDeleteForum(id);
+      if (!setResult(result, `${label[0].toUpperCase()}${label.slice(1)} hidden from public browsing.`)) return;
+      setSections((prev) => updateLocalNode(prev, kind, id, { isPublic: false }));
     });
   }
 
@@ -167,6 +195,12 @@ export function StructureManager({ initialSections }: { initialSections: Section
           {error}
         </div>
       )}
+      {success && (
+        <div className="flex items-center gap-2 rounded-sm border-2 border-success/50 bg-success/10 px-4 py-3 text-sm font-medium text-success">
+          <CheckCircle2 className="h-4 w-4" />
+          {success}
+        </div>
+      )}
 
       {/* New Section */}
       <div className="card-elevated p-4">
@@ -182,16 +216,24 @@ export function StructureManager({ initialSections }: { initialSections: Section
           />
           <Button
             disabled={!newSection.trim() || isPending}
-            onClick={() => startTransition(async () => { await createSection({ name: newSection }); location.reload(); })}
+            onClick={() => startTransition(async () => {
+              const result = await createSection({ name: newSection });
+              if (setResult(result, "Section created.")) location.reload();
+            })}
           >
             <Plus className="h-4 w-4" />
-            Create
+            {isPending ? "Creating" : "Create"}
           </Button>
         </div>
       </div>
 
       {/* Sections */}
-      {sections.map((section, sectionIndex) => (
+      {sections.length === 0 ? (
+        <div className="empty-state">
+          <p className="empty-state-title">No sections yet</p>
+          <p className="empty-state-text">Create the first section to start building the public forum structure.</p>
+        </div>
+      ) : sections.map((section, sectionIndex) => (
         <section
           key={section.id}
           className={`card-elevated overflow-hidden ${
@@ -228,6 +270,7 @@ export function StructureManager({ initialSections }: { initialSections: Section
             onToggleVisible={() => patch("section", [section.id], { isPublic: !section.isPublic })}
             onToggleLocked={() => patch("section", [section.id], { isLocked: !section.isLocked })}
             onRename={(name, description) => patch("section", [section.id], { name, description })}
+            onSoftDelete={() => softDelete("section", section.id, section.name)}
           />
           <div className="space-y-3 border-t-2 border-border p-4">
             {dragging?.kind === "category" && dropTarget?.kind === "section" && dropTarget.id === section.id && (
@@ -235,7 +278,12 @@ export function StructureManager({ initialSections }: { initialSections: Section
                 Drop category into {section.name}
               </div>
             )}
-            <InlineCreate label="New Category" onCreate={(name) => createCategory({ sectionId: section.id, name })} />
+            <InlineCreate label="New Category" onCreate={(name) => createCategory({ sectionId: section.id, name })} onSuccess={() => setSuccess("Category created.")} onError={(message) => { setSuccess(null); setError(message); }} />
+            {section.categories.length === 0 && (
+              <div className="rounded-sm border-2 border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
+                No categories in this section.
+              </div>
+            )}
             {section.categories.map((category, categoryIndex) => (
               <div
                 key={category.id}
@@ -275,6 +323,7 @@ export function StructureManager({ initialSections }: { initialSections: Section
                   onToggleVisible={() => patch("category", [category.id], { isPublic: !category.isPublic })}
                   onToggleLocked={() => patch("category", [category.id], { isLocked: !category.isLocked })}
                   onRename={(name, description) => patch("category", [category.id], { name, description })}
+                  onSoftDelete={() => softDelete("category", category.id, category.name)}
                 />
                 <div className="space-y-2 border-t-2 border-border p-3 pl-8">
                   {dragging?.kind === "forum" && dropTarget?.kind === "category" && dropTarget.id === category.id && (
@@ -282,7 +331,12 @@ export function StructureManager({ initialSections }: { initialSections: Section
                       Drop forum into {category.name}
                     </div>
                   )}
-                  <InlineCreate label="New Forum" onCreate={(name) => createForum({ categoryId: category.id, name })} />
+                  <InlineCreate label="New Forum" onCreate={(name) => createForum({ categoryId: category.id, name })} onSuccess={() => setSuccess("Forum created.")} onError={(message) => { setSuccess(null); setError(message); }} />
+                  {category.forums.length === 0 && (
+                    <div className="rounded-sm border-2 border-dashed border-border px-3 py-3 text-center text-xs text-muted-foreground">
+                      No forums in this category.
+                    </div>
+                  )}
                   {category.forums.map((forum, forumIndex) => (
                     <Row
                       key={forum.id}
@@ -300,6 +354,7 @@ export function StructureManager({ initialSections }: { initialSections: Section
                       onToggleVisible={() => patch("forum", [forum.id], { isPublic: !forum.isPublic })}
                       onToggleLocked={() => patch("forum", [forum.id], { isLocked: !forum.isLocked })}
                       onRename={(name, description) => patch("forum", [forum.id], { name, description })}
+                      onSoftDelete={() => softDelete("forum", forum.id, forum.name)}
                     />
                   ))}
                 </div>
@@ -312,7 +367,17 @@ export function StructureManager({ initialSections }: { initialSections: Section
   );
 }
 
-function InlineCreate({ label, onCreate }: { label: string; onCreate: (name: string) => Promise<unknown> }) {
+function InlineCreate({
+  label,
+  onCreate,
+  onSuccess,
+  onError,
+}: {
+  label: string;
+  onCreate: (name: string) => Promise<{ error?: string } | unknown>;
+  onSuccess: () => void;
+  onError: (message: string) => void;
+}) {
   const [name, setName] = useState("");
   const [isPending, startTransition] = useTransition();
   return (
@@ -323,9 +388,17 @@ function InlineCreate({ label, onCreate }: { label: string; onCreate: (name: str
         value={name}
         onChange={(e) => setName(e.target.value)}
       />
-      <Button size="sm" disabled={!name.trim() || isPending} onClick={() => startTransition(async () => { await onCreate(name); location.reload(); })}>
+      <Button size="sm" disabled={!name.trim() || isPending} onClick={() => startTransition(async () => {
+        const result = await onCreate(name);
+        if (typeof result === "object" && result && "error" in result && typeof result.error === "string") {
+          onError(result.error);
+          return;
+        }
+        onSuccess();
+        location.reload();
+      })}>
         <Plus className="h-3.5 w-3.5" />
-        Add
+        {isPending ? "Adding" : "Add"}
       </Button>
     </div>
   );
@@ -335,6 +408,7 @@ function Row(props: {
   level: string; name: string; description: string | null; visible: boolean; locked: boolean;
   onUp: () => void; onDown: () => void; disableUp: boolean; disableDown: boolean;
   onToggleVisible: () => void; onToggleLocked: () => void; onRename: (name: string, description?: string) => void;
+  onSoftDelete: () => void;
   draggable?: boolean; onDragStart?: () => void; onDragEnd?: () => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -392,7 +466,20 @@ function Row(props: {
               <Edit3 className="h-3.5 w-3.5" />
               Edit
             </Button>
-            <Button size="sm" variant="outline" onClick={props.onToggleVisible} className="h-8 gap-1">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                if (
+                  props.visible &&
+                  !window.confirm(`Hide "${props.name}" from public browsing?`)
+                ) {
+                  return;
+                }
+                props.onToggleVisible();
+              }}
+              className="h-8 gap-1"
+            >
               {props.visible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
               {props.visible ? "Hide" : "Show"}
             </Button>
@@ -400,9 +487,40 @@ function Row(props: {
               {props.locked ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
               {props.locked ? "Unlock" : "Lock"}
             </Button>
+            <Button size="sm" variant="outline" onClick={props.onSoftDelete} disabled={!props.visible} className="h-8 gap-1">
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
+            </Button>
           </div>
         </div>
       )}
     </div>
   );
+}
+
+function updateLocalNode(
+  sections: Section[],
+  kind: "section" | "category" | "forum",
+  id: string,
+  data: Record<string, unknown>,
+): Section[] {
+  return sections.map((section) => {
+    if (kind === "section" && section.id === id) {
+      return { ...section, ...data };
+    }
+    return {
+      ...section,
+      categories: section.categories.map((category) => {
+        if (kind === "category" && category.id === id) {
+          return { ...category, ...data };
+        }
+        return {
+          ...category,
+          forums: category.forums.map((forum) =>
+            kind === "forum" && forum.id === id ? { ...forum, ...data } : forum,
+          ),
+        };
+      }),
+    };
+  });
 }

@@ -251,6 +251,42 @@
 - Run the full Playwright suite in a clean shell or CI worker with no stale `next start` listener on port `3000`.
 - Prepare staging deploy and repeat the quality gate against staging.
 
+### 2026-05-30
+
+### Completed
+- Added admin-only soft-delete mutations for sections and forums, matching the existing category soft-delete behavior by hiding records from public browsing while preserving data.
+- Tightened hierarchy slug conflict handling for section, category, and forum updates.
+- Closed a legacy public category listing gap so categories under hidden sections are excluded.
+- Improved `/admin/structure` with success/error feedback, loading labels, empty states, hide/delete confirmations, and explicit delete controls for sections, categories, and forums.
+- Added router regression coverage for section/forum soft-delete authorization and updated public category visibility assertions.
+
+### In Progress
+- None.
+
+### Blockers
+- Full Playwright E2E could not complete locally. The default run was blocked by an existing listener on `localhost:3000`; retrying with `E2E_BASE_URL=http://localhost:3001` failed before tests executed because the web server could not authenticate to Postgres with the configured `forum` credentials.
+
+### Decisions
+- Kept hierarchy soft-delete consistent with the current MVP schema: `isPublic=false` is the soft-delete/hide mechanism for Section, Category, and Forum.
+- Preserved existing tRPC/server-action patterns instead of adding a new admin API layer.
+- Left create flows using a reload after success so newly created server-generated IDs and slugs come from the source of truth.
+
+### Test Results
+- `pnpm lint` passed.
+- `pnpm typecheck` passed.
+- `pnpm test` passed (353 tests across 32 files).
+- `pnpm build` passed.
+- Targeted `pnpm exec vitest run src/server/api/routers/section.test.ts src/server/api/routers/category.test.ts src/server/api/routers/forum.test.ts src/server/db/visibility.test.ts src/app/sitemap.test.ts` passed (73 tests).
+- `pnpm test:e2e` did not complete due to the local environment blockers listed above.
+
+### Remaining Risks
+- Section/category/forum soft-delete remains visibility-based (`isPublic=false`) rather than a distinct `isDeleted` column, matching current schema but limiting audit semantics.
+- Full browser coverage should be rerun once the local test database credentials and port state are clean.
+
+### Next Steps
+- Run full Playwright E2E in a clean environment with a reachable Postgres test database.
+- Consider a future migration that separates hidden and deleted hierarchy states if product needs stronger deletion semantics.
+
 ## 5. Blocker Log
 
 | ID | Date | Task | Blocker | Owner | Resolution |

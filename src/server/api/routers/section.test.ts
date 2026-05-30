@@ -143,4 +143,34 @@ describe("section router", () => {
       await expect(caller.section.reorder({ items: [{ id: "s1", sortOrder: 0 }] })).rejects.toMatchObject({ code: "FORBIDDEN" });
     });
   });
+
+  describe("softDelete", () => {
+    it("allows admin to soft-delete a section", async () => {
+      const db = {
+        section: {
+          findUnique: vi.fn().mockResolvedValue(makeSection()),
+          update: vi.fn().mockResolvedValue(makeSection({ isPublic: false })),
+        },
+      };
+      const caller = createCaller({ db: db as never, session: adminSession });
+      const result = await caller.section.softDelete({ id: "sec-1" });
+      expect(result.isPublic).toBe(false);
+      expect(db.section.update).toHaveBeenCalledWith({
+        where: { id: "sec-1" },
+        data: { isPublic: false },
+      });
+    });
+
+    it("returns NOT_FOUND for a missing section", async () => {
+      const db = { section: { findUnique: vi.fn().mockResolvedValue(null), update: vi.fn() } };
+      const caller = createCaller({ db: db as never, session: adminSession });
+      await expect(caller.section.softDelete({ id: "missing" })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    });
+
+    it("rejects soft-delete by member", async () => {
+      const db = { section: { findUnique: vi.fn(), update: vi.fn() } };
+      const caller = createCaller({ db: db as never, session: memberSession });
+      await expect(caller.section.softDelete({ id: "sec-1" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+  });
 });

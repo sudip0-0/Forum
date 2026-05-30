@@ -61,7 +61,7 @@ export const categoryRouter = router({
 
   listPublic: publicProcedure.query(async ({ ctx }) => {
     return ctx.db.category.findMany({
-      where: { isPublic: true },
+      where: { isPublic: true, section: { isPublic: true } },
       orderBy: { sortOrder: "asc" },
     });
   }),
@@ -123,7 +123,7 @@ export const categoryRouter = router({
         const existing = await ctx.db.category.findUnique({
           where: { slug: input.slug },
         });
-        if (existing) {
+        if (existing && existing.id !== category.id) {
           throw new TRPCError({
             code: "CONFLICT",
             message: `A category with slug "${input.slug}" already exists.`,
@@ -134,6 +134,17 @@ export const categoryRouter = router({
       const slug =
         input.slug ??
         (input.name ? slugify(input.name) : category.slug);
+      if (slug !== category.slug) {
+        const existing = await ctx.db.category.findUnique({
+          where: { slug },
+        });
+        if (existing && existing.id !== category.id) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: `A category with slug "${slug}" already exists.`,
+          });
+        }
+      }
 
       return ctx.db.category.update({
         where: { id: input.id },

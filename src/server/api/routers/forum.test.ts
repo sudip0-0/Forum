@@ -155,6 +155,36 @@ describe("forum router", () => {
     });
   });
 
+  describe("softDelete", () => {
+    it("allows admin to soft-delete a forum", async () => {
+      const db = {
+        forum: {
+          findUnique: vi.fn().mockResolvedValue(makeForum()),
+          update: vi.fn().mockResolvedValue(makeForum({ isPublic: false })),
+        },
+      };
+      const caller = createCaller({ db: db as never, session: adminSession });
+      const result = await caller.forum.softDelete({ id: "forum-1" });
+      expect(result.isPublic).toBe(false);
+      expect(db.forum.update).toHaveBeenCalledWith({
+        where: { id: "forum-1" },
+        data: { isPublic: false },
+      });
+    });
+
+    it("returns NOT_FOUND for a missing forum", async () => {
+      const db = { forum: { findUnique: vi.fn().mockResolvedValue(null), update: vi.fn() } };
+      const caller = createCaller({ db: db as never, session: adminSession });
+      await expect(caller.forum.softDelete({ id: "missing" })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    });
+
+    it("rejects soft-delete by member", async () => {
+      const db = { forum: { findUnique: vi.fn(), update: vi.fn() } };
+      const caller = createCaller({ db: db as never, session: memberSession });
+      await expect(caller.forum.softDelete({ id: "forum-1" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+  });
+
   describe("listAll", () => {
     it("returns all forums for admin", async () => {
       const db = { forum: { findMany: vi.fn().mockResolvedValue([makeForum()]) } };

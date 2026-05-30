@@ -12,6 +12,7 @@ const createSchema = z.object({
 });
 
 const updateSchema = createSchema.partial().extend({ id: z.string().min(1) });
+const idSchema = z.object({ id: z.string().min(1) });
 const reorderSchema = z.object({
   items: z.array(z.object({ id: z.string().min(1), sortOrder: z.number().int().min(0) })).min(1),
 });
@@ -58,11 +59,18 @@ export const sectionRouter = router({
   update: roleProcedure(["ADMIN"]).input(updateSchema).mutation(async ({ ctx, input }) => {
     const section = await ctx.db.section.findUnique({ where: { id: input.id } });
     if (!section) throw new TRPCError({ code: "NOT_FOUND", message: "Section not found." });
+    const slug = input.name ? slugify(input.name) : undefined;
+    if (slug && slug !== section.slug) {
+      const existing = await ctx.db.section.findUnique({ where: { slug } });
+      if (existing && existing.id !== section.id) {
+        throw new TRPCError({ code: "CONFLICT", message: "Section slug already exists." });
+      }
+    }
     return ctx.db.section.update({
       where: { id: input.id },
       data: {
         name: input.name,
-        slug: input.name ? slugify(input.name) : undefined,
+        slug,
         description: input.description,
         isPublic: input.isPublic,
         isLocked: input.isLocked,
@@ -78,5 +86,15 @@ export const sectionRouter = router({
       ),
     );
     return { success: true };
+  }),
+
+  softDelete: roleProcedure(["ADMIN"]).input(idSchema).mutation(async ({ ctx, input }) => {
+    const section = await ctx.db.section.findUnique({ where: { id: input.id } });
+    if (!section) throw new TRPCError({ code: "NOT_FOUND", message: "Section not found." });
+
+    return ctx.db.section.update({
+      where: { id: input.id },
+      data: { isPublic: false },
+    });
   }),
 });
