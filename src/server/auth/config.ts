@@ -27,6 +27,14 @@ declare module "next-auth" {
   }
 }
 
+/** Custom claims we persist on the JWT for forum authorization. */
+interface ForumTokenClaims {
+  id: string;
+  role: UserRole;
+  isSuspended: boolean;
+  username: string;
+}
+
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
@@ -76,19 +84,23 @@ export const authConfig = {
   callbacks: {
     jwt({ token, user }) {
       if (user) {
-        (token as Record<string, unknown>).id = user.id;
-        (token as Record<string, unknown>).role = user.role;
-        (token as Record<string, unknown>).isSuspended = user.isSuspended;
-        (token as Record<string, unknown>).username = user.username;
+        const claims: ForumTokenClaims = {
+          id: user.id ?? "",
+          role: user.role,
+          isSuspended: user.isSuspended,
+          username: user.username,
+        };
+        return { ...token, ...claims };
       }
       return token;
     },
     session({ session, token }) {
       if (session.user) {
-        session.user.id = (token as Record<string, unknown>).id as string;
-        session.user.role = (token as Record<string, unknown>).role as UserRole;
-        session.user.isSuspended = (token as Record<string, unknown>).isSuspended as boolean;
-        session.user.username = (token as Record<string, unknown>).username as string;
+        const claims = token as Partial<ForumTokenClaims>;
+        session.user.id = claims.id ?? "";
+        session.user.role = claims.role ?? "MEMBER";
+        session.user.isSuspended = claims.isSuspended ?? false;
+        session.user.username = claims.username ?? "";
       }
       return session;
     },

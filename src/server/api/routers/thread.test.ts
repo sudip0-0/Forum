@@ -344,6 +344,25 @@ describe("thread router", () => {
       const caller = createCaller({ db: db as never, session: null });
       await expect(caller.thread.incrementView({ id: "nope" })).rejects.toMatchObject({ code: "NOT_FOUND" });
     });
+
+    it("increments the view count for a visible thread", async () => {
+      const update = vi.fn().mockResolvedValue({});
+      const db = {
+        thread: {
+          findUnique: vi.fn().mockResolvedValue({
+            isDeleted: false,
+            forum: { isPublic: true, category: { isPublic: true, section: { isPublic: true } } },
+          }),
+          update,
+        },
+      };
+      const caller = createCaller({ db: db as never, session: null });
+      await expect(caller.thread.incrementView({ id: "thread-1" })).resolves.toEqual({ success: true });
+      expect(update).toHaveBeenCalledWith({
+        where: { id: "thread-1" },
+        data: { viewCount: { increment: 1 } },
+      });
+    });
   });
 
   describe("updateOwn", () => {

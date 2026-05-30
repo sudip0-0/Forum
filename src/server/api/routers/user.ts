@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { publicProcedure, protectedProcedure, router } from "@/server/api/trpc";
 import { assertNotSuspended } from "@/server/api/rate-limit";
+import { VISIBLE_PUBLIC_THREAD } from "@/server/db/visibility";
 
 const getPublicProfileSchema = z.object({
   username: z.string().min(1),
@@ -29,10 +30,7 @@ export const userRouter = router({
           role: true,
           createdAt: true,
           threads: {
-            where: {
-              isDeleted: false,
-              forum: { isPublic: true, category: { isPublic: true, section: { isPublic: true } } },
-            },
+            where: VISIBLE_PUBLIC_THREAD,
             orderBy: [{ createdAt: "desc" }, { id: "desc" }],
             take: input.threadLimit + 1,
             ...(input.threadCursor ? { cursor: { id: input.threadCursor }, skip: 1 } : {}),

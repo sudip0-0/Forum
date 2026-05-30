@@ -1,9 +1,10 @@
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useId, useRef, useState, useTransition } from "react";
 import { reportContent } from "@/app/(public)/forum/[categorySlug]/[threadSlug]/actions";
 import { Flag } from "lucide-react";
 import { AccountStateCallout } from "@/components/account/account-state-callout";
+import { useDismissable } from "@/components/hooks/use-dismissable";
 import type { AccountState } from "@/lib/account-state";
 
 const REASONS = [
@@ -33,6 +34,8 @@ export function ReportForm({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const containerRef = useRef<HTMLDivElement>(null);
+  useDismissable(open, () => setOpen(false), containerRef);
   const formId = useId();
   const reasonId = `${formId}-reason`;
   const noteId = `${formId}-note`;
@@ -40,7 +43,7 @@ export function ReportForm({
 
   if (accountState.kind !== "ready") {
     return (
-      <div className="relative">
+      <div className="relative" ref={containerRef}>
         <button
           type="button"
           onClick={() => setOpen(!open)}
@@ -87,7 +90,7 @@ export function ReportForm({
   }
 
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       <button
         type="button"
         onClick={() => setOpen(!open)}

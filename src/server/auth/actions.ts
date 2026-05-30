@@ -30,6 +30,7 @@ import {
   resetPasswordWithToken,
   type PasswordResetResult,
 } from "@/server/auth/password-reset";
+import { getClientIpFromHeaders } from "@/server/http/client-ip";
 
 export interface RegisterResult {
   success: boolean;
@@ -53,9 +54,7 @@ export interface ResetPasswordActionResult {
 }
 
 async function getClientIp(): Promise<string> {
-  const headersList = await headers();
-  const forwarded = headersList.get("x-forwarded-for");
-  return forwarded ? forwarded.split(",")[0].trim() : "127.0.0.1";
+  return getClientIpFromHeaders(await headers());
 }
 
 function buildEmailLink(path: string, token: string): string {

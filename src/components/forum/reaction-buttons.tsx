@@ -91,6 +91,10 @@ export function ReactionButtons({
       {items.length > 0 && (
         <span className="ml-1.5 font-mono text-xs text-muted-foreground">
           {items.length}
+          <span className="sr-only">
+            {" "}
+            {items.length === 1 ? "reaction" : "reactions"}
+          </span>
         </span>
       )}
     </div>

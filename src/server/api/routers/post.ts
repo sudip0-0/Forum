@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { publicProcedure, protectedProcedure, router } from "@/server/api/trpc";
 import { checkRateLimit, RL_REPLY, assertNotSuspended } from "@/server/api/rate-limit";
 import { assertEmailVerified } from "@/server/auth/email-verification";
+import { isPublicThreadVisible } from "@/server/db/visibility";
 
 const listByThreadSchema = z.object({
   threadId: z.string().min(1),
@@ -23,18 +24,6 @@ const updateOwnSchema = z.object({
 });
 const deleteOwnSchema = z.object({ postId: z.string().min(1) });
 
-function isVisibleThread(thread: {
-  isDeleted: boolean;
-  forum: { isPublic: boolean; category: { isPublic: boolean; section: { isPublic: boolean } } };
-}) {
-  return (
-    !thread.isDeleted &&
-    thread.forum.isPublic &&
-    thread.forum.category.isPublic &&
-    thread.forum.category.section.isPublic
-  );
-}
-
 export const postRouter = router({
   listByThread: publicProcedure
     .input(listByThreadSchema)
@@ -52,7 +41,7 @@ export const postRouter = router({
         },
       });
 
-      if (!thread || !isVisibleThread(thread)) {
+      if (!thread || !isPublicThreadVisible(thread)) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Thread not found." });
       }
 
@@ -210,7 +199,7 @@ export const postRouter = router({
           },
         },
       });
-      if (!post || post.isDeleted || !isVisibleThread(post.thread)) {
+      if (!post || post.isDeleted || !isPublicThreadVisible(post.thread)) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Post not found." });
       }
       if (post.authorId !== ctx.session.user.id) {
@@ -251,7 +240,7 @@ export const postRouter = router({
           },
         },
       });
-      if (!post || post.isDeleted || !isVisibleThread(post.thread)) {
+      if (!post || post.isDeleted || !isPublicThreadVisible(post.thread)) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Post not found." });
       }
       if (post.authorId !== ctx.session.user.id) {

@@ -7,6 +7,7 @@ import {
 } from "@/server/api/trpc";
 import { checkRateLimit, RL_REPORT, assertNotSuspended } from "@/server/api/rate-limit";
 import { assertEmailVerified } from "@/server/auth/email-verification";
+import { isPublicThreadVisible, PUBLIC_FORUM_VISIBILITY, VISIBLE_PUBLIC_THREAD } from "@/server/db/visibility";
 
 const reportSchema = z
   .object({
@@ -98,10 +99,7 @@ export const moderationRouter = router({
         if (
           !post ||
           post.isDeleted ||
-          post.thread.isDeleted ||
-          !post.thread.forum.isPublic ||
-          !post.thread.forum.category.isPublic ||
-          !post.thread.forum.category.section.isPublic
+          !isPublicThreadVisible(post.thread)
         ) {
           throw new TRPCError({
             code: "NOT_FOUND",
@@ -150,10 +148,7 @@ export const moderationRouter = router({
 
         if (
           !thread ||
-          thread.isDeleted ||
-          !thread.forum.isPublic ||
-          !thread.forum.category.isPublic ||
-          !thread.forum.category.section.isPublic
+          !isPublicThreadVisible(thread)
         ) {
           throw new TRPCError({
             code: "NOT_FOUND",
@@ -555,11 +550,9 @@ export const moderationRouter = router({
     .query(async ({ ctx }) => {
       const [totalUsers, totalVisibleThreads, openReports, visibleForums] = await Promise.all([
         ctx.db.user.count(),
-        ctx.db.thread.count({
-          where: { isDeleted: false, forum: { isPublic: true, category: { isPublic: true, section: { isPublic: true } } } },
-        }),
+        ctx.db.thread.count({ where: VISIBLE_PUBLIC_THREAD }),
         ctx.db.report.count({ where: { status: "OPEN" } }),
-        ctx.db.forum.count({ where: { isPublic: true, category: { isPublic: true, section: { isPublic: true } } } }),
+        ctx.db.forum.count({ where: PUBLIC_FORUM_VISIBILITY }),
       ]);
       return { totalUsers, totalVisibleThreads, openReports, visibleForums };
     }),

@@ -1,8 +1,9 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
+import { useDismissable } from "@/components/hooks/use-dismissable";
 
 const SORT_OPTIONS = [
   { value: "latest", label: "Last message" },
@@ -25,6 +26,8 @@ export function ForumFilters({ forumSlug }: { forumSlug: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  useDismissable(open, () => setOpen(false), containerRef);
 
   const sort = searchParams.get("sort") || "latest";
   const direction = searchParams.get("direction") || "desc";
@@ -53,7 +56,7 @@ export function ForumFilters({ forumSlug }: { forumSlug: string }) {
   }
 
   return (
-    <div className="relative flex justify-end">
+    <div className="relative flex justify-end" ref={containerRef}>
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}

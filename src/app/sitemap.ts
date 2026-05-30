@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { db } from "@/server/db/prisma";
 import { getSiteUrl } from "@/lib/seo";
+import { PUBLIC_FORUM_VISIBILITY, VISIBLE_PUBLIC_THREAD } from "@/server/db/visibility";
 
 export const revalidate = 3600;
 export const dynamic = "force-dynamic";
@@ -37,10 +38,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Forum thread-list pages (/forum/[slug])
   const forums = await db.forum.findMany({
-    where: {
-      isPublic: true,
-      category: { isPublic: true, section: { isPublic: true } },
-    },
+    where: PUBLIC_FORUM_VISIBILITY,
     select: { slug: true, updatedAt: true },
   });
 
@@ -53,10 +51,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Individual thread pages (/forum/[forumSlug]/[threadSlug])
   const threads = await db.thread.findMany({
-    where: {
-      isDeleted: false,
-      forum: { isPublic: true, category: { isPublic: true, section: { isPublic: true } } },
-    },
+    where: VISIBLE_PUBLIC_THREAD,
     select: {
       slug: true,
       updatedAt: true,

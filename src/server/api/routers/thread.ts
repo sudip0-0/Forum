@@ -5,6 +5,7 @@ import { publicProcedure, protectedProcedure, router } from "@/server/api/trpc";
 import { checkRateLimit, RL_CREATE_THREAD, assertNotSuspended } from "@/server/api/rate-limit";
 import { slugify } from "@/lib/slug";
 import { assertEmailVerified } from "@/server/auth/email-verification";
+import { isPublicThreadVisible } from "@/server/db/visibility";
 
 const sortSchema = z.enum(["latest", "newest", "oldest", "views", "reactions", "reacted", "replies", "title", "unanswered"]);
 const directionSchema = z.enum(["asc", "desc"]).default("desc");
@@ -14,17 +15,6 @@ const threadContentSchema = z.object({
   title: z.string().min(5).max(150),
   content: z.string().min(10).max(20000),
 });
-function isVisibleThread(thread: {
-  isDeleted: boolean;
-  forum: { isPublic: boolean; category: { isPublic: boolean; section: { isPublic: boolean } } };
-}) {
-  return (
-    !thread.isDeleted &&
-    thread.forum.isPublic &&
-    thread.forum.category.isPublic &&
-    thread.forum.category.section.isPublic
-  );
-}
 
 export const threadRouter = router({
   listByCategory: publicProcedure
@@ -152,9 +142,12 @@ export const threadRouter = router({
   incrementView: publicProcedure.input(z.object({ id: z.string().min(1) })).mutation(async ({ ctx, input }) => {
     const thread = await ctx.db.thread.findUnique({
       where: { id: input.id },
-      include: { forum: { include: { category: { include: { section: true } } } } },
+      select: {
+        isDeleted: true,
+        forum: { select: { isPublic: true, category: { select: { isPublic: true, section: { select: { isPublic: true } } } } } },
+      },
     });
-    if (!thread || thread.isDeleted || !thread.forum.isPublic || !thread.forum.category.isPublic || !thread.forum.category.section.isPublic) {
+    if (!thread || !isPublicThreadVisible(thread)) {
       throw new TRPCError({ code: "NOT_FOUND", message: "Thread not found." });
     }
     await ctx.db.thread.update({ where: { id: input.id }, data: { viewCount: { increment: 1 } } });
@@ -228,7 +221,7 @@ export const threadRouter = router({
           forum: { select: { isPublic: true, category: { select: { isPublic: true, section: { select: { isPublic: true } } } } } },
         },
       });
-      if (!thread || !isVisibleThread(thread)) {
+      if (!thread || !isPublicThreadVisible(thread)) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Thread not found." });
       }
       if (thread.authorId !== ctx.session.user.id) {
@@ -273,7 +266,7 @@ export const threadRouter = router({
           forum: { select: { isPublic: true, category: { select: { isPublic: true, section: { select: { isPublic: true } } } } } },
         },
       });
-      if (!thread || !isVisibleThread(thread)) {
+      if (!thread || !isPublicThreadVisible(thread)) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Thread not found." });
       }
       if (thread.authorId !== ctx.session.user.id) {

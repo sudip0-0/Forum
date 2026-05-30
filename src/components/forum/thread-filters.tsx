@@ -1,8 +1,9 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
+import { useDismissable } from "@/components/hooks/use-dismissable";
 
 export function ThreadFilters({
   forumSlug,
@@ -14,6 +15,8 @@ export function ThreadFilters({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  useDismissable(open, () => setOpen(false), containerRef);
   const sort = searchParams.get("postSort") ?? "oldest";
   const repliesOnly = searchParams.get("repliesOnly") === "1";
   const formId = `thread-filters-${threadSlug}`;
@@ -29,7 +32,7 @@ export function ThreadFilters({
   }
 
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}

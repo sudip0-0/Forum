@@ -2,19 +2,17 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import type { Prisma } from "@prisma/client";
 import { publicProcedure, router } from "@/server/api/trpc";
+import { VISIBLE_PUBLIC_THREAD } from "@/server/db/visibility";
 
 export const discoveryRouter = router({
   home: publicProcedure.query(async ({ ctx }) => {
-    const publicThreadWhere: Prisma.ThreadWhereInput = {
-      isDeleted: false,
-      forum: { isPublic: true, category: { isPublic: true, section: { isPublic: true } } },
-    };
+    const publicThreadWhere: Prisma.ThreadWhereInput = VISIBLE_PUBLIC_THREAD;
 
     const [latestMessages, activeThreads, popularThreads, popularTags, stats] = await Promise.all([
       ctx.db.post.findMany({
         where: {
           isDeleted: false,
-          thread: { isDeleted: false, forum: { isPublic: true, category: { isPublic: true, section: { isPublic: true } } } },
+          thread: VISIBLE_PUBLIC_THREAD,
         },
         orderBy: { createdAt: "desc" },
         take: 8,
@@ -71,8 +69,7 @@ export const discoveryRouter = router({
 
       const where: Prisma.ThreadWhereInput = {
         tags: { some: { slug: input.tagSlug } },
-        isDeleted: false,
-        forum: { isPublic: true, category: { isPublic: true, section: { isPublic: true } } },
+        ...VISIBLE_PUBLIC_THREAD,
       };
 
       const orderBy: Prisma.ThreadOrderByWithRelationInput[] =
