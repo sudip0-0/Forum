@@ -39,6 +39,67 @@ export const searchRouter = router({
     await checkRateLimit(rateLimitKey, RL_SEARCH);
 
     const q = input.q.trim();
+    const { trackEvent } = await import("@/server/analytics/track");
+    void trackEvent(ctx.db, {
+      name: "search",
+      userId: ctx.session?.user.id,
+      meta: { q },
+    });
+
+    const { searchMeili } = await import("@/server/search/meili");
+    if (
+      !input.forumSlug &&
+      !input.tagSlug &&
+      !input.authorUsername &&
+      !input.dateFrom &&
+      !input.dateTo &&
+      !input.cursor
+    ) {
+      const meiliHits = await searchMeili(q, input.limit);
+      if (meiliHits && meiliHits.length > 0) {
+        const threadIds = [...new Set(meiliHits.map((h) => h.threadId))];
+        const threads = await ctx.db.thread.findMany({
+          where: { id: { in: threadIds }, isDeleted: false },
+          include: {
+            author: { select: { username: true, displayName: true } },
+            forum: { select: { slug: true, name: true } },
+            tags: { select: { id: true, name: true, slug: true } },
+            posts: {
+              where: { isDeleted: false },
+              orderBy: { createdAt: "asc" },
+              take: 1,
+              select: { id: true, content: true },
+            },
+          },
+        });
+        const byId = new Map(threads.map((t) => [t.id, t]));
+        const results: SearchRow[] = meiliHits
+          .map((hit) => {
+            const t = byId.get(hit.threadId);
+            if (!t) return null;
+            return {
+              id: t.id,
+              title: t.title,
+              slug: t.slug,
+              createdAt: t.createdAt,
+              authorUsername: t.author.username,
+              authorDisplayName: t.author.displayName,
+              forumSlug: t.forum.slug,
+              forumName: t.forum.name,
+              tags: t.tags,
+              snippet: (hit.content || t.posts[0]?.content || "").slice(0, 200),
+              matchedPostId: hit.id.startsWith("thread-")
+                ? (t.posts[0]?.id ?? t.id)
+                : hit.id,
+            };
+          })
+          .filter((x): x is SearchRow => Boolean(x));
+        if (results.length > 0) {
+          return { results, nextCursor: null };
+        }
+      }
+    }
+
     const conditions: Prisma.Sql[] = [
       Prisma.sql`t."isDeleted" = false`,
       Prisma.sql`f."isPublic" = true`,
@@ -99,7 +160,13 @@ export const searchRouter = router({
              to_tsvector('english', t.title) @@ websearch_to_tsquery('english', ${q})
              OR to_tsvector('english', p.content) @@ websearch_to_tsquery('english', ${q})
            )
-        ORDER BY t."lastActivityAt" DESC, t.id DESC
+        ORDER BY
+          GREATEST(
+            ts_rank(to_tsvector('english', t.title), websearch_to_tsquery('english', ${q})),
+            COALESCE(ts_rank(to_tsvector('english', p.content), websearch_to_tsquery('english', ${q})), 0)
+          ) DESC,
+          t."lastActivityAt" DESC,
+          t.id DESC
         LIMIT ${take}
       )
       SELECT

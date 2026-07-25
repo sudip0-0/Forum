@@ -91,7 +91,7 @@ test.describe("Search-to-thread navigation with highlights", () => {
     await expect(dismissButton).toBeVisible({ timeout: 10000 });
 
     // Verify highlight text is shown in the banner
-    await expect(page.locator('[role="status"]')).toContainText("Showing highlights for");
+    await expect(page.getByRole("status").filter({ hasText: "Showing highlights for" })).toBeVisible();
 
     // Click dismiss
     await dismissButton.click();

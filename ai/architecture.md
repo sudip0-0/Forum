@@ -237,12 +237,7 @@ Use PostgreSQL search for title and content.
 
 ### Later
 
-Add Meilisearch when:
-
-- Core forum CRUD is stable
-- Data shape is final enough
-- Search relevance matters
-- There are enough posts to justify external indexing
+Search uses Meilisearch when `MEILISEARCH_HOST` is set (compose profile `search`), with PostgreSQL FTS + `ts_rank` fallback. Reindex via `pnpm search:reindex`.
 
 ## 9. Real-Time Architecture
 
@@ -251,9 +246,9 @@ Do not start with real-time.
 Phases:
 
 1. MVP: normal page refresh and TanStack Query refetch
-2. v1.1: polling for notification badge
-3. v1.2: SSE for notifications and thread updates
-4. v1.3: Redis Pub/Sub for multi-instance fanout
+2. v1.1: polling for notification badge (implemented — header polls unread count)
+3. v1.2: SSE for notifications (`/api/notifications/stream`)
+4. v1.3: Redis Pub/Sub for multi-instance fanout (future)
 
 ## 10. Background Jobs
 

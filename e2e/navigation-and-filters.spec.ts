@@ -4,18 +4,11 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function loginAsAdmin(page: Page) {
-  await page.goto("/login");
-  if (page.url().endsWith("/admin")) return;
+  await page.goto("/login?callbackUrl=/admin");
   await expect(page.locator('input[name="email"]')).toBeVisible({ timeout: 10000 });
   await page.fill('input[name="email"]', "admin@example.com");
   await page.fill('input[name="password"]', "password123");
   await page.click('button[type="submit"]');
-  await page.waitForTimeout(1000);
-  if (page.url().endsWith("/login")) {
-    await page.fill('input[name="email"]', "admin@example.com");
-    await page.fill('input[name="password"]', "password123");
-    await page.click('button[type="submit"]');
-  }
   await expect(page).toHaveURL("/admin", { timeout: 10000 });
 }
 
@@ -26,18 +19,22 @@ test.describe("Admin dashboard and navigation", () => {
 
   test("admin dashboard renders stat cards and quick actions", async ({ page }) => {
     await page.goto("/admin");
-    await expect(page.locator("h1")).toContainText("Dashboard", { timeout: 10000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" }).first()).toBeVisible({
+      timeout: 10000,
+    });
 
-    await expect(page.getByText("Users", { exact: true })).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText("Threads", { exact: true })).toBeVisible();
-    await expect(page.locator("text=Open Reports")).toBeVisible();
-    await expect(page.getByRole("link", { name: /\d+ Forums/ })).toBeVisible();
+    await expect(page.locator(".stat-label", { hasText: "Users" }).first()).toBeVisible({
+      timeout: 5000,
+    });
+    await expect(page.locator(".stat-label", { hasText: "Threads" }).first()).toBeVisible();
+    await expect(page.getByText("Open Reports").first()).toBeVisible();
+    await expect(page.getByRole("link", { name: /\d+ Forums/ }).first()).toBeVisible();
 
-    await expect(page.locator("text=Structure Manager")).toBeVisible();
-    await expect(page.locator("text=Thread Management")).toBeVisible();
-    await expect(page.locator("text=Moderation Queue")).toBeVisible();
-    await expect(page.locator("text=Moderation History")).toBeVisible();
-    await expect(page.locator("text=User Management")).toBeVisible();
+    await expect(page.getByRole("link", { name: /Structure Manager/ }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: /Thread Management/ }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: /Moderation Queue/ }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: /Moderation History/ }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: /User Management|Manage Users/ }).first()).toBeVisible();
   });
 
   test("admin subpages have back buttons that navigate to /admin", async ({ page }) => {
@@ -51,9 +48,9 @@ test.describe("Admin dashboard and navigation", () => {
 
     for (const url of subpages) {
       await page.goto(url);
-      await expect(page.locator("h1")).toBeVisible({ timeout: 10000 });
+      await expect(page.locator("h1").first()).toBeVisible({ timeout: 10000 });
 
-      const backLink = page.getByRole("link", { name: "Back to Dashboard" });
+      const backLink = page.getByRole("link", { name: "Back to Dashboard" }).first();
       await expect(backLink).toBeVisible({ timeout: 5000 });
 
       await Promise.all([

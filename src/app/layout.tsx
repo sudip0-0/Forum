@@ -10,6 +10,7 @@ export const metadata: Metadata = {
   title: "Forum",
   description: "A focused community forum for questions and discussion.",
   metadataBase: new URL(getSiteUrl()),
+  manifest: "/manifest.webmanifest",
 };
 
 const spaceGrotesk = Space_Grotesk({
@@ -36,6 +37,11 @@ export default async function RootLayout({
         <ClientShell session={session} accountState={accountState}>
           {children}
         </ClientShell>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(function(){})}`,
+          }}
+        />
       </body>
     </html>
   );

@@ -6,13 +6,24 @@ import { VISIBLE_PUBLIC_THREAD } from "@/server/db/visibility";
 
 const getPublicProfileSchema = z.object({
   username: z.string().min(1),
-  threadCursor: z.string().min(1).optional(),
-  threadLimit: z.number().int().min(1).max(50).default(20),
+  tab: z.enum(["threads", "posts"]).default("threads"),
+  cursor: z.string().min(1).optional(),
+  limit: z.number().int().min(1).max(50).default(20),
 });
 
 const updateProfileSchema = z.object({
   displayName: z.string().max(50).optional(),
   bio: z.string().max(500).optional(),
+  image: z
+    .string()
+    .max(500)
+    .refine(
+      (v) => !v || v.startsWith("/uploads/") || v.startsWith("https://"),
+      "Invalid image URL",
+    )
+    .optional(),
+  digestFrequency: z.enum(["off", "daily", "weekly"]).optional(),
+  emailOnReply: z.boolean().optional(),
 });
 
 export const userRouter = router({
@@ -28,19 +39,11 @@ export const userRouter = router({
           image: true,
           bio: true,
           role: true,
+          reputation: true,
           createdAt: true,
-          threads: {
-            where: VISIBLE_PUBLIC_THREAD,
-            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-            take: input.threadLimit + 1,
-            ...(input.threadCursor ? { cursor: { id: input.threadCursor }, skip: 1 } : {}),
-            select: {
-              id: true,
-              title: true,
-              slug: true,
-              createdAt: true,
-              forum: { select: { slug: true, name: true } },
-            },
+          badges: {
+            include: { badge: true },
+            orderBy: { awardedAt: "desc" },
           },
         },
       });
@@ -49,12 +52,56 @@ export const userRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "User not found." });
       }
 
-      let nextThreadCursor: string | null = null;
-      if (user.threads.length > input.threadLimit) {
-        nextThreadCursor = user.threads.pop()!.id;
+      if (input.tab === "posts") {
+        const posts = await ctx.db.post.findMany({
+          where: {
+            authorId: user.id,
+            isDeleted: false,
+            thread: VISIBLE_PUBLIC_THREAD,
+          },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          take: input.limit + 1,
+          ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            thread: {
+              select: {
+                title: true,
+                slug: true,
+                forum: { select: { slug: true, name: true } },
+              },
+            },
+          },
+        });
+        let nextCursor: string | null = null;
+        if (posts.length > input.limit) nextCursor = posts.pop()!.id;
+        return { ...user, threads: [], posts, nextCursor, nextThreadCursor: null };
       }
 
-      return { ...user, nextThreadCursor };
+      const threads = await ctx.db.thread.findMany({
+        where: { authorId: user.id, ...VISIBLE_PUBLIC_THREAD },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: input.limit + 1,
+        ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          createdAt: true,
+          forum: { select: { slug: true, name: true } },
+        },
+      });
+      let nextCursor: string | null = null;
+      if (threads.length > input.limit) nextCursor = threads.pop()!.id;
+      return {
+        ...user,
+        threads,
+        posts: [],
+        nextCursor,
+        nextThreadCursor: nextCursor,
+      };
     }),
 
   updateProfile: protectedProcedure
@@ -67,6 +114,9 @@ export const userRouter = router({
         data: {
           displayName: input.displayName,
           bio: input.bio,
+          image: input.image,
+          digestFrequency: input.digestFrequency,
+          emailOnReply: input.emailOnReply,
         },
       });
 

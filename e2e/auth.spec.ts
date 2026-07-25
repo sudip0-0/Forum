@@ -62,7 +62,7 @@ test.describe("Authentication flows", () => {
 
     const message = await findMailpitMessage(email, "Verify your Forum email");
     await page.goto(extractLink(message.Text, "/verify-email"));
-    await expect(page.getByText("Email verified")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Email verified" })).toBeVisible();
   });
 
   test("login → logout", async ({ page }) => {

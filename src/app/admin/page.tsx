@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/server/auth/guards";
 import { makeServerCaller } from "@/server/api/caller";
 import { SignOutButton } from "@/components/auth/sign-out-button";
-import { LayoutDashboard, GitBranch, MessageSquare, Shield, Clock, Users, ArrowRight, AlertTriangle } from "lucide-react";
+import { LayoutDashboard, GitBranch, MessageSquare, Shield, Clock, Users, ArrowRight, AlertTriangle, BarChart3 } from "lucide-react";
 
 export default async function AdminDashboard() {
   const session = await requireAdmin();
@@ -24,6 +24,7 @@ export default async function AdminDashboard() {
     { label: "Moderation Queue", description: "Review and act on reports", href: "/admin/mod", icon: Shield },
     { label: "Moderation History", description: "View all past moderator actions", href: "/admin/mod/history", icon: Clock },
     { label: "User Management", description: "Manage users, roles, and suspensions", href: "/admin/users", icon: Users },
+    { label: "Analytics", description: "7/30 day activity snapshots", href: "/admin/analytics", icon: BarChart3 },
   ];
 
   return (

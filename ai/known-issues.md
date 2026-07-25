@@ -6,7 +6,7 @@
 |---|---|---|---|---|---|---|
 | KI-001 | Medium | Scope | Original product scope includes too many post-MVP features | Open | coordinator | Keep MVP frozen |
 | KI-002 | Medium | Architecture | Real-time approach must be aligned before implementation | Open | architect | Use no real-time in MVP, SSE later |
-| KI-003 | Medium | Search | Meilisearch adds infrastructure complexity | Open | backend | Start with PostgreSQL search |
+| KI-003 | Medium | Search | Meilisearch adds infrastructure complexity | Resolved | backend | Dual-path: Meilisearch when configured, PostgreSQL FTS + ts_rank fallback |
 | KI-004 | High | Security | Markdown rendering can introduce XSS | Resolved | security | react-markdown escapes all raw HTML by default |
 | KI-005 | Medium | Progress | Existing progress logs may imply implementation already happened | Resolved | coordinator | Docs now audited and synced to actual repo state (2026-05-15) |
 | KI-010 | Low | Architecture | Category softDelete conflates visibility with deletion (isPublic=false) | Resolved | architect | Hierarchy soft-delete now uses `isDeleted` on Section/Category/Forum |

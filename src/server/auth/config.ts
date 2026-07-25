@@ -1,5 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import GitHub from "next-auth/providers/github";
+import Google from "next-auth/providers/google";
 import type { UserRole } from "@prisma/client";
 import { db } from "@/server/db/prisma";
 import { verifyPassword } from "@/server/auth/password";
@@ -11,6 +13,27 @@ import {
 } from "@/server/api/rate-limit";
 import { edgeAuthConfig } from "@/server/auth/auth.config";
 import { z } from "zod";
+
+const oauthProviders = [
+  ...(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET
+    ? [
+        Google({
+          clientId: process.env.AUTH_GOOGLE_ID,
+          clientSecret: process.env.AUTH_GOOGLE_SECRET,
+          allowDangerousEmailAccountLinking: true,
+        }),
+      ]
+    : []),
+  ...(process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET
+    ? [
+        GitHub({
+          clientId: process.env.AUTH_GITHUB_ID,
+          clientSecret: process.env.AUTH_GITHUB_SECRET,
+          allowDangerousEmailAccountLinking: true,
+        }),
+      ]
+    : []),
+];
 
 declare module "next-auth" {
   interface User {
@@ -50,6 +73,7 @@ const loginSchema = z.object({
 export const authConfig = {
   ...edgeAuthConfig,
   providers: [
+    ...oauthProviders,
     Credentials({
       credentials: {
         email: { label: "Email", type: "email" },
@@ -73,6 +97,7 @@ export const authConfig = {
         });
 
         if (!user?.passwordHash) return null;
+        if (user.isSuspended) return null;
 
         const valid = await verifyPassword(password, user.passwordHash);
         if (!valid) return null;
@@ -92,7 +117,51 @@ export const authConfig = {
   ],
   callbacks: {
     ...edgeAuthConfig.callbacks,
-    async jwt({ token, user }) {
+    async signIn({ user }) {
+      if (!user?.email) return false;
+      const dbUser = await db.user.findUnique({
+        where: { email: user.email },
+        select: { isSuspended: true },
+      });
+      if (dbUser?.isSuspended) return false;
+      return true;
+    },
+    async jwt({ token, user, account }) {
+      if (account && (account.provider === "google" || account.provider === "github")) {
+        const email = token.email ?? user?.email;
+        if (!email) return {};
+        let dbUser = await db.user.findUnique({ where: { email } });
+        if (!dbUser) {
+          const base =
+            (email.split("@")[0] ?? "user").replace(/[^a-zA-Z0-9_]/g, "").slice(0, 20) ||
+            "user";
+          let username = base;
+          let i = 0;
+          while (await db.user.findUnique({ where: { username } })) {
+            i += 1;
+            username = `${base}${i}`;
+          }
+          dbUser = await db.user.create({
+            data: {
+              email,
+              username,
+              displayName: user?.name ?? username,
+              image: user?.image,
+              emailVerified: new Date(),
+              passwordHash: null,
+            },
+          });
+        }
+        return {
+          ...token,
+          id: dbUser.id,
+          role: dbUser.role,
+          isSuspended: dbUser.isSuspended,
+          username: dbUser.username,
+          tokenVersion: dbUser.tokenVersion,
+          lastRefreshedAt: Date.now(),
+        };
+      }
       if (user) {
         const claims: ForumTokenClaims = {
           id: user.id ?? "",

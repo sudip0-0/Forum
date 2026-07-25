@@ -3,6 +3,10 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "node",
+    env: {
+      RATE_LIMIT_BACKEND: "memory",
+      VITEST: "true",
+    },
     include: ["src/**/*.test.ts", "src/**/*.integration.test.ts"],
     coverage: {
       provider: "v8",

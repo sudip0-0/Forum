@@ -10,6 +10,10 @@ import { discoveryRouter } from "@/server/api/routers/discovery";
 import { userRouter } from "@/server/api/routers/user";
 import { searchRouter } from "@/server/api/routers/search";
 import { moderationRouter } from "@/server/api/routers/moderation";
+import { notificationRouter } from "@/server/api/routers/notification";
+import { messageRouter } from "@/server/api/routers/message";
+import { webhookRouter } from "@/server/api/routers/webhook";
+import { analyticsRouter } from "@/server/api/routers/analytics";
 import type { inferRouterOutputs } from "@trpc/server";
 
 export const appRouter = router({
@@ -24,6 +28,10 @@ export const appRouter = router({
   user: userRouter,
   search: searchRouter,
   moderation: moderationRouter,
+  notification: notificationRouter,
+  message: messageRouter,
+  webhook: webhookRouter,
+  analytics: analyticsRouter,
 });
 
 export type AppRouter = typeof appRouter;

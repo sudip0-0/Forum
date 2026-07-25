@@ -39,4 +39,21 @@ describe("Prisma schema", () => {
   it("tracks JWT revocation via User.tokenVersion", () => {
     expect(schema).toMatch(/model User[\s\S]*tokenVersion\s+Int\s+@default\(0\)/);
   });
+
+  it("defines post-MVP engagement and messaging models", () => {
+    for (const model of [
+      "Notification",
+      "ThreadSubscription",
+      "Badge",
+      "UserBadge",
+      "Conversation",
+      "DirectMessage",
+      "WebhookEndpoint",
+      "AnalyticsEvent",
+    ]) {
+      expect(schema).toContain(`model ${model} `);
+    }
+    expect(schema).toMatch(/model Thread[\s\S]*acceptedPostId/);
+    expect(schema).toMatch(/model User[\s\S]*reputation\s+Int\s+@default\(0\)/);
+  });
 });

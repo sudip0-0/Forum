@@ -12,6 +12,7 @@ import { HighlightedText } from "@/components/forum/highlighted-text";
 import { ThreadOwnerControls } from "@/components/forum/thread-owner-controls";
 import { ReplyOwnerControls } from "@/components/forum/reply-owner-controls";
 import { ReplyComposer } from "@/components/forum/reply-composer";
+import { AcceptSolutionButton } from "@/components/forum/accept-solution-button";
 import type { AccountState } from "@/lib/account-state";
 import { Reply } from "lucide-react";
 
@@ -68,6 +69,8 @@ export function ThreadConversation({
   canReply,
   accountState,
   isThreadOwner,
+  canAcceptSolution,
+  acceptedPostId,
 }: {
   posts: PostItem[];
   threadTitle: string;
@@ -80,6 +83,8 @@ export function ThreadConversation({
   canReply: boolean;
   accountState: AccountState;
   isThreadOwner: boolean;
+  canAcceptSolution?: boolean;
+  acceptedPostId?: string | null;
 }) {
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const [replyTarget, setReplyTarget] = useState<PostItem | null>(null);
@@ -203,6 +208,26 @@ export function ThreadConversation({
                         initialContent={post.content}
                         categorySlug={categorySlug}
                         threadSlug={threadSlug}
+                      />
+                    )}
+                    {canAcceptSolution &&
+                      index > 0 &&
+                      post.author.id !== currentUserId && (
+                        <AcceptSolutionButton
+                          threadId={threadId}
+                          postId={post.id}
+                          categorySlug={categorySlug}
+                          threadSlug={threadSlug}
+                          isAccepted={acceptedPostId === post.id}
+                        />
+                      )}
+                    {!canAcceptSolution && acceptedPostId === post.id && (
+                      <AcceptSolutionButton
+                        threadId={threadId}
+                        postId={post.id}
+                        categorySlug={categorySlug}
+                        threadSlug={threadSlug}
+                        isAccepted
                       />
                     )}
                   </div>

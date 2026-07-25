@@ -19,17 +19,20 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "search:reindex": "tsx scripts/search-reindex.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
     "@radix-ui/react-slot": "1.2.4",
+    "@sentry/nextjs": "10.22.0",
     "@tailwindcss/typography": "^0.5.19",
     "@trpc/server": "^11.17.0",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "lucide-react": "0.544.0",
+    "meilisearch": "0.54.0",
     "next": "16.2.6",
     "next-auth": "5.0.0-beta.31",
     "nodemailer": "^7.0.13",

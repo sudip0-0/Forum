@@ -79,6 +79,29 @@ Launch only when:
 [ ] Staging has been tested on mobile
 ```
 
+## Backup and restore (Postgres)
+
+Take a backup before staging/production `pnpm db:migrate:deploy`:
+
+```bash
+pg_dump "$DATABASE_URL" -Fc -f backup-$(date +%Y%m%d).dump
+```
+
+Restore if needed:
+
+```bash
+pg_restore --clean --if-exists -d "$DATABASE_URL" backup-YYYYMMDD.dump
+```
+
+Staging migrate:
+
+```bash
+pnpm db:migrate:deploy
+# smoke: health, login, create thread, search, mod queue
+```
+
+Optional: set `SENTRY_DSN` so error tracking is active in staging/production.
+
 ## Rollback Plan
 
 If production deploy fails:

@@ -197,6 +197,13 @@ export default async function ThreadDetailPage({
           canReply={canReply}
           accountState={accountState}
           isThreadOwner={accountState.kind !== "suspended" && session?.user?.id === thread.author.id}
+          canAcceptSolution={
+            accountState.kind !== "suspended" &&
+            (session?.user?.id === thread.author.id ||
+              session?.user?.role === "ADMIN" ||
+              session?.user?.role === "MODERATOR")
+          }
+          acceptedPostId={thread.acceptedPostId}
         />
       </ThreadHighlightProvider>
 

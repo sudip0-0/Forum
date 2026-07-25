@@ -17,6 +17,7 @@ export function ProfileEditForm({
   const router = useRouter();
   const [displayName, setDisplayName] = useState(initialDisplayName);
   const [bio, setBio] = useState(initialBio);
+  const [image, setImage] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [editing, setEditing] = useState(false);
@@ -32,7 +33,7 @@ export function ProfileEditForm({
   function handleSave() {
     setError(null);
     startTransition(async () => {
-      const result = await updateProfile(username, { displayName, bio });
+      const result = await updateProfile(username, { displayName, bio, image });
       if (result.error) {
         setError(result.error);
       } else {
@@ -63,6 +64,26 @@ export function ProfileEditForm({
         value={bio}
         onChange={(e) => setBio(e.target.value)}
         disabled={isPending}
+      />
+      <input
+        type="file"
+        accept="image/png,image/jpeg,image/gif,image/webp"
+        disabled={isPending}
+        className="block w-full text-sm"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          const body = new FormData();
+          body.set("file", file);
+          body.set("purpose", "avatar");
+          const res = await fetch("/api/upload", { method: "POST", body });
+          if (!res.ok) {
+            setError("Avatar upload failed.");
+            return;
+          }
+          const data = (await res.json()) as { url?: string };
+          if (data.url) setImage(data.url);
+        }}
       />
       <div className="flex gap-2">
         <Button size="sm" onClick={handleSave} disabled={isPending}>

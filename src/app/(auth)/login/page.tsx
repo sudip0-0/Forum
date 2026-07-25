@@ -31,7 +31,16 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/admin");
+    const callbackUrl = new URLSearchParams(window.location.search).get(
+      "callbackUrl",
+    );
+    const safeCallback =
+      callbackUrl &&
+      callbackUrl.startsWith("/") &&
+      !callbackUrl.startsWith("//")
+        ? callbackUrl
+        : "/";
+    router.push(safeCallback);
     router.refresh();
   }
 
@@ -96,6 +105,24 @@ export default function LoginPage() {
               {loading ? "Signing in..." : "Sign in"}
             </Button>
           </form>
+          <div className="mt-5 space-y-2 border-t-2 border-border pt-5">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => void signIn("google", { callbackUrl: "/" })}
+            >
+              Continue with Google
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => void signIn("github", { callbackUrl: "/" })}
+            >
+              Continue with GitHub
+            </Button>
+          </div>
         </div>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">

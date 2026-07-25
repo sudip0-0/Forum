@@ -53,6 +53,13 @@ function allowInMemoryFallback() {
 }
 
 function shouldUseRedis() {
+  // Explicit memory mode wins (unit tests / local without Redis).
+  if (process.env.RATE_LIMIT_BACKEND === "memory") {
+    return false;
+  }
+  if (process.env.VITEST === "true" || process.env.NODE_ENV === "test") {
+    return process.env.RATE_LIMIT_BACKEND === "redis";
+  }
   return process.env.RATE_LIMIT_BACKEND === "redis" || !!process.env.REDIS_URL;
 }
 

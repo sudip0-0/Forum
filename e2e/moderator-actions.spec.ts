@@ -11,7 +11,9 @@ test.describe("Moderator direct thread actions", () => {
 
   test("thread management page loads with threads", async ({ page }) => {
     await page.goto("/admin/threads");
-    await expect(page.locator("h1")).toContainText("Thread Management", { timeout: 10000 });
+    await expect(page.getByRole("heading", { name: "Thread Management" })).toBeVisible({
+      timeout: 10000,
+    });
     await expect(page.locator("body")).toContainText("Seed thread", { timeout: 10000 });
   });
 

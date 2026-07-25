@@ -218,8 +218,8 @@ export const threadRouter = router({
       let slug = slugify(input.title);
       if (await ctx.db.thread.findUnique({ where: { slug } })) slug = `${slug}-${Date.now().toString(36)}`;
       const tagInputs = input.tags.map((name) => ({ name, slug: slugify(name) }));
-      return ctx.db.$transaction(async (tx) => {
-        const thread = await tx.thread.create({
+      const thread = await ctx.db.$transaction(async (tx) => {
+        const created = await tx.thread.create({
           data: {
             forumId: forum.id,
             authorId: ctx.session.user.id,
@@ -234,10 +234,81 @@ export const threadRouter = router({
           },
         });
         await tx.post.create({
-          data: { threadId: thread.id, authorId: ctx.session.user.id, content: input.content },
+          data: { threadId: created.id, authorId: ctx.session.user.id, content: input.content },
         });
-        return thread;
+        const { ensureThreadSubscription } = await import("@/server/notifications/create");
+        await ensureThreadSubscription(tx, ctx.session.user.id, created.id);
+        return created;
       });
+      const { trackEvent } = await import("@/server/analytics/track");
+      const { dispatchWebhooks } = await import("@/server/webhooks/dispatch");
+      const { maybeAwardFirstPost } = await import("@/server/engagement/reputation");
+      const { upsertSearchDocument } = await import("@/server/search/meili");
+      try {
+        await trackEvent(ctx.db, {
+          name: "thread.create",
+          userId: ctx.session.user.id,
+          path: `/forum/${forum.slug}/${thread.slug}`,
+        });
+        void dispatchWebhooks("thread.created", {
+          threadId: thread.id,
+          slug: thread.slug,
+          forumId: forum.id,
+        });
+        await maybeAwardFirstPost(ctx.db, ctx.session.user.id);
+        void upsertSearchDocument({
+          id: `thread-${thread.id}`,
+          threadId: thread.id,
+          title: thread.title,
+          content: input.content,
+          forumSlug: forum.slug,
+          createdAt: Date.now(),
+        });
+      } catch {
+        // Side effects must not fail thread creation.
+      }
+      return thread;
+    }),
+
+  acceptSolution: protectedProcedure
+    .input(z.object({ threadId: z.string().min(1), postId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      assertNotSuspended(ctx.session.user);
+      const thread = await ctx.db.thread.findUnique({
+        where: { id: input.threadId },
+        include: { posts: { where: { id: input.postId }, take: 1 } },
+      });
+      if (!thread || thread.isDeleted) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Thread not found." });
+      }
+      const isStaff =
+        ctx.session.user.role === "ADMIN" || ctx.session.user.role === "MODERATOR";
+      if (thread.authorId !== ctx.session.user.id && !isStaff) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+      const post = thread.posts[0];
+      if (!post || post.isDeleted || post.authorId === thread.authorId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Choose a reply from another member as the solution.",
+        });
+      }
+      if (thread.acceptedPostId === post.id) {
+        return { success: true };
+      }
+      const { adjustReputation, awardBadge } = await import(
+        "@/server/engagement/reputation"
+      );
+      await ctx.db.$transaction(async (tx) => {
+        await tx.thread.update({
+          where: { id: thread.id },
+          data: { acceptedPostId: post.id },
+        });
+        await adjustReputation(tx, post.authorId, 15);
+        await adjustReputation(tx, ctx.session.user.id, 2);
+        await awardBadge(tx, post.authorId, "solution-author");
+      });
+      return { success: true };
     }),
 
   updateOwn: protectedProcedure

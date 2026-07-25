@@ -4,6 +4,13 @@ import { publicProcedure, protectedProcedure, router } from "@/server/api/trpc";
 import { checkRateLimit, RL_REPLY, assertNotSuspended } from "@/server/api/rate-limit";
 import { assertEmailVerified } from "@/server/auth/email-verification";
 import { isPublicThreadVisible } from "@/server/db/visibility";
+import {
+  ensureThreadSubscription,
+  notifyMentions,
+  notifyThreadSubscribers,
+} from "@/server/notifications/create";
+import { maybeAwardFirstPost } from "@/server/engagement/reputation";
+
 
 const listByThreadSchema = z.object({
   threadId: z.string().min(1),
@@ -160,8 +167,8 @@ export const postRouter = router({
         }
       }
 
-      return ctx.db.$transaction(async (tx) => {
-        const post = await tx.post.create({
+      const post = await ctx.db.$transaction(async (tx) => {
+        const created = await tx.post.create({
           data: {
             threadId: input.threadId,
             authorId: ctx.session.user.id,
@@ -178,8 +185,28 @@ export const postRouter = router({
           },
         });
 
-        return post;
+        await ensureThreadSubscription(tx, ctx.session.user.id, input.threadId);
+        return created;
       });
+
+      try {
+        await notifyThreadSubscribers(ctx.db, {
+          threadId: input.threadId,
+          actorId: ctx.session.user.id,
+          postId: post.id,
+        });
+        await notifyMentions(ctx.db, {
+          content: input.content,
+          actorId: ctx.session.user.id,
+          threadId: input.threadId,
+          postId: post.id,
+        });
+        await maybeAwardFirstPost(ctx.db, ctx.session.user.id);
+      } catch {
+        // Side effects must not fail the reply itself.
+      }
+
+      return post;
     }),
 
   updateOwn: protectedProcedure

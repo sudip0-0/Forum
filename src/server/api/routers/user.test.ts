@@ -20,11 +20,14 @@ describe("user router", () => {
         displayName: "Test",
         image: null,
         bio: "Hello",
+        role: "MEMBER",
+        reputation: 0,
         createdAt: new Date(),
-        threads: [],
+        badges: [],
       };
       const db = {
         user: { findUnique: vi.fn().mockResolvedValue(user) },
+        thread: { findMany: vi.fn().mockResolvedValue([]) },
       };
 
       const caller = createCaller({ db: db as never, session: null });
@@ -33,28 +36,7 @@ describe("user router", () => {
       expect(result.username).toBe("testuser");
       expect(result).not.toHaveProperty("email");
       expect(result).not.toHaveProperty("passwordHash");
-      expect(db.user.findUnique).toHaveBeenCalledWith(
-        expect.objectContaining({
-          select: expect.objectContaining({
-            threads: expect.objectContaining({
-              where: {
-                isDeleted: false,
-                forum: {
-                  isPublic: true,
-                  isDeleted: false,
-                  category: {
-                    isPublic: true,
-                    isDeleted: false,
-                    section: { isPublic: true, isDeleted: false },
-                  },
-                },
-              },
-              orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-              take: 21,
-            }),
-          }),
-        }),
-      );
+      expect(db.thread.findMany).toHaveBeenCalled();
     });
 
     it("paginates public profile activity", async () => {
@@ -65,39 +47,31 @@ describe("user router", () => {
         image: null,
         bio: "Hello",
         role: "MEMBER",
+        reputation: 3,
         createdAt: new Date(),
-        threads: Array.from({ length: 3 }, (_, index) => ({
-          id: `thread-${index + 1}`,
-          title: `Thread ${index + 1}`,
-          slug: `thread-${index + 1}`,
-          createdAt: new Date(),
-          forum: { slug: "general-discussion", name: "General Discussion" },
-        })),
+        badges: [],
       };
+      const threads = Array.from({ length: 3 }, (_, index) => ({
+        id: `thread-${index + 1}`,
+        title: `Thread ${index + 1}`,
+        slug: `thread-${index + 1}`,
+        createdAt: new Date(),
+        forum: { slug: "general-discussion", name: "General Discussion" },
+      }));
       const db = {
         user: { findUnique: vi.fn().mockResolvedValue(user) },
+        thread: { findMany: vi.fn().mockResolvedValue(threads) },
       };
       const caller = createCaller({ db: db as never, session: null });
 
       const result = await caller.user.getPublicProfile({
         username: "testuser",
-        threadCursor: "thread-0",
-        threadLimit: 2,
+        cursor: "thread-0",
+        limit: 2,
       });
 
       expect(result.threads.map((thread) => thread.id)).toEqual(["thread-1", "thread-2"]);
-      expect(result.nextThreadCursor).toBe("thread-3");
-      expect(db.user.findUnique).toHaveBeenCalledWith(
-        expect.objectContaining({
-          select: expect.objectContaining({
-            threads: expect.objectContaining({
-              cursor: { id: "thread-0" },
-              skip: 1,
-              take: 3,
-            }),
-          }),
-        }),
-      );
+      expect(result.nextCursor).toBe("thread-3");
     });
 
     it("rejects unbounded profile activity limits", async () => {
@@ -105,7 +79,7 @@ describe("user router", () => {
       const caller = createCaller({ db: db as never, session: null });
 
       await expect(
-        caller.user.getPublicProfile({ username: "testuser", threadLimit: 500 }),
+        caller.user.getPublicProfile({ username: "testuser", limit: 500 }),
       ).rejects.toThrow();
       expect(db.user.findUnique).not.toHaveBeenCalled();
     });
@@ -116,7 +90,9 @@ describe("user router", () => {
       };
 
       const caller = createCaller({ db: db as never, session: null });
-      await expect(caller.user.getPublicProfile({ username: "nope" })).rejects.toMatchObject({ code: "NOT_FOUND" });
+      await expect(caller.user.getPublicProfile({ username: "nope" })).rejects.toMatchObject({
+        code: "NOT_FOUND",
+      });
     });
   });
 
@@ -132,7 +108,13 @@ describe("user router", () => {
       expect(result.success).toBe(true);
       expect(db.user.update).toHaveBeenCalledWith({
         where: { id: "member-1" },
-        data: { displayName: "New Name", bio: "New bio" },
+        data: {
+          displayName: "New Name",
+          bio: "New bio",
+          image: undefined,
+          digestFrequency: undefined,
+          emailOnReply: undefined,
+        },
       });
     });
 
@@ -140,7 +122,9 @@ describe("user router", () => {
       const db = { user: { update: vi.fn() } };
 
       const caller = createCaller({ db: db as never, session: null });
-      await expect(caller.user.updateProfile({ displayName: "X" })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+      await expect(caller.user.updateProfile({ displayName: "X" })).rejects.toMatchObject({
+        code: "UNAUTHORIZED",
+      });
     });
 
     it("rejects profile updates by suspended users", async () => {

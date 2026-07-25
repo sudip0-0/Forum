@@ -5,7 +5,7 @@ import { makeServerCaller } from "@/server/api/caller";
 
 export async function updateProfile(
   username: string,
-  input: { displayName?: string; bio?: string },
+  input: { displayName?: string; bio?: string; image?: string },
 ) {
   try {
     const caller = await makeServerCaller();

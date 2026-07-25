@@ -131,3 +131,18 @@ export async function deleteOwnReply(
     return { error: friendlyActionError(e, "We could not delete your reply. Please try again.") };
   }
 }
+
+export async function acceptSolution(
+  categorySlug: string,
+  threadSlug: string,
+  input: { threadId: string; postId: string },
+) {
+  try {
+    const caller = await makeServerCaller();
+    await caller.thread.acceptSolution(input);
+    revalidatePath(`/forum/${categorySlug}/${threadSlug}`);
+    return { success: true };
+  } catch (e: unknown) {
+    return { error: friendlyActionError(e, "We could not mark that solution. Please try again.") };
+  }
+}

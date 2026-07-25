@@ -59,10 +59,29 @@ export const reactionRouter = router({
         const where = input.postId
           ? { userId_postId: { userId: ctx.session.user.id, postId: input.postId } }
           : { userId_threadId: { userId: ctx.session.user.id, threadId: input.threadId! } };
+        const { adjustReputation } = await import("@/server/engagement/reputation");
         const existing = await tx.reaction.findUnique({ where });
+        let targetAuthorId: string | null = null;
+        if (input.postId) {
+          const post = await tx.post.findUnique({
+            where: { id: input.postId },
+            select: { authorId: true },
+          });
+          targetAuthorId = post?.authorId ?? null;
+        } else if (input.threadId) {
+          const thread = await tx.thread.findUnique({
+            where: { id: input.threadId },
+            select: { authorId: true },
+          });
+          targetAuthorId = thread?.authorId ?? null;
+        }
+
         if (existing) {
           if (existing.emoji === input.emoji) {
             await tx.reaction.delete({ where: { id: existing.id } });
+            if (targetAuthorId && targetAuthorId !== ctx.session.user.id) {
+              await adjustReputation(tx, targetAuthorId, -1);
+            }
             return { active: false as const, emoji: null };
           }
           await tx.reaction.update({
@@ -79,6 +98,9 @@ export const reactionRouter = router({
             emoji: input.emoji,
           },
         });
+        if (targetAuthorId && targetAuthorId !== ctx.session.user.id) {
+          await adjustReputation(tx, targetAuthorId, 1);
+        }
         return { active: true as const, emoji: input.emoji };
       });
     } catch (error) {

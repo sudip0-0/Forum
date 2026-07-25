@@ -22,9 +22,21 @@ pnpm dev
 ```
 
 The app runs at `http://localhost:3000`.
-The Docker PostgreSQL service is exposed on `localhost:5433` to avoid conflicts with local PostgreSQL installs that use `5432`.
+Docker maps PostgreSQL to `localhost:5434` and Redis to `localhost:6380` (avoids clashes with other local stacks).
 Mailpit captures local auth emails so verification and password-reset links can be tested without sending real mail.
 Redis backs rate limiting when `REDIS_URL` is set. For local tests or development without Redis, set `RATE_LIMIT_BACKEND=memory`; production should use Redis and keep `RATE_LIMIT_IN_MEMORY_FALLBACK=false`.
+
+### Seed accounts
+
+After `pnpm db:seed` (password for all: `password123`):
+
+| Role | Email |
+|---|---|
+| Admin | `admin@example.com` |
+| Moderator | `moderator@example.com` |
+| Member | `member1@example.com` … `member5@example.com` |
+| Unverified | `unverified@example.com` |
+| Suspended | `suspended@example.com` |
 
 ## Optional Search Service
 
@@ -49,8 +61,8 @@ pnpm build
 | Service | URL |
 |---|---|
 | App | `http://localhost:3000` |
-| PostgreSQL | `localhost:5433` |
-| Redis | `localhost:6379` |
+| PostgreSQL | `localhost:5434` |
+| Redis | `localhost:6380` |
 | Mailpit SMTP | `localhost:1025` |
 | Mailpit inbox | `http://localhost:8025` |
 | Meilisearch | `http://localhost:7700` |

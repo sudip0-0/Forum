@@ -200,6 +200,11 @@ export default async function SearchPage({
               <p className="empty-state-title">No results found</p>
               <p className="empty-state-text">
                 No results for &ldquo;{q}&rdquo;{forum ? ` in ${allForums.find((f) => f.slug === forum)?.name}` : ""}.
+                Try a shorter query, remove filters, or browse{" "}
+                <a href="/forums" className="font-semibold text-primary">
+                  forums
+                </a>
+                .
                 Try fewer words, check spelling, or browse forums instead.
               </p>
               <Link

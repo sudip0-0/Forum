@@ -12,9 +12,18 @@ export default function ErrorPage({
 }) {
   useEffect(() => {
     // Client boundary: avoid leaking stacks; digest is safe for support.
-    if (error.digest && typeof window !== "undefined") {
+    if (typeof window !== "undefined") {
       window.reportError?.(error);
     }
+    void import("@sentry/nextjs")
+      .then((Sentry) => {
+        if (process.env.NEXT_PUBLIC_SENTRY_DSN || process.env.SENTRY_DSN) {
+          Sentry.captureException(error);
+        }
+      })
+      .catch(() => {
+        /* Sentry optional */
+      });
   }, [error]);
 
   return (

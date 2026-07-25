@@ -71,7 +71,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 NODE_ENV=development
 
 # Database
-DATABASE_URL=postgresql://forum:forum@localhost:5433/forum_dev
+DATABASE_URL=postgresql://forum:forum@localhost:5434/forum_dev
 
 # Auth
 AUTH_SECRET=replace-with-local-secret
@@ -84,7 +84,7 @@ AUTH_GITHUB_ID=
 AUTH_GITHUB_SECRET=
 
 # Rate limiting
-REDIS_URL=redis://localhost:6379
+REDIS_URL=redis://localhost:6380
 RATE_LIMIT_BACKEND=redis
 RATE_LIMIT_IN_MEMORY_FALLBACK=false
 
@@ -117,7 +117,7 @@ services:
       POSTGRES_PASSWORD: forum
       POSTGRES_DB: forum_dev
     ports:
-      - "5433:5432"
+      - "5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -126,7 +126,7 @@ services:
     container_name: forum-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "6380:6379"
 
   meilisearch:
     image: getmeili/meilisearch:v1.6
@@ -151,8 +151,8 @@ volumes:
 | Service | URL |
 |---|---|
 | App | `http://localhost:3000` |
-| PostgreSQL | `localhost:5433` |
-| Redis | `localhost:6379` |
+| PostgreSQL | `localhost:5434` |
+| Redis | `localhost:6380` |
 | Prisma Studio | `http://localhost:5555` |
 | Meilisearch | `http://localhost:7700` |
 
@@ -186,7 +186,7 @@ docker ps
 
 If Docker reports that it cannot connect to `dockerDesktopLinuxEngine`, start Docker Desktop and wait for the Linux engine to become ready.
 
-If Prisma reports authentication failure for `forum`, confirm `DATABASE_URL` points to the Docker-mapped Postgres port: `localhost:5433`.
+If Prisma reports authentication failure for `forum`, confirm `DATABASE_URL` points to the Docker-mapped Postgres port: `localhost:5434`.
 
 Restart services:
 
@@ -200,3 +200,13 @@ docker compose up -d
 ```bash
 pnpm db:generate
 ```
+
+## Seed credentials
+
+After `pnpm db:seed`, all of these use password `password123`:
+
+- admin@example.com (ADMIN)
+- moderator@example.com (MODERATOR)
+- member1@example.com … member5@example.com (MEMBER)
+- unverified@example.com (MEMBER, email not verified)
+- suspended@example.com (MEMBER, suspended)

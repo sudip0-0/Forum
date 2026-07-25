@@ -14,6 +14,7 @@ interface HeaderProps {
 
 export function Header({ session, accountState }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
   const role = session?.user?.role;
   const isAdmin = role === "ADMIN";
   const isModeratorOrAbove = role === "MODERATOR" || role === "ADMIN";
@@ -26,6 +27,35 @@ export function Header({ session, accountState }: HeaderProps) {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [menuOpen]);
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    let cancelled = false;
+    async function poll() {
+      try {
+        const res = await fetch("/api/notifications/stream", { headers: { Accept: "text/event-stream" } });
+        // Prefer lightweight JSON poll via tRPC-like endpoint fallback:
+        if (!res.ok) return;
+      } catch {
+        /* ignore */
+      }
+      try {
+        const res = await fetch("/api/trpc/notification.unreadCount", { credentials: "include" });
+        if (!res.ok) return;
+        const data = (await res.json()) as { result?: { data?: { json?: number } } };
+        const count = data.result?.data?.json;
+        if (!cancelled && typeof count === "number") setUnread(count);
+      } catch {
+        /* ignore */
+      }
+    }
+    void poll();
+    const timer = setInterval(() => void poll(), 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [session?.user?.id]);
 
   async function handleSignOut() {
     await getCsrfToken();
@@ -79,6 +109,28 @@ export function Header({ session, accountState }: HeaderProps) {
             >
               Search
             </Link>
+            {session?.user && (
+              <>
+                <Link
+                  href="/messages"
+                  className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground hover:no-underline"
+                >
+                  Messages
+                </Link>
+                <Link
+                  href="/notifications"
+                  className="relative rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground hover:no-underline"
+                  aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
+                >
+                  Notifications
+                  {unread > 0 && (
+                    <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-md border border-border bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+                      {unread > 99 ? "99+" : unread}
+                    </span>
+                  )}
+                </Link>
+              </>
+            )}
             {isModeratorOrAbove && (
               <Link
                 href="/admin/mod"

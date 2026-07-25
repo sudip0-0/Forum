@@ -102,3 +102,108 @@ jobs:
           REDIS_URL: redis://localhost:6379
           RATE_LIMIT_BACKEND: redis
           RATE_LIMIT_IN_MEMORY_FALLBACK: "false"
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: quality
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: forum
+          POSTGRES_PASSWORD: forum
+          POSTGRES_DB: forum_dev
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U forum -d forum_dev"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6380:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      mailpit:
+        image: axllent/mailpit:v1.27
+        ports:
+          - 1025:1025
+          - 8025:8025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Install Playwright
+        run: pnpm exec playwright install chromium --with-deps
+      - name: Generate Prisma client
+        run: pnpm db:generate
+      - name: Migrate
+        run: pnpm db:migrate:deploy
+        env:
+          DATABASE_URL: postgresql://forum:forum@localhost:5434/forum_dev
+      - name: Seed
+        run: pnpm db:seed
+        env:
+          DATABASE_URL: postgresql://forum:forum@localhost:5434/forum_dev
+      - name: Build
+        run: pnpm build
+        env:
+          NODE_ENV: production
+          DATABASE_URL: postgresql://forum:forum@localhost:5434/forum_dev
+          AUTH_SECRET: ci-e2e-secret-at-least-32-chars-xxxx
+          REDIS_URL: redis://localhost:6380
+          RATE_LIMIT_BACKEND: redis
+          RATE_LIMIT_IN_MEMORY_FALLBACK: "false"
+          AUTH_URL: http://localhost:3000
+          APP_URL: http://localhost:3000
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+          EMAIL_PROVIDER: smtp
+          EMAIL_FROM: Forum <no-reply@example.com>
+          SMTP_HOST: localhost
+          SMTP_PORT: "1025"
+          E2E: "true"
+      - name: Start app
+        run: pnpm exec next start -p 3000 &
+        env:
+          NODE_ENV: production
+          DATABASE_URL: postgresql://forum:forum@localhost:5434/forum_dev
+          AUTH_SECRET: ci-e2e-secret-at-least-32-chars-xxxx
+          REDIS_URL: redis://localhost:6380
+          RATE_LIMIT_BACKEND: memory
+          AUTH_URL: http://localhost:3000
+          APP_URL: http://localhost:3000
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+          EMAIL_PROVIDER: smtp
+          EMAIL_FROM: Forum <no-reply@example.com>
+          SMTP_HOST: localhost
+          SMTP_PORT: "1025"
+          E2E: "true"
+      - name: Wait for app
+        run: npx --yes wait-on http://localhost:3000 -t 60000
+      - name: E2E
+        run: pnpm test:e2e
+        env:
+          CI: "true"
+          E2E: "true"
+          E2E_BASE_URL: http://localhost:3000
+          DATABASE_URL: postgresql://forum:forum@localhost:5434/forum_dev
+          AUTH_SECRET: ci-e2e-secret-at-least-32-chars-xxxx
+          AUTH_URL: http://localhost:3000
+          APP_URL: http://localhost:3000
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+          EMAIL_PROVIDER: smtp
+          EMAIL_FROM: Forum <no-reply@example.com>
+          SMTP_HOST: localhost
+          SMTP_PORT: "1025"

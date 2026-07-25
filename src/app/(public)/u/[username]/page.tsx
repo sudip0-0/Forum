@@ -64,7 +64,12 @@ export default async function UserProfilePage({
 
   let profile;
   try {
-    profile = await caller.user.getPublicProfile({ username, threadCursor: cursor, threadLimit: 20 });
+    profile = await caller.user.getPublicProfile({
+      username,
+      cursor,
+      limit: 20,
+      tab: "threads",
+    });
   } catch {
     notFound();
   }
@@ -76,18 +81,40 @@ export default async function UserProfilePage({
       {/* Profile Header */}
       <div className="page-header-hero">
         <div className="flex items-start gap-5">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-2 border-border bg-primary/15 text-2xl font-bold text-primary shadow-[2px_2px_0px_var(--border)] sm:h-20 sm:w-20 sm:text-3xl">
-            {(profile.displayName ?? profile.username).slice(0, 2).toUpperCase()}
-          </div>
+          {profile.image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={profile.image}
+              alt=""
+              className="h-16 w-16 shrink-0 rounded-full border-2 border-border object-cover shadow-[2px_2px_0px_var(--border)] sm:h-20 sm:w-20"
+            />
+          ) : (
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-2 border-border bg-primary/15 text-2xl font-bold text-primary shadow-[2px_2px_0px_var(--border)] sm:h-20 sm:w-20 sm:text-3xl">
+              {(profile.displayName ?? profile.username).slice(0, 2).toUpperCase()}
+            </div>
+          )}
           <div className="flex-1 min-w-0">
             <h1 className="heading-xl">
               {profile.displayName ?? profile.username}
             </h1>
             <p className="text-sm text-muted-foreground">@{profile.username}</p>
+            <p className="mt-1 text-sm font-semibold">{profile.reputation} reputation</p>
             {profile.role !== "MEMBER" && (
               <span className={profile.role === "ADMIN" ? "badge-orange mt-2" : "badge-blue mt-2"}>
                 {profile.role === "ADMIN" ? "Admin" : "Moderator"}
               </span>
+            )}
+            {profile.badges.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {profile.badges.map((ub) => (
+                  <span
+                    key={ub.id}
+                    className="rounded-md border border-border bg-muted px-2 py-0.5 text-xs font-semibold"
+                  >
+                    {ub.badge.name}
+                  </span>
+                ))}
+              </div>
             )}
             {profile.bio && (
               <p className="mt-2 text-sm max-w-lg">{profile.bio}</p>
