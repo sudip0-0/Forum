@@ -1,24 +1,12 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
-import { auth } from "@/server/auth/config";
-import { isAdmin } from "@/server/auth/permissions";
-import { appRouter } from "@/server/api/root";
-import { db } from "@/server/db/prisma";
+import { requireAdmin } from "@/server/auth/guards";
+import { makeServerCaller } from "@/server/api/caller";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { LayoutDashboard, GitBranch, MessageSquare, Shield, Clock, Users, ArrowRight, AlertTriangle } from "lucide-react";
 
 export default async function AdminDashboard() {
-  const session = await auth();
-  if (!session) redirect("/login");
-  if (!isAdmin(session.user.role)) redirect("/");
-
-  const caller = appRouter.createCaller({
-    db,
-    session: {
-      user: { id: session.user.id, email: session.user.email ?? "", name: session.user.name ?? null, role: session.user.role },
-      expires: session.expires,
-    },
-  });
+  const session = await requireAdmin();
+  const caller = await makeServerCaller();
 
   const stats = await caller.moderation.adminStats();
   const recentReports = await caller.moderation.listQueue({ limit: 5 });
@@ -40,7 +28,6 @@ export default async function AdminDashboard() {
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-8">
-      {/* Page Header */}
       <div className="page-header-hero">
         <div className="flex items-center justify-between gap-4">
           <div>
@@ -57,7 +44,6 @@ export default async function AdminDashboard() {
         </div>
       </div>
 
-      {/* Stats Grid */}
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((stat) => (
           <Link
@@ -74,7 +60,6 @@ export default async function AdminDashboard() {
       </div>
 
       <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_380px]">
-        {/* Quick Actions */}
         <div>
           <div className="section-panel-header rounded-t-md">
             <span>Quick Actions</span>
@@ -99,7 +84,6 @@ export default async function AdminDashboard() {
           </div>
         </div>
 
-        {/* Recent Reports */}
         <div>
           <div className="section-panel-header rounded-t-md">
             <span className="flex items-center gap-2">

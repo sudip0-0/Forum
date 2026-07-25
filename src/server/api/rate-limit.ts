@@ -135,22 +135,29 @@ async function getRedisClient(): Promise<RedisClientType> {
   }
 }
 
+/** Atomically INCR and set PEXPIRE on first hit; returns [count, ttlMs]. */
+const RATE_LIMIT_LUA = `
+local count = redis.call('INCR', KEYS[1])
+local ttl = redis.call('PTTL', KEYS[1])
+if count == 1 or ttl < 0 then
+  redis.call('PEXPIRE', KEYS[1], ARGV[1])
+  ttl = tonumber(ARGV[1])
+end
+return { count, ttl }
+`;
+
 async function checkRedisRateLimit(key: string, config: RateLimitConfig): Promise<RateLimitResult> {
   const client = await getRedisClient();
   const storeKey = buildStoreKey(key, config);
-  const count = await client.incr(storeKey);
+  const result = (await client.eval(RATE_LIMIT_LUA, {
+    keys: [storeKey],
+    arguments: [String(config.windowMs)],
+  })) as [number, number];
 
-  if (count === 1) {
-    await client.pExpire(storeKey, config.windowMs);
-  }
-
-  const ttlMs = await client.pTTL(storeKey);
+  const count = Number(result[0]);
+  const ttlMs = Number(result[1]);
   const retryAfterSeconds =
     ttlMs > 0 ? Math.max(1, Math.ceil(ttlMs / 1000)) : Math.ceil(config.windowMs / 1000);
-
-  if (ttlMs < 0) {
-    await client.pExpire(storeKey, config.windowMs);
-  }
 
   return {
     allowed: count <= config.maxRequests,

@@ -16,8 +16,14 @@ const publicForum = {
   id: "forum-1",
   slug: "general-discussion",
   isPublic: true,
+  isDeleted: false,
   isLocked: false,
-  category: { isPublic: true, isLocked: false, section: { isPublic: true, isLocked: false } },
+  category: {
+    isPublic: true,
+    isDeleted: false,
+    isLocked: false,
+    section: { isPublic: true, isDeleted: false, isLocked: false },
+  },
 };
 
 describe("thread router", () => {

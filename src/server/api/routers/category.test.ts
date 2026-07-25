@@ -51,7 +51,11 @@ describe("category router", () => {
       const result = await caller.category.listPublic();
 
       expect(db.category.findMany).toHaveBeenCalledWith({
-        where: { isPublic: true, section: { isPublic: true } },
+        where: {
+          isPublic: true,
+          isDeleted: false,
+          section: { isPublic: true, isDeleted: false },
+        },
         orderBy: { sortOrder: "asc" },
       });
       expect(result).toHaveLength(2);
@@ -72,7 +76,13 @@ describe("category router", () => {
       const result = await caller.category.listPublic();
 
       expect(db.category.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { isPublic: true, section: { isPublic: true } } }),
+        expect.objectContaining({
+          where: {
+            isPublic: true,
+            isDeleted: false,
+            section: { isPublic: true, isDeleted: false },
+          },
+        }),
       );
       expect(result).toHaveLength(1);
     });
@@ -265,14 +275,14 @@ describe("category router", () => {
       const db = {
         category: {
           findUnique: vi.fn().mockResolvedValue(makeCategory()),
-          update: vi.fn().mockResolvedValue(makeCategory({ isPublic: false })),
+          update: vi.fn().mockResolvedValue(makeCategory({ isDeleted: true })),
         },
       };
 
       const caller = createCaller({ db: db as never, session: adminSession });
       const result = await caller.category.softDelete({ id: "cat-1" });
 
-      expect(result.isPublic).toBe(false);
+      expect(result.isDeleted).toBe(true);
     });
 
     it("returns NOT_FOUND for non-existent category", async () => {

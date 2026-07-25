@@ -1,35 +1,11 @@
-import { redirect } from "next/navigation";
-import { auth } from "@/server/auth/config";
-import { isAdmin } from "@/server/auth/permissions";
-import { appRouter } from "@/server/api/root";
-import { db } from "@/server/db/prisma";
+import { requireAdmin } from "@/server/auth/guards";
+import { makeServerCaller } from "@/server/api/caller";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminCategoryList } from "./client";
 
 export default async function AdminCategoriesPage() {
-  const session = await auth();
-
-  if (!session) {
-    redirect("/login");
-  }
-
-  if (!isAdmin(session.user.role)) {
-    redirect("/");
-  }
-
-  const caller = appRouter.createCaller({
-    db,
-    session: {
-      user: {
-        id: session.user.id,
-        email: session.user.email ?? "",
-        name: session.user.name ?? null,
-        role: session.user.role,
-      },
-      expires: session.expires,
-    },
-  });
-
+  await requireAdmin();
+  const caller = await makeServerCaller();
   const categories = await caller.category.listAll();
 
   return (

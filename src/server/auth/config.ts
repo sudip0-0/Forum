@@ -9,6 +9,7 @@ import {
   resetRateLimit,
   RL_LOGIN,
 } from "@/server/api/rate-limit";
+import { edgeAuthConfig } from "@/server/auth/auth.config";
 import { z } from "zod";
 
 declare module "next-auth" {
@@ -16,6 +17,7 @@ declare module "next-auth" {
     role: UserRole;
     isSuspended: boolean;
     username: string;
+    tokenVersion: number;
   }
   interface Session {
     user: {
@@ -23,17 +25,22 @@ declare module "next-auth" {
       role: UserRole;
       isSuspended: boolean;
       username: string;
+      tokenVersion: number;
     } & import("next-auth").DefaultSession["user"];
   }
 }
 
 /** Custom claims we persist on the JWT for forum authorization. */
-interface ForumTokenClaims {
+export interface ForumTokenClaims {
   id: string;
   role: UserRole;
   isSuspended: boolean;
   username: string;
+  tokenVersion: number;
+  lastRefreshedAt: number;
 }
+
+export const JWT_REFRESH_INTERVAL_MS = 60_000;
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -41,6 +48,7 @@ const loginSchema = z.object({
 });
 
 export const authConfig = {
+  ...edgeAuthConfig,
   providers: [
     Credentials({
       credentials: {
@@ -77,39 +85,82 @@ export const authConfig = {
           username: user.username,
           role: user.role,
           isSuspended: user.isSuspended,
+          tokenVersion: user.tokenVersion,
         };
       },
     }),
   ],
   callbacks: {
-    jwt({ token, user }) {
+    ...edgeAuthConfig.callbacks,
+    async jwt({ token, user }) {
       if (user) {
         const claims: ForumTokenClaims = {
           id: user.id ?? "",
           role: user.role,
           isSuspended: user.isSuspended,
           username: user.username,
+          tokenVersion: user.tokenVersion ?? 0,
+          lastRefreshedAt: Date.now(),
         };
         return { ...token, ...claims };
       }
-      return token;
+
+      const claims = token as Partial<ForumTokenClaims> & typeof token;
+      const userId = claims.id;
+      if (!userId) {
+        return {};
+      }
+
+      const lastRefreshedAt =
+        typeof claims.lastRefreshedAt === "number" ? claims.lastRefreshedAt : 0;
+      const needsRefresh =
+        !lastRefreshedAt || Date.now() - lastRefreshedAt > JWT_REFRESH_INTERVAL_MS;
+
+      if (!needsRefresh) {
+        return token;
+      }
+
+      const dbUser = await db.user.findUnique({
+        where: { id: userId },
+        select: {
+          role: true,
+          isSuspended: true,
+          username: true,
+          tokenVersion: true,
+        },
+      });
+
+      if (!dbUser || dbUser.tokenVersion !== (claims.tokenVersion ?? 0)) {
+        // Force re-authentication when the user is gone or sessions were revoked.
+        return {};
+      }
+
+      return {
+        ...token,
+        id: userId,
+        role: dbUser.role,
+        isSuspended: dbUser.isSuspended,
+        username: dbUser.username,
+        tokenVersion: dbUser.tokenVersion,
+        lastRefreshedAt: Date.now(),
+      };
     },
     session({ session, token }) {
       if (session.user) {
         const claims = token as Partial<ForumTokenClaims>;
-        session.user.id = claims.id ?? "";
+        if (!claims.id) {
+          // Empty token after invalidation — leave session without usable claims.
+          session.user.id = "";
+          return session;
+        }
+        session.user.id = claims.id;
         session.user.role = claims.role ?? "MEMBER";
         session.user.isSuspended = claims.isSuspended ?? false;
         session.user.username = claims.username ?? "";
+        session.user.tokenVersion = claims.tokenVersion ?? 0;
       }
       return session;
     },
-  },
-  pages: {
-    signIn: "/login",
-  },
-  session: {
-    strategy: "jwt",
   },
 } satisfies Parameters<typeof NextAuth>[0];
 

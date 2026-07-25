@@ -38,15 +38,35 @@ describe("sitemap route", () => {
     const result = await sitemap();
 
     expect(mocks.categoryFindMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { isPublic: true, section: { isPublic: true } },
+      where: {
+        isPublic: true,
+        isDeleted: false,
+        section: { isPublic: true, isDeleted: false },
+      },
     }));
     expect(mocks.forumFindMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { isPublic: true, category: { isPublic: true, section: { isPublic: true } } },
+      where: {
+        isPublic: true,
+        isDeleted: false,
+        category: {
+          isPublic: true,
+          isDeleted: false,
+          section: { isPublic: true, isDeleted: false },
+        },
+      },
     }));
     expect(mocks.threadFindMany).toHaveBeenCalledWith(expect.objectContaining({
       where: {
         isDeleted: false,
-        forum: { isPublic: true, category: { isPublic: true, section: { isPublic: true } } },
+        forum: {
+          isPublic: true,
+          isDeleted: false,
+          category: {
+            isPublic: true,
+            isDeleted: false,
+            section: { isPublic: true, isDeleted: false },
+          },
+        },
       },
     }));
     expect(result.map((entry) => entry.url)).toEqual([

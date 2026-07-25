@@ -37,6 +37,7 @@ model User {
   bio           String?
   role          UserRole  @default(MEMBER)
   isSuspended   Boolean   @default(false)
+  tokenVersion  Int       @default(0)
   emailVerified DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -101,6 +102,7 @@ model Category {
   sortOrder   Int      @default(0)
   isPublic    Boolean  @default(true)
   isLocked    Boolean  @default(false)
+  isDeleted   Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -110,6 +112,7 @@ model Category {
   @@index([sectionId])
   @@index([sortOrder])
   @@index([isPublic, sortOrder])
+  @@index([isDeleted])
 }
 
 model Section {
@@ -120,6 +123,7 @@ model Section {
   sortOrder   Int      @default(0)
   isPublic    Boolean  @default(true)
   isLocked    Boolean  @default(false)
+  isDeleted   Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -127,6 +131,7 @@ model Section {
 
   @@index([sortOrder])
   @@index([isPublic, sortOrder])
+  @@index([isDeleted])
 }
 
 model Forum {
@@ -138,6 +143,7 @@ model Forum {
   sortOrder   Int      @default(0)
   isPublic    Boolean  @default(true)
   isLocked    Boolean  @default(false)
+  isDeleted   Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -147,6 +153,7 @@ model Forum {
   @@index([categoryId])
   @@index([sortOrder])
   @@index([isPublic, sortOrder])
+  @@index([isDeleted])
 }
 
 model Thread {

@@ -18,9 +18,35 @@ import {
   updateSection,
 } from "./actions";
 
-type Forum = { id: string; name: string; description: string | null; isPublic: boolean; isLocked: boolean; sortOrder: number };
-type Category = { id: string; name: string; description: string | null; isPublic: boolean; isLocked: boolean; sortOrder: number; forums: Forum[] };
-type Section = { id: string; name: string; description: string | null; isPublic: boolean; isLocked: boolean; sortOrder: number; categories: Category[] };
+type Forum = {
+  id: string;
+  name: string;
+  description: string | null;
+  isPublic: boolean;
+  isLocked: boolean;
+  isDeleted?: boolean;
+  sortOrder: number;
+};
+type Category = {
+  id: string;
+  name: string;
+  description: string | null;
+  isPublic: boolean;
+  isLocked: boolean;
+  isDeleted?: boolean;
+  sortOrder: number;
+  forums: Forum[];
+};
+type Section = {
+  id: string;
+  name: string;
+  description: string | null;
+  isPublic: boolean;
+  isLocked: boolean;
+  isDeleted?: boolean;
+  sortOrder: number;
+  categories: Category[];
+};
 
 export function StructureManager({ initialSections }: { initialSections: Section[] }) {
   const [sections, setSections] = useState(initialSections);
@@ -102,14 +128,14 @@ export function StructureManager({ initialSections }: { initialSections: Section
 
   function softDelete(kind: "section" | "category" | "forum", id: string, name: string) {
     const label = kind === "section" ? "section" : kind;
-    if (!window.confirm(`Hide "${name}" from public browsing? Existing content stays in the database and can be shown again later.`)) return;
+    if (!window.confirm(`Soft-delete "${name}"? It will disappear from public browsing. Existing content stays in the database.`)) return;
     startTransition(async () => {
       const result =
         kind === "section" ? await softDeleteSection(id) :
         kind === "category" ? await softDeleteCategory(id) :
         await softDeleteForum(id);
-      if (!setResult(result, `${label[0].toUpperCase()}${label.slice(1)} hidden from public browsing.`)) return;
-      setSections((prev) => updateLocalNode(prev, kind, id, { isPublic: false }));
+      if (!setResult(result, `${label[0].toUpperCase()}${label.slice(1)} soft-deleted.`)) return;
+      setSections((prev) => updateLocalNode(prev, kind, id, { isDeleted: true }));
     });
   }
 
@@ -237,6 +263,8 @@ export function StructureManager({ initialSections }: { initialSections: Section
         <section
           key={section.id}
           className={`card-elevated overflow-hidden ${
+            section.isDeleted ? "opacity-60" : ""
+          } ${
             dropTarget?.kind === "section" && dropTarget.id === section.id
               ? "ring-2 ring-primary"
               : ""

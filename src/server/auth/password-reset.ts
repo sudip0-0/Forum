@@ -1,6 +1,6 @@
 import type { db as dbType } from "@/server/db/prisma";
 import { hashPassword } from "@/server/auth/password";
-import { parseTokenIdentifier } from "@/server/auth/tokens";
+import { hashAuthToken, parseTokenIdentifier } from "@/server/auth/tokens";
 
 export type PasswordResetTokenStatus = "valid" | "expired" | "invalid";
 export type PasswordResetResult = "success" | "expired" | "invalid";
@@ -9,14 +9,15 @@ export async function inspectPasswordResetToken(
   database: typeof dbType,
   token: string,
 ): Promise<PasswordResetTokenStatus> {
-  const resetToken = await database.verificationToken.findUnique({ where: { token } });
+  const tokenHash = hashAuthToken(token);
+  const resetToken = await database.verificationToken.findUnique({ where: { token: tokenHash } });
   if (!resetToken) return "invalid";
 
   const parsedIdentifier = parseTokenIdentifier(resetToken.identifier);
   if (!parsedIdentifier || parsedIdentifier.purpose !== "reset") return "invalid";
 
   if (resetToken.expires <= new Date()) {
-    await database.verificationToken.delete({ where: { token } });
+    await database.verificationToken.delete({ where: { token: tokenHash } });
     return "expired";
   }
 
@@ -28,14 +29,15 @@ export async function resetPasswordWithToken(
   token: string,
   password: string,
 ): Promise<PasswordResetResult> {
-  const resetToken = await database.verificationToken.findUnique({ where: { token } });
+  const tokenHash = hashAuthToken(token);
+  const resetToken = await database.verificationToken.findUnique({ where: { token: tokenHash } });
   if (!resetToken) return "invalid";
 
   const parsedIdentifier = parseTokenIdentifier(resetToken.identifier);
   if (!parsedIdentifier || parsedIdentifier.purpose !== "reset") return "invalid";
 
   if (resetToken.expires <= new Date()) {
-    await database.verificationToken.delete({ where: { token } });
+    await database.verificationToken.delete({ where: { token: tokenHash } });
     return "expired";
   }
 
@@ -44,7 +46,7 @@ export async function resetPasswordWithToken(
     select: { id: true },
   });
   if (!user) {
-    await database.verificationToken.delete({ where: { token } });
+    await database.verificationToken.delete({ where: { token: tokenHash } });
     return "invalid";
   }
 
@@ -52,9 +54,12 @@ export async function resetPasswordWithToken(
   await database.$transaction([
     database.user.update({
       where: { id: user.id },
-      data: { passwordHash },
+      data: {
+        passwordHash,
+        tokenVersion: { increment: 1 },
+      },
     }),
-    database.verificationToken.delete({ where: { token } }),
+    database.verificationToken.delete({ where: { token: tokenHash } }),
   ]);
 
   return "success";

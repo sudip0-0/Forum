@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import type { db as dbType } from "@/server/db/prisma";
 
 export const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
@@ -24,6 +24,11 @@ export function generateSecureToken(): string {
   return randomBytes(32).toString("hex");
 }
 
+/** Hash a raw token for at-rest storage. Raw token is only sent via email. */
+export function hashAuthToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
 export async function replaceAuthToken(
   database: typeof dbType,
   purpose: AuthTokenPurpose,
@@ -32,13 +37,14 @@ export async function replaceAuthToken(
 ): Promise<string> {
   const identifier = buildTokenIdentifier(purpose, userId);
   const token = generateSecureToken();
+  const tokenHash = hashAuthToken(token);
 
   await database.$transaction([
     database.verificationToken.deleteMany({ where: { identifier } }),
     database.verificationToken.create({
       data: {
         identifier,
-        token,
+        token: tokenHash,
         expires: new Date(Date.now() + ttlMs),
       },
     }),

@@ -1,8 +1,5 @@
-import { redirect } from "next/navigation";
-import { auth } from "@/server/auth/config";
-import { isModeratorOrAbove } from "@/server/auth/permissions";
-import { appRouter } from "@/server/api/root";
-import { db } from "@/server/db/prisma";
+import { requireModeratorOrAbove } from "@/server/auth/guards";
+import { makeServerCaller } from "@/server/api/caller";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { buildCursorHref } from "@/lib/pagination";
 import { ThreadManagement } from "./client";
@@ -12,14 +9,9 @@ export default async function ThreadManagementPage({
 }: {
   searchParams: Promise<{ q?: string; forumId?: string; status?: "all" | "locked" | "pinned"; cursor?: string }>;
 }) {
-  const session = await auth();
-  if (!session) redirect("/login");
-  if (!isModeratorOrAbove(session.user.role)) redirect("/");
+  await requireModeratorOrAbove();
   const filters = await searchParams;
-  const caller = appRouter.createCaller({
-    db,
-    session: { user: { id: session.user.id, email: session.user.email ?? "", name: session.user.name ?? null, role: session.user.role }, expires: session.expires },
-  });
+  const caller = await makeServerCaller();
   const [threadPage, forums] = await Promise.all([
     caller.moderation.listThreads({
       q: filters.q,

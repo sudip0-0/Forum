@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { publicProcedure, roleProcedure, router } from "@/server/api/trpc";
 import { slugify } from "@/lib/slug";
+import { isPublicForumVisible } from "@/server/db/visibility";
 
 const createSchema = z.object({
   categoryId: z.string().min(1),
@@ -26,7 +27,7 @@ export const forumRouter = router({
         category: { include: { section: true } },
       },
     });
-    if (!forum || !forum.isPublic || !forum.category.isPublic || !forum.category.section.isPublic) {
+    if (!forum || !isPublicForumVisible(forum)) {
       throw new TRPCError({ code: "NOT_FOUND", message: "Forum not found." });
     }
     return forum;
@@ -92,7 +93,7 @@ export const forumRouter = router({
 
     return ctx.db.forum.update({
       where: { id: input.id },
-      data: { isPublic: false },
+      data: { isDeleted: true },
     });
   }),
 });

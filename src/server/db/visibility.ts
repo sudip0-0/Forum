@@ -4,15 +4,14 @@ import type { Prisma } from "@prisma/client";
  * Shared content-visibility rules.
  *
  * Public forum content is only visible when the forum AND its parent
- * category AND its parent section are all public. Centralizing this chain
- * keeps every query consistent so a hidden section/category/forum can never
- * leak through a query that forgot one level of the check.
+ * category AND its parent section are all public and not soft-deleted.
  */
 
-/** A forum is public only when it and its category and section are public. */
+/** A forum is public only when it and its category and section are public and not deleted. */
 export const PUBLIC_FORUM_VISIBILITY = {
   isPublic: true,
-  category: { isPublic: true, section: { isPublic: true } },
+  isDeleted: false,
+  category: { isPublic: true, isDeleted: false, section: { isPublic: true, isDeleted: false } },
 } satisfies Prisma.ForumWhereInput;
 
 /** Non-deleted threads that live under a fully public forum. */
@@ -29,19 +28,30 @@ export type ThreadVisibilityShape = {
   isDeleted: boolean;
   forum: {
     isPublic: boolean;
-    category: { isPublic: boolean; section: { isPublic: boolean } };
+    isDeleted?: boolean;
+    category: {
+      isPublic: boolean;
+      isDeleted?: boolean;
+      section: { isPublic: boolean; isDeleted?: boolean };
+    };
   };
 };
 
 /**
  * Returns true when a loaded thread is publicly visible: not deleted and
- * nested entirely under public forum/category/section.
+ * nested entirely under public, non-deleted forum/category/section.
  */
-export function isPublicThreadVisible(thread: ThreadVisibilityShape): boolean {
+export function isPublicForumVisible(forum: ThreadVisibilityShape["forum"]): boolean {
   return (
-    !thread.isDeleted &&
-    thread.forum.isPublic &&
-    thread.forum.category.isPublic &&
-    thread.forum.category.section.isPublic
+    forum.isPublic &&
+    !forum.isDeleted &&
+    forum.category.isPublic &&
+    !forum.category.isDeleted &&
+    forum.category.section.isPublic &&
+    !forum.category.section.isDeleted
   );
+}
+
+export function isPublicThreadVisible(thread: ThreadVisibilityShape): boolean {
+  return !thread.isDeleted && isPublicForumVisible(thread.forum);
 }

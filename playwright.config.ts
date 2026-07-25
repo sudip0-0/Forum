@@ -28,7 +28,7 @@ export default defineConfig({
         command: `pnpm build && pnpm exec next start -p ${e2ePort}`,
         url: baseURL,
         reuseExistingServer: false,
-        timeout: 30000,
+        timeout: 180000,
         env: {
           ...process.env,
           E2E: "true",

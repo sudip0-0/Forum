@@ -3,9 +3,10 @@ import { TRPCError } from "@trpc/server";
 import type { Prisma } from "@prisma/client";
 import { publicProcedure, protectedProcedure, router } from "@/server/api/trpc";
 import { checkRateLimit, RL_CREATE_THREAD, assertNotSuspended } from "@/server/api/rate-limit";
+import { shouldCountThreadView } from "@/server/api/view-throttle";
 import { slugify } from "@/lib/slug";
 import { assertEmailVerified } from "@/server/auth/email-verification";
-import { isPublicThreadVisible } from "@/server/db/visibility";
+import { isPublicForumVisible, isPublicThreadVisible } from "@/server/db/visibility";
 
 const sortSchema = z.enum(["latest", "newest", "oldest", "views", "reactions", "reacted", "replies", "title", "unanswered"]);
 const directionSchema = z.enum(["asc", "desc"]).default("desc");
@@ -29,10 +30,19 @@ export const threadRouter = router({
         where: { slug: input.categorySlug },
         include: { section: true },
       });
-      if (!category || !category.isPublic || !category.section.isPublic) {
+      if (
+        !category ||
+        category.isDeleted ||
+        !category.isPublic ||
+        category.section.isDeleted ||
+        !category.section.isPublic
+      ) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Category not found." });
       }
-      const forums = await ctx.db.forum.findMany({ where: { categoryId: category.id, isPublic: true }, select: { id: true } });
+      const forums = await ctx.db.forum.findMany({
+        where: { categoryId: category.id, isPublic: true, isDeleted: false },
+        select: { id: true },
+      });
       const where: Prisma.ThreadWhereInput = { forumId: { in: forums.map((forum) => forum.id) }, isDeleted: false };
       if (input.sort === "unanswered") where.replyCount = 0;
       const threads = await ctx.db.thread.findMany({
@@ -70,7 +80,7 @@ export const threadRouter = router({
         where: { slug: input.forumSlug },
         include: { category: { include: { section: true } } },
       });
-      if (!forum || !forum.isPublic || !forum.category.isPublic || !forum.category.section.isPublic) {
+      if (!forum || !isPublicForumVisible(forum)) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Forum not found." });
       }
 
@@ -125,7 +135,16 @@ export const threadRouter = router({
             name: true,
             slug: true,
             isPublic: true,
-            category: { select: { name: true, slug: true, isPublic: true, section: { select: { name: true, isPublic: true } } } },
+            isDeleted: true,
+            category: {
+              select: {
+                name: true,
+                slug: true,
+                isPublic: true,
+                isDeleted: true,
+                section: { select: { name: true, isPublic: true, isDeleted: true } },
+              },
+            },
           },
         },
         tags: true,
@@ -133,7 +152,7 @@ export const threadRouter = router({
         _count: { select: { reactions: true } },
       },
     });
-    if (!thread || thread.isDeleted || !thread.forum.isPublic || !thread.forum.category.isPublic || !thread.forum.category.section.isPublic) {
+    if (!thread || !isPublicThreadVisible(thread)) {
       throw new TRPCError({ code: "NOT_FOUND", message: "Thread not found." });
     }
     return thread;
@@ -144,13 +163,28 @@ export const threadRouter = router({
       where: { id: input.id },
       select: {
         isDeleted: true,
-        forum: { select: { isPublic: true, category: { select: { isPublic: true, section: { select: { isPublic: true } } } } } },
+        forum: {
+          select: {
+            isPublic: true,
+            isDeleted: true,
+            category: {
+              select: {
+                isPublic: true,
+                isDeleted: true,
+                section: { select: { isPublic: true, isDeleted: true } },
+              },
+            },
+          },
+        },
       },
     });
     if (!thread || !isPublicThreadVisible(thread)) {
       throw new TRPCError({ code: "NOT_FOUND", message: "Thread not found." });
     }
-    await ctx.db.thread.update({ where: { id: input.id }, data: { viewCount: { increment: 1 } } });
+    const identity = ctx.session?.user.id ?? ctx.clientIp ?? "anonymous";
+    if (await shouldCountThreadView(identity, input.id)) {
+      await ctx.db.thread.update({ where: { id: input.id }, data: { viewCount: { increment: 1 } } });
+    }
     return { success: true };
   }),
 
@@ -172,11 +206,10 @@ export const threadRouter = router({
               include: { category: { include: { section: true } } },
             })
           : await ctx.db.forum.findFirst({
-              where: { categoryId: input.categoryId!, isPublic: true },
+              where: { categoryId: input.categoryId!, isPublic: true, isDeleted: false },
               include: { category: { include: { section: true } } },
             });
-      if (!forum) throw new TRPCError({ code: "NOT_FOUND", message: "Forum not found." });
-      if (!forum.isPublic || !forum.category.isPublic || !forum.category.section.isPublic) {
+      if (!forum || !isPublicForumVisible(forum)) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Forum not found." });
       }
       if (forum.isLocked || forum.category.isLocked || forum.category.section.isLocked) {
@@ -218,7 +251,19 @@ export const threadRouter = router({
           id: true,
           authorId: true,
           isDeleted: true,
-          forum: { select: { isPublic: true, category: { select: { isPublic: true, section: { select: { isPublic: true } } } } } },
+          forum: {
+            select: {
+              isPublic: true,
+              isDeleted: true,
+              category: {
+                select: {
+                  isPublic: true,
+                  isDeleted: true,
+                  section: { select: { isPublic: true, isDeleted: true } },
+                },
+              },
+            },
+          },
         },
       });
       if (!thread || !isPublicThreadVisible(thread)) {
@@ -263,7 +308,19 @@ export const threadRouter = router({
           authorId: true,
           isDeleted: true,
           replyCount: true,
-          forum: { select: { isPublic: true, category: { select: { isPublic: true, section: { select: { isPublic: true } } } } } },
+          forum: {
+            select: {
+              isPublic: true,
+              isDeleted: true,
+              category: {
+                select: {
+                  isPublic: true,
+                  isDeleted: true,
+                  section: { select: { isPublic: true, isDeleted: true } },
+                },
+              },
+            },
+          },
         },
       });
       if (!thread || !isPublicThreadVisible(thread)) {

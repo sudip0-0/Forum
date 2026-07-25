@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import type { db as dbType } from "@/server/db/prisma";
-import { parseTokenIdentifier } from "@/server/auth/tokens";
+import { hashAuthToken, parseTokenIdentifier } from "@/server/auth/tokens";
 
 export type EmailVerificationResult = "success" | "expired" | "invalid" | "already-verified";
 
@@ -8,8 +8,9 @@ export async function verifyEmailToken(
   database: typeof dbType,
   token: string,
 ): Promise<EmailVerificationResult> {
+  const tokenHash = hashAuthToken(token);
   const verificationToken = await database.verificationToken.findUnique({
-    where: { token },
+    where: { token: tokenHash },
   });
 
   if (!verificationToken) return "invalid";
@@ -18,7 +19,7 @@ export async function verifyEmailToken(
   if (!parsedIdentifier || parsedIdentifier.purpose !== "verify") return "invalid";
 
   if (verificationToken.expires <= new Date()) {
-    await database.verificationToken.delete({ where: { token } });
+    await database.verificationToken.delete({ where: { token: tokenHash } });
     return "expired";
   }
 
@@ -28,12 +29,12 @@ export async function verifyEmailToken(
   });
 
   if (!user) {
-    await database.verificationToken.delete({ where: { token } });
+    await database.verificationToken.delete({ where: { token: tokenHash } });
     return "invalid";
   }
 
   if (user.emailVerified) {
-    await database.verificationToken.delete({ where: { token } });
+    await database.verificationToken.delete({ where: { token: tokenHash } });
     return "already-verified";
   }
 
@@ -42,7 +43,7 @@ export async function verifyEmailToken(
       where: { id: user.id },
       data: { emailVerified: new Date() },
     }),
-    database.verificationToken.delete({ where: { token } }),
+    database.verificationToken.delete({ where: { token: tokenHash } }),
   ]);
 
   return "success";

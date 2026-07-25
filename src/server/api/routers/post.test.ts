@@ -14,11 +14,13 @@ const memberSession: TrpcContext["session"] = {
 
 const visibleForum = {
   isPublic: true,
+  isDeleted: false,
   isLocked: false,
   category: {
     isPublic: true,
+    isDeleted: false,
     isLocked: false,
-    section: { isPublic: true, isLocked: false },
+    section: { isPublic: true, isDeleted: false, isLocked: false },
   },
 };
 
@@ -119,19 +121,31 @@ describe("post router", () => {
   describe("create", () => {
     it("creates a reply and increments replyCount", async () => {
       const post = { id: "p2", threadId: "t1", content: "Reply", parentId: null };
+      const tx = {
+        post: { create: vi.fn().mockResolvedValue(post) },
+        thread: { update: vi.fn() },
+      };
       const db = {
         user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
-        thread: { findUnique: vi.fn().mockResolvedValue({ id: "t1", isDeleted: false, isLocked: false, forum: visibleForum }), update: vi.fn() },
-        post: { create: vi.fn().mockResolvedValue(post) },
+        thread: {
+          findUnique: vi.fn().mockResolvedValue({
+            id: "t1",
+            isDeleted: false,
+            isLocked: false,
+            forum: visibleForum,
+          }),
+        },
+        $transaction: vi.fn(async (fn: (client: typeof tx) => Promise<unknown>) => fn(tx)),
       };
 
       const caller = createCaller({ db: db as never, session: memberSession });
       const result = await caller.post.create({ threadId: "t1", content: "Reply" });
 
       expect(result.id).toBe("p2");
-      expect(db.thread.update).toHaveBeenCalledWith(
+      expect(tx.thread.update).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ replyCount: { increment: 1 } }) }),
       );
+      expect(db.$transaction).toHaveBeenCalled();
     });
 
     it("rejects when thread is locked", async () => {
@@ -180,13 +194,27 @@ describe("post router", () => {
 
     it("allows replies that reference earlier messages without nesting limits", async () => {
       const post = { id: "p-new", threadId: "t1", content: "Reply", parentId: "p2" };
-      const db = {
-        user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
-        thread: { findUnique: vi.fn().mockResolvedValue({ id: "t1", isDeleted: false, isLocked: false, forum: visibleForum }), update: vi.fn() },
+      const tx = {
         post: {
           create: vi.fn().mockResolvedValue(post),
           findUnique: vi.fn().mockResolvedValueOnce({ id: "p2", parentId: "p1", threadId: "t1" }),
         },
+        thread: { update: vi.fn() },
+      };
+      const db = {
+        user: { findUnique: vi.fn().mockResolvedValue({ emailVerified: new Date() }) },
+        thread: {
+          findUnique: vi.fn().mockResolvedValue({
+            id: "t1",
+            isDeleted: false,
+            isLocked: false,
+            forum: visibleForum,
+          }),
+        },
+        post: {
+          findUnique: vi.fn().mockResolvedValueOnce({ id: "p2", parentId: "p1", threadId: "t1" }),
+        },
+        $transaction: vi.fn(async (fn: (client: typeof tx) => Promise<unknown>) => fn(tx)),
       };
 
       const caller = createCaller({ db: db as never, session: memberSession });

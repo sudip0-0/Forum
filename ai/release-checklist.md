@@ -83,8 +83,9 @@ Launch only when:
 
 If production deploy fails:
 
-1. Revert to previous deployment.
-2. Check migrations.
-3. If migration is destructive, restore from backup.
+1. Revert to previous deployment (platform rollback / previous image).
+2. Check migrations: Prisma does not auto-down; use `prisma migrate resolve` only when intentional, otherwise restore DB from backup taken before `pnpm db:migrate:deploy`.
+3. If migration is destructive, restore from backup and redeploy the previous app revision.
 4. Document incident in `progress.md`.
 5. Add follow-up issue in `known-issues.md`.
+6. Confirm `health.health` reports `db: ok` and rate-limit Redis is reachable before reopening traffic.

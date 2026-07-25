@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getCsrfToken, signOut } from "next-auth/react";
-import { MailWarning, Menu, ShieldAlert, X, MessageSquareText, Search } from "lucide-react";
+import { MailWarning, Menu, ShieldAlert, X, MessageSquareText, Search, Shield, LayoutDashboard } from "lucide-react";
 import type { Session } from "next-auth";
 import type { AccountState } from "@/lib/account-state";
 
@@ -14,6 +14,18 @@ interface HeaderProps {
 
 export function Header({ session, accountState }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const role = session?.user?.role;
+  const isAdmin = role === "ADMIN";
+  const isModeratorOrAbove = role === "MODERATOR" || role === "ADMIN";
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setMenuOpen(false);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [menuOpen]);
 
   async function handleSignOut() {
     await getCsrfToken();
@@ -47,14 +59,14 @@ export function Header({ session, accountState }: HeaderProps) {
         <div className="flex items-center gap-6">
           <Link
             href="/"
-            className="flex items-center gap-2.5 text-lg font-bold tracking-tight hover:no-underline"
+            className="flex items-center gap-2.5 font-display text-lg font-bold tracking-tight hover:no-underline"
           >
             <span className="flex h-9 w-9 items-center justify-center rounded-md border-2 border-border bg-primary text-sm font-bold text-primary-foreground shadow-[2px_2px_0px_var(--border)]">
               F
             </span>
             <span>Forums</span>
           </Link>
-          <nav className="hidden items-center gap-1 md:flex">
+          <nav className="hidden items-center gap-1 md:flex" aria-label="Primary">
             <Link
               href="/forums"
               className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground hover:no-underline"
@@ -67,6 +79,22 @@ export function Header({ session, accountState }: HeaderProps) {
             >
               Search
             </Link>
+            {isModeratorOrAbove && (
+              <Link
+                href="/admin/mod"
+                className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground hover:no-underline"
+              >
+                Mod queue
+              </Link>
+            )}
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground hover:no-underline"
+              >
+                Admin
+              </Link>
+            )}
           </nav>
         </div>
 
@@ -104,7 +132,6 @@ export function Header({ session, accountState }: HeaderProps) {
             </div>
           )}
 
-          {/* Mobile menu toggle */}
           <button
             type="button"
             onClick={() => setMenuOpen(!menuOpen)}
@@ -118,12 +145,11 @@ export function Header({ session, accountState }: HeaderProps) {
         </div>
       </div>
 
-      {/* Mobile menu */}
       {menuOpen && (
         <div id="mobile-navigation" className="border-t-2 border-border bg-card md:hidden">
           <div className="space-y-1 px-6 py-4">
             <Link
-              href="/"
+              href="/forums"
               className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium hover:bg-accent hover:no-underline"
               onClick={() => setMenuOpen(false)}
             >
@@ -138,6 +164,26 @@ export function Header({ session, accountState }: HeaderProps) {
               <Search className="h-4 w-4" />
               Search
             </Link>
+            {isModeratorOrAbove && (
+              <Link
+                href="/admin/mod"
+                className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium hover:bg-accent hover:no-underline"
+                onClick={() => setMenuOpen(false)}
+              >
+                <Shield className="h-4 w-4" />
+                Mod queue
+              </Link>
+            )}
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium hover:bg-accent hover:no-underline"
+                onClick={() => setMenuOpen(false)}
+              >
+                <LayoutDashboard className="h-4 w-4" />
+                Admin
+              </Link>
+            )}
             <hr className="my-2 border-border" />
             {session?.user ? (
               <>

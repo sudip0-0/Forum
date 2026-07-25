@@ -97,21 +97,12 @@ export async function registerUser(
   const { username, email, password, displayName } = parsed.data;
 
   const existingEmail = await db.user.findUnique({ where: { email } });
-  if (existingEmail) {
-    return {
-      success: false,
-      error: "Email is already registered",
-      fieldErrors: { email: ["Email is already registered"] },
-    };
-  }
-
   const existingUsername = await db.user.findUnique({ where: { username } });
-  if (existingUsername) {
-    return {
-      success: false,
-      error: "Username is already taken",
-      fieldErrors: { username: ["Username is already taken"] },
-    };
+
+  // Anti-enumeration: always return the same success shape when the request is
+  // well-formed, whether or not the account already exists.
+  if (existingEmail || existingUsername) {
+    return { success: true };
   }
 
   const passwordHash = await hashPassword(password);
@@ -131,11 +122,9 @@ export async function registerUser(
       verificationUrl: buildEmailLink("/verify-email", token),
     });
   } catch {
-    return {
-      success: false,
-      error:
-        "Account created, but we could not send a verification email. Please request a new verification email.",
-    };
+    // Still return success so callers cannot distinguish create vs mail failures
+    // from existence checks. Users can use resend verification.
+    return { success: true };
   }
 
   return { success: true };

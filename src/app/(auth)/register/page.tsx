@@ -58,8 +58,9 @@ export default function RegisterPage() {
           </div>
           <h1 className="text-2xl font-bold tracking-tight">Check your email</h1>
           <p className="mt-3 text-sm text-muted-foreground">
-            We sent a verification link to <span className="font-medium text-foreground">{registeredEmail}</span>.
-            You can sign in now, but you will need to verify your email before posting or reporting content.
+            If that email can receive messages for a new or unverified account, we sent a verification link to{" "}
+            <span className="font-medium text-foreground">{registeredEmail}</span>.
+            You can sign in after verifying; posting and reporting require a verified email.
           </p>
           {resendMessage && (
             <div className="mt-4 rounded-lg border-2 border-border bg-muted/30 px-4 py-3 text-sm">

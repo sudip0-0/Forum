@@ -38,7 +38,7 @@ describe("section router", () => {
       expect(result).toHaveLength(1);
       expect(result[0].name).toBe("Community");
       expect(db.section.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { isPublic: true } }),
+        expect.objectContaining({ where: { isPublic: true, isDeleted: false } }),
       );
     });
 
@@ -149,15 +149,15 @@ describe("section router", () => {
       const db = {
         section: {
           findUnique: vi.fn().mockResolvedValue(makeSection()),
-          update: vi.fn().mockResolvedValue(makeSection({ isPublic: false })),
+          update: vi.fn().mockResolvedValue(makeSection({ isDeleted: true })),
         },
       };
       const caller = createCaller({ db: db as never, session: adminSession });
       const result = await caller.section.softDelete({ id: "sec-1" });
-      expect(result.isPublic).toBe(false);
+      expect(result.isDeleted).toBe(true);
       expect(db.section.update).toHaveBeenCalledWith({
         where: { id: "sec-1" },
-        data: { isPublic: false },
+        data: { isDeleted: true },
       });
     });
 

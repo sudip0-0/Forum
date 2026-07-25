@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Generate Prisma client
+        run: pnpm db:generate
+      - name: Lint
+        run: pnpm lint
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Unit tests
+        run: pnpm test
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://forum:forum@localhost:5433/forum_test
+          AUTH_SECRET: test-auth-secret-at-least-32-chars-long
+          RATE_LIMIT_BACKEND: memory
+      - name: Build
+        run: pnpm build
+        env:
+          NODE_ENV: production
+          DATABASE_URL: postgresql://forum:forum@localhost:5433/forum_test
+          AUTH_SECRET: ci-build-secret-at-least-32-chars-xx
+          REDIS_URL: redis://localhost:6379
+          RATE_LIMIT_BACKEND: redis
+          RATE_LIMIT_IN_MEMORY_FALLBACK: "false"
+          AUTH_URL: http://localhost:3000
+          APP_URL: http://localhost:3000
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+          EMAIL_PROVIDER: smtp
+          EMAIL_FROM: Forum <no-reply@example.com>
+          SMTP_HOST: localhost
+          SMTP_PORT: "1025"
+
+  integration:
+    runs-on: ubuntu-latest
+    needs: quality
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: forum
+          POSTGRES_PASSWORD: forum
+          POSTGRES_DB: forum_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U forum -d forum_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Generate Prisma client
+        run: pnpm db:generate
+      - name: Migrate
+        run: pnpm db:migrate:deploy
+        env:
+          DATABASE_URL: postgresql://forum:forum@localhost:5433/forum_test
+      - name: Integration tests
+        run: pnpm test
+        env:
+          NODE_ENV: test
+          RUN_INTEGRATION: "1"
+          DATABASE_URL: postgresql://forum:forum@localhost:5433/forum_test
+          AUTH_SECRET: test-auth-secret-at-least-32-chars-long
+          REDIS_URL: redis://localhost:6379
+          RATE_LIMIT_BACKEND: redis
+          RATE_LIMIT_IN_MEMORY_FALLBACK: "false"

@@ -17,8 +17,12 @@ MVP:
 - Password hashing with Argon2id or bcrypt if Argon2 setup blocks progress
 - Real email verification before posting or reporting
 - Password reset with expiring single-use tokens
-- Session handled by Auth.js
+- Session handled by Auth.js (JWT strategy)
+- JWT claims (`role`, `isSuspended`, `tokenVersion`) refresh from the database about every 60 seconds
+- Password reset increments `User.tokenVersion` to revoke outstanding JWTs
+- Email verification / password-reset tokens are stored hashed (SHA-256); only the raw token is emailed
 - Secure cookies in production
+- `/admin/**` protected by middleware plus shared server guards
 
 Post-MVP:
 

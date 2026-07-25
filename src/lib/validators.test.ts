@@ -11,7 +11,7 @@ describe("registerSchema", () => {
     const result = registerSchema.safeParse({
       username: "testuser",
       email: "test@example.com",
-      password: "password123",
+      password: "Password123",
     });
     expect(result.success).toBe(true);
   });
@@ -20,7 +20,7 @@ describe("registerSchema", () => {
     const result = registerSchema.safeParse({
       username: "testuser",
       email: "test@example.com",
-      password: "password123",
+      password: "Password123",
       displayName: "Test User",
     });
     expect(result.success).toBe(true);
@@ -30,7 +30,7 @@ describe("registerSchema", () => {
     const result = registerSchema.safeParse({
       username: "ab",
       email: "test@example.com",
-      password: "password123",
+      password: "Password123",
     });
     expect(result.success).toBe(false);
   });
@@ -39,7 +39,7 @@ describe("registerSchema", () => {
     const result = registerSchema.safeParse({
       username: "test user!",
       email: "test@example.com",
-      password: "password123",
+      password: "Password123",
     });
     expect(result.success).toBe(false);
   });
@@ -48,7 +48,7 @@ describe("registerSchema", () => {
     const result = registerSchema.safeParse({
       username: "testuser",
       email: "not-an-email",
-      password: "password123",
+      password: "Password123",
     });
     expect(result.success).toBe(false);
   });
@@ -58,6 +58,15 @@ describe("registerSchema", () => {
       username: "testuser",
       email: "test@example.com",
       password: "short",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects password without uppercase", () => {
+    const result = registerSchema.safeParse({
+      username: "testuser",
+      email: "test@example.com",
+      password: "password123",
     });
     expect(result.success).toBe(false);
   });
@@ -96,8 +105,9 @@ describe("emailOnlySchema", () => {
 });
 
 describe("resetPasswordSchema", () => {
-  it("reuses password length validation", () => {
-    expect(resetPasswordSchema.safeParse({ token: "token", password: "password123" }).success).toBe(true);
+  it("reuses password complexity validation", () => {
+    expect(resetPasswordSchema.safeParse({ token: "token", password: "Password123" }).success).toBe(true);
+    expect(resetPasswordSchema.safeParse({ token: "token", password: "password123" }).success).toBe(false);
     expect(resetPasswordSchema.safeParse({ token: "token", password: "short" }).success).toBe(false);
   });
 });

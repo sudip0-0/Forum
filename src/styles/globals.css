@@ -114,6 +114,8 @@
 }
 
 @theme inline {
+  --font-sans: var(--font-sans), "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display), "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -171,7 +173,7 @@ body {
     linear-gradient(90deg, oklch(0.16 0.02 35 / 0.035) 1px, transparent 1px);
   background-size: 28px 28px;
   color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), "Source Sans 3", Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -246,6 +248,7 @@ button,
 
 /* ── Typography Utilities ── */
 .heading-xl {
+  font-family: var(--font-display), "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   font-size: 1.875rem;
   font-weight: 700;
   line-height: 1.2;
@@ -253,6 +256,7 @@ button,
 }
 
 .heading-lg {
+  font-family: var(--font-display), "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.25;
@@ -260,6 +264,7 @@ button,
 }
 
 .heading-md {
+  font-family: var(--font-display), "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   font-size: 1.25rem;
   font-weight: 600;
   line-height: 1.3;

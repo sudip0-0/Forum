@@ -29,4 +29,14 @@ describe("Prisma schema", () => {
     expect(schema).toMatch(/model Thread[\s\S]*isDeleted\s+Boolean\s+@default\(false\)/);
     expect(schema).toMatch(/model Post[\s\S]*isDeleted\s+Boolean\s+@default\(false\)/);
   });
+
+  it("soft-deletes hierarchy nodes with isDeleted", () => {
+    expect(schema).toMatch(/model Section[\s\S]*isDeleted\s+Boolean\s+@default\(false\)/);
+    expect(schema).toMatch(/model Category[\s\S]*isDeleted\s+Boolean\s+@default\(false\)/);
+    expect(schema).toMatch(/model Forum[\s\S]*isDeleted\s+Boolean\s+@default\(false\)/);
+  });
+
+  it("tracks JWT revocation via User.tokenVersion", () => {
+    expect(schema).toMatch(/model User[\s\S]*tokenVersion\s+Int\s+@default\(0\)/);
+  });
 });

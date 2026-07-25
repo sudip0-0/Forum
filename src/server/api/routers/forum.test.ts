@@ -160,15 +160,15 @@ describe("forum router", () => {
       const db = {
         forum: {
           findUnique: vi.fn().mockResolvedValue(makeForum()),
-          update: vi.fn().mockResolvedValue(makeForum({ isPublic: false })),
+          update: vi.fn().mockResolvedValue(makeForum({ isDeleted: true })),
         },
       };
       const caller = createCaller({ db: db as never, session: adminSession });
       const result = await caller.forum.softDelete({ id: "forum-1" });
-      expect(result.isPublic).toBe(false);
+      expect(result.isDeleted).toBe(true);
       expect(db.forum.update).toHaveBeenCalledWith({
         where: { id: "forum-1" },
-        data: { isPublic: false },
+        data: { isDeleted: true },
       });
     });
 

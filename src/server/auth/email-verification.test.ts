@@ -4,6 +4,7 @@ import {
   verifyEmailToken,
 } from "@/server/auth/email-verification";
 import {
+  hashAuthToken,
   replaceAuthToken,
   VERIFICATION_TOKEN_TTL_MS,
 } from "@/server/auth/tokens";
@@ -27,7 +28,7 @@ describe("email verification", () => {
       tokens: [
         {
           identifier: "verify:user-1",
-          token: "expired",
+          token: hashAuthToken("expired"),
           expires: new Date(Date.now() - 1),
         },
       ],
@@ -43,7 +44,7 @@ describe("email verification", () => {
       tokens: [
         {
           identifier: "verify:user-1",
-          token: "already",
+          token: hashAuthToken("already"),
           expires: new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS),
         },
       ],

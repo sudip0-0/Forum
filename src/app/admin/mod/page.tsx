@@ -1,8 +1,5 @@
-import { redirect } from "next/navigation";
-import { auth } from "@/server/auth/config";
-import { isModeratorOrAbove } from "@/server/auth/permissions";
-import { appRouter } from "@/server/api/root";
-import { db } from "@/server/db/prisma";
+import { requireModeratorOrAbove } from "@/server/auth/guards";
+import { makeServerCaller } from "@/server/api/caller";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { ModerationQueue } from "./client";
 
@@ -12,29 +9,8 @@ export default async function ModQueuePage({
   searchParams: Promise<{ cursor?: string }>;
 }) {
   const { cursor } = await searchParams;
-  const session = await auth();
-
-  if (!session) {
-    redirect("/login");
-  }
-
-  if (!isModeratorOrAbove(session.user.role)) {
-    redirect("/");
-  }
-
-  const caller = appRouter.createCaller({
-    db,
-    session: {
-      user: {
-        id: session.user.id,
-        email: session.user.email ?? "",
-        name: session.user.name ?? null,
-        role: session.user.role,
-      },
-      expires: session.expires,
-    },
-  });
-
+  await requireModeratorOrAbove();
+  const caller = await makeServerCaller();
   const { reports, nextCursor } = await caller.moderation.listQueue({ limit: 25, cursor });
 
   return (

@@ -119,11 +119,7 @@ export const postRouter = router({
       if (thread.isLocked) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Thread is locked." });
       }
-      if (
-        !thread.forum.isPublic ||
-        !thread.forum.category.isPublic ||
-        !thread.forum.category.section.isPublic
-      ) {
+      if (!isPublicThreadVisible(thread)) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Thread not found." });
       }
       if (
@@ -164,24 +160,26 @@ export const postRouter = router({
         }
       }
 
-      const post = await ctx.db.post.create({
-        data: {
-          threadId: input.threadId,
-          authorId: ctx.session.user.id,
-          parentId: input.parentId ?? null,
-          content: input.content,
-        },
-      });
+      return ctx.db.$transaction(async (tx) => {
+        const post = await tx.post.create({
+          data: {
+            threadId: input.threadId,
+            authorId: ctx.session.user.id,
+            parentId: input.parentId ?? null,
+            content: input.content,
+          },
+        });
 
-      await ctx.db.thread.update({
-        where: { id: input.threadId },
-        data: {
-          replyCount: { increment: 1 },
-          lastActivityAt: new Date(),
-        },
-      });
+        await tx.thread.update({
+          where: { id: input.threadId },
+          data: {
+            replyCount: { increment: 1 },
+            lastActivityAt: new Date(),
+          },
+        });
 
-      return post;
+        return post;
+      });
     }),
 
   updateOwn: protectedProcedure

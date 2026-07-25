@@ -10,12 +10,12 @@ vi.mock("@/server/api/rate-limit", () => ({
 
 /**
  * Helper to create a mock tRPC context with a mocked database.
- * The $queryRawUnsafe mock returns the provided rows.
+ * The $queryRaw mock returns the provided rows.
  */
 function createMockContext(queryResult: unknown[]): TrpcContext {
   return {
     db: {
-      $queryRawUnsafe: vi.fn().mockResolvedValue(queryResult),
+      $queryRaw: vi.fn().mockResolvedValue(queryResult),
     } as unknown as TrpcContext["db"],
     session: null,
     clientIp: "127.0.0.1",
@@ -228,12 +228,15 @@ describe("search router - matchedPostId logic", () => {
       cursor: { createdAt: "2024-06-01T10:00:00.000Z", id: "thread-a" },
     });
 
-    expect(ctx.db.$queryRawUnsafe).toHaveBeenCalledWith(
-      expect.stringContaining('t."createdAt" < $3::timestamptz'),
-      "test",
-      21,
-      "2024-06-01T10:00:00.000Z",
-      "thread-a",
+    expect(ctx.db.$queryRaw).toHaveBeenCalled();
+    const sql = vi.mocked(ctx.db.$queryRaw).mock.calls[0]?.[0] as {
+      strings?: string[];
+      values?: unknown[];
+    };
+    const joined = (sql.strings ?? []).join("?");
+    expect(joined).toContain('t."createdAt" <');
+    expect(sql.values).toEqual(
+      expect.arrayContaining(["2024-06-01T10:00:00.000Z", "thread-a", "test", 21]),
     );
   });
 
@@ -242,7 +245,7 @@ describe("search router - matchedPostId logic", () => {
     const caller = searchRouter.createCaller(ctx);
 
     await expect(caller.query({ q: "test", limit: 1000 })).rejects.toThrow();
-    expect(ctx.db.$queryRawUnsafe).not.toHaveBeenCalled();
+    expect(ctx.db.$queryRaw).not.toHaveBeenCalled();
   });
 
   it("returns empty results with no nextCursor when no matches", async () => {

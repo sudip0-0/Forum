@@ -39,8 +39,13 @@ export const discoveryRouter = router({
       }),
       Promise.all([
         ctx.db.user.count(),
-        ctx.db.thread.count({ where: { isDeleted: false } }),
-        ctx.db.post.count({ where: { isDeleted: false } }),
+        ctx.db.thread.count({ where: publicThreadWhere }),
+        ctx.db.post.count({
+          where: {
+            isDeleted: false,
+            thread: publicThreadWhere,
+          },
+        }),
       ]),
     ]);
 

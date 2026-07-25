@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { publicProcedure, router } from "@/server/api/trpc";
 import { checkRateLimit, RL_SEARCH } from "@/server/api/rate-limit";
 
@@ -18,89 +19,69 @@ const querySchema = z.object({
   limit: z.number().int().min(1).max(50).default(20),
 });
 
+type SearchRow = {
+  id: string;
+  title: string;
+  slug: string;
+  createdAt: Date;
+  authorUsername: string;
+  authorDisplayName: string | null;
+  forumSlug: string;
+  forumName: string;
+  tags: { id: string; name: string; slug: string }[];
+  snippet: string;
+  matchedPostId: string;
+};
+
 export const searchRouter = router({
   query: publicProcedure.input(querySchema).query(async ({ ctx, input }) => {
     const rateLimitKey = ctx.session?.user.id ?? ctx.clientIp ?? "127.0.0.1";
     await checkRateLimit(rateLimitKey, RL_SEARCH);
 
-    const params: (string | number)[] = [input.q.trim()];
-    let paramIndex = 2;
-    const conditions: string[] = [];
+    const q = input.q.trim();
+    const conditions: Prisma.Sql[] = [
+      Prisma.sql`t."isDeleted" = false`,
+      Prisma.sql`f."isPublic" = true`,
+      Prisma.sql`f."isDeleted" = false`,
+      Prisma.sql`c."isPublic" = true`,
+      Prisma.sql`c."isDeleted" = false`,
+      Prisma.sql`s."isPublic" = true`,
+      Prisma.sql`s."isDeleted" = false`,
+    ];
 
-    // Visibility
-    conditions.push(`t."isDeleted" = false`);
-    conditions.push(`f."isPublic" = true`);
-    conditions.push(`c."isPublic" = true`);
-    conditions.push(`s."isPublic" = true`);
-
-    // Forum filter
     if (input.forumSlug) {
-      conditions.push(`f.slug = $${paramIndex}`);
-      params.push(input.forumSlug);
-      paramIndex++;
+      conditions.push(Prisma.sql`f.slug = ${input.forumSlug}`);
     }
-
-    // Author filter
     if (input.authorUsername) {
-      conditions.push(`u.username ILIKE $${paramIndex}`);
-      params.push(`%${input.authorUsername}%`);
-      paramIndex++;
+      conditions.push(Prisma.sql`u.username ILIKE ${`%${input.authorUsername}%`}`);
     }
-
-    // Date filters
     if (input.dateFrom) {
-      conditions.push(`t."createdAt" >= $${paramIndex}::timestamptz`);
-      params.push(`${input.dateFrom}T00:00:00.000Z`);
-      paramIndex++;
+      conditions.push(Prisma.sql`t."createdAt" >= ${`${input.dateFrom}T00:00:00.000Z`}::timestamptz`);
     }
     if (input.dateTo) {
-      conditions.push(`t."createdAt" < $${paramIndex}::timestamptz`);
       const nextDay = new Date(`${input.dateTo}T00:00:00.000Z`);
       nextDay.setUTCDate(nextDay.getUTCDate() + 1);
-      params.push(nextDay.toISOString());
-      paramIndex++;
+      conditions.push(Prisma.sql`t."createdAt" < ${nextDay.toISOString()}::timestamptz`);
     }
-
-    // Tag filter via join
     if (input.tagSlug) {
-      conditions.push(`EXISTS (
+      conditions.push(Prisma.sql`EXISTS (
         SELECT 1 FROM "_TagToThread" tt
         JOIN "Tag" tg ON tg.id = tt."A"
-        WHERE tt."B" = t.id AND tg.slug = $${paramIndex}
+        WHERE tt."B" = t.id AND tg.slug = ${input.tagSlug}
       )`);
-      params.push(input.tagSlug);
-      paramIndex++;
     }
-
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-    const limitParam = `$${paramIndex}`;
-    params.push(input.limit + 1);
-    paramIndex++;
-
-    const cursorClause = input.cursor
-      ? `AND (t."createdAt" < $${paramIndex}::timestamptz OR (t."createdAt" = $${paramIndex}::timestamptz AND t.id < $${paramIndex + 1}))`
-      : "";
     if (input.cursor) {
-      params.push(input.cursor.createdAt, input.cursor.id);
-      paramIndex += 2;
+      conditions.push(Prisma.sql`(
+        t."createdAt" < ${input.cursor.createdAt}::timestamptz
+        OR (t."createdAt" = ${input.cursor.createdAt}::timestamptz AND t.id < ${input.cursor.id})
+      )`);
     }
 
-    const results = await ctx.db.$queryRawUnsafe<
-      {
-        id: string;
-        title: string;
-        slug: string;
-        createdAt: Date;
-        authorUsername: string;
-        authorDisplayName: string | null;
-        forumSlug: string;
-        forumName: string;
-        tags: { id: string; name: string; slug: string }[];
-        snippet: string;
-        matchedPostId: string;
-      }[]
-    >(
-      `WITH matched AS (
+    const whereClause = Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}`;
+    const take = input.limit + 1;
+
+    const results = await ctx.db.$queryRaw<SearchRow[]>(Prisma.sql`
+      WITH matched AS (
         SELECT DISTINCT ON (t."lastActivityAt", t.id)
           t.id, t.title, t.slug, t."createdAt",
           u.username AS "authorUsername",
@@ -114,13 +95,12 @@ export const searchRouter = router({
         JOIN "Section" s ON s.id = c."sectionId"
         LEFT JOIN "Post" p ON p."threadId" = t.id AND p."isDeleted" = false
         ${whereClause}
-          ${cursorClause}
            AND (
-             to_tsvector('english', t.title) @@ websearch_to_tsquery('english', $1)
-             OR to_tsvector('english', p.content) @@ websearch_to_tsquery('english', $1)
+             to_tsvector('english', t.title) @@ websearch_to_tsquery('english', ${q})
+             OR to_tsvector('english', p.content) @@ websearch_to_tsquery('english', ${q})
            )
         ORDER BY t."lastActivityAt" DESC, t.id DESC
-        LIMIT ${limitParam}
+        LIMIT ${take}
       )
       SELECT
         m.*,
@@ -136,7 +116,7 @@ export const searchRouter = router({
         COALESCE(
           (SELECT p2.id FROM "Post" p2
            WHERE p2."threadId" = m.id AND p2."isDeleted" = false
-             AND to_tsvector('english', p2.content) @@ websearch_to_tsquery('english', $1)
+             AND to_tsvector('english', p2.content) @@ websearch_to_tsquery('english', ${q})
            ORDER BY p2."createdAt" ASC LIMIT 1),
           (SELECT p2.id FROM "Post" p2
            WHERE p2."threadId" = m.id AND p2."isDeleted" = false
@@ -147,7 +127,7 @@ export const searchRouter = router({
            WHERE p2.id = COALESCE(
              (SELECT p3.id FROM "Post" p3
               WHERE p3."threadId" = m.id AND p3."isDeleted" = false
-                AND to_tsvector('english', p3.content) @@ websearch_to_tsquery('english', $1)
+                AND to_tsvector('english', p3.content) @@ websearch_to_tsquery('english', ${q})
               ORDER BY p3."createdAt" ASC LIMIT 1),
              (SELECT p3.id FROM "Post" p3
               WHERE p3."threadId" = m.id AND p3."isDeleted" = false
@@ -156,9 +136,8 @@ export const searchRouter = router({
           ''
         ) AS snippet
       FROM matched m
-      ORDER BY m."createdAt" DESC`,
-      ...params,
-    );
+      ORDER BY m."createdAt" DESC
+    `);
 
     let nextCursor: { createdAt: string; id: string } | null = null;
     if (results.length > input.limit) {

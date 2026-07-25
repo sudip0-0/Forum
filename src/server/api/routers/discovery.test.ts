@@ -80,7 +80,15 @@ describe("discovery router", () => {
           threads: {
             some: {
               isDeleted: false,
-              forum: { isPublic: true, category: { isPublic: true, section: { isPublic: true } } },
+              forum: {
+                isPublic: true,
+                isDeleted: false,
+                category: {
+                  isPublic: true,
+                  isDeleted: false,
+                  section: { isPublic: true, isDeleted: false },
+                },
+              },
             },
           },
         },
@@ -90,7 +98,15 @@ describe("discovery router", () => {
               threads: {
                 where: {
                   isDeleted: false,
-                  forum: { isPublic: true, category: { isPublic: true, section: { isPublic: true } } },
+                  forum: {
+                    isPublic: true,
+                    isDeleted: false,
+                    category: {
+                      isPublic: true,
+                      isDeleted: false,
+                      section: { isPublic: true, isDeleted: false },
+                    },
+                  },
                 },
               },
             },
@@ -140,7 +156,15 @@ describe("discovery router", () => {
           where: expect.objectContaining({
             tags: { some: { slug: "help" } },
             isDeleted: false,
-            forum: { isPublic: true, category: { isPublic: true, section: { isPublic: true } } },
+            forum: {
+              isPublic: true,
+              isDeleted: false,
+              category: {
+                isPublic: true,
+                isDeleted: false,
+                section: { isPublic: true, isDeleted: false },
+              },
+            },
           }),
         }),
       );

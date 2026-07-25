@@ -8,6 +8,7 @@ import { buildSearchResultLink } from "@/lib/search-link";
 import { buildCursorHref, parseSearchCursor, serializeSearchCursor } from "@/lib/pagination";
 import { TagPill } from "@/components/forum/tag-pill";
 import { HighlightedText } from "@/components/forum/highlighted-text";
+import { Breadcrumbs } from "@/components/navigation/breadcrumbs";
 import { Search, SlidersHorizontal, X, ArrowRight, Calendar } from "lucide-react";
 
 export const metadata: Metadata = createMetadata({
@@ -79,6 +80,7 @@ export default async function SearchPage({
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-8">
+      <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Search" }]} className="mb-4" />
       <div className="page-header">
         <h1 className="heading-xl">Search</h1>
         <p className="mt-1 text-sm text-muted-foreground">

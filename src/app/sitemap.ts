@@ -24,7 +24,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const categories = await db.category.findMany({
     where: {
       isPublic: true,
-      section: { isPublic: true },
+      isDeleted: false,
+      section: { isPublic: true, isDeleted: false },
     },
     select: { slug: true, updatedAt: true },
   });

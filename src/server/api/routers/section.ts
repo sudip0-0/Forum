@@ -20,15 +20,15 @@ const reorderSchema = z.object({
 export const sectionRouter = router({
   listPublicTree: publicProcedure.query(({ ctx }) =>
     ctx.db.section.findMany({
-      where: { isPublic: true },
+      where: { isPublic: true, isDeleted: false },
       orderBy: { sortOrder: "asc" },
       include: {
         categories: {
-          where: { isPublic: true },
+          where: { isPublic: true, isDeleted: false },
           orderBy: { sortOrder: "asc" },
           include: {
             forums: {
-              where: { isPublic: true },
+              where: { isPublic: true, isDeleted: false },
               orderBy: { sortOrder: "asc" },
             },
           },
@@ -94,7 +94,7 @@ export const sectionRouter = router({
 
     return ctx.db.section.update({
       where: { id: input.id },
-      data: { isPublic: false },
+      data: { isDeleted: true },
     });
   }),
 });

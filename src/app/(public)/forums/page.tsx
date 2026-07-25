@@ -3,6 +3,7 @@ import Link from "next/link";
 import { appRouter } from "@/server/api/root";
 import { db } from "@/server/db/prisma";
 import { createMetadata } from "@/lib/seo";
+import { Breadcrumbs } from "@/components/navigation/breadcrumbs";
 import { MessageSquare, ChevronRight, Lock, EyeOff } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +23,7 @@ export default async function ForumsPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
+      <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Forums" }]} className="mb-4" />
       <div className="page-header">
         <h1 className="heading-xl">Forums</h1>
         <p className="mt-1 text-sm text-muted-foreground">

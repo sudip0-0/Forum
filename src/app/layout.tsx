@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Space_Grotesk, Source_Sans_3 } from "next/font/google";
 import { auth } from "@/server/auth/config";
 import { ClientShell } from "@/components/layout/client-shell";
 import { getCurrentAccountState } from "@/server/auth/account-state";
@@ -12,13 +12,13 @@ export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
 };
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-display",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const sourceSans = Source_Sans_3({
+  variable: "--font-sans",
   subsets: ["latin"],
 });
 
@@ -32,7 +32,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en" className="scroll-smooth">
-      <body className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
+      <body className={`${spaceGrotesk.variable} ${sourceSans.variable} font-sans`} suppressHydrationWarning>
         <ClientShell session={session} accountState={accountState}>
           {children}
         </ClientShell>

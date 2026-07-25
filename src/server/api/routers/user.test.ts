@@ -39,7 +39,15 @@ describe("user router", () => {
             threads: expect.objectContaining({
               where: {
                 isDeleted: false,
-                forum: { isPublic: true, category: { isPublic: true, section: { isPublic: true } } },
+                forum: {
+                  isPublic: true,
+                  isDeleted: false,
+                  category: {
+                    isPublic: true,
+                    isDeleted: false,
+                    section: { isPublic: true, isDeleted: false },
+                  },
+                },
               },
               orderBy: [{ createdAt: "desc" }, { id: "desc" }],
               take: 21,

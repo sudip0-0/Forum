@@ -46,11 +46,20 @@ Add these scripts to `package.json`:
     "test:e2e": "playwright test",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio"
   }
 }
 ```
+
+Production DB connections should prefer PgBouncer. Example:
+
+```env
+DATABASE_URL=postgresql://forum:SECRET@pgbouncer:6432/forum?pgbouncer=true&connection_limit=5
+```
+
+App env is validated at boot via `src/server/env.ts`. In production, `AUTH_SECRET` must be ≥32 chars (not a placeholder), `REDIS_URL` is required, and `RATE_LIMIT_BACKEND=redis` with `RATE_LIMIT_IN_MEMORY_FALLBACK=false`.
 
 ## Environment Variables
 

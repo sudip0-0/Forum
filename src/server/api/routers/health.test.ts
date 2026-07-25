@@ -17,19 +17,36 @@ const mockSession: TrpcContext["session"] = {
 };
 
 describe("health router", () => {
-  it("returns ok for public query", async () => {
-    const caller = createCaller({ db: {} as never, session: null });
+  it("returns ok for public query when db is healthy", async () => {
+    const db = {
+      $queryRaw: async () => [{ "?column?": 1 }],
+    };
+    const caller = createCaller({ db: db as never, session: null });
     const result = await caller.health.health();
     expect(result.status).toBe("ok");
+    expect(result.db).toBe("ok");
     expect(result.timestamp).toBeDefined();
   });
 
-  it("returns authed info for protected query with session", async () => {
+  it("reports degraded when db probe fails", async () => {
+    const db = {
+      $queryRaw: async () => {
+        throw new Error("db down");
+      },
+    };
+    const caller = createCaller({ db: db as never, session: null });
+    const result = await caller.health.health();
+    expect(result.status).toBe("degraded");
+    expect(result.db).toBe("error");
+  });
+
+  it("returns authed info for protected query with session without email", async () => {
     const caller = createCaller({ db: {} as never, session: mockSession });
     const result = await caller.health.authCheck();
     expect(result.authenticated).toBe(true);
     expect(result.userId).toBe("user-1");
     expect(result.role).toBe("MEMBER");
+    expect(result).not.toHaveProperty("email");
   });
 
   it("throws UNAUTHORIZED for protected query without session", async () => {

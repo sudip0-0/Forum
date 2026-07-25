@@ -47,18 +47,20 @@ src/server/api/routers/thread.ts
 
 ## Integration Tests
 
-Test tRPC routers with test database.
+Test tRPC routers with a real Postgres database.
 
-Required integration tests:
+Run with Docker Compose Postgres available:
 
-1. Create category as admin.
-2. Block category creation as member.
-3. Create thread as member.
-4. Block thread creation as guest.
-5. Create reply in unlocked thread.
-6. Block reply in locked thread.
-7. Report post.
-8. Resolve report as moderator.
+```bash
+RUN_INTEGRATION=1 pnpm test
+```
+
+Seeded integration coverage includes:
+
+1. Create thread as member (`thread.integration.test.ts`).
+2. Block thread creation as guest.
+
+Expand further with moderation / soft-delete cases as needed. Unit tests continue to use mocked Prisma.
 
 ## E2E Tests
 

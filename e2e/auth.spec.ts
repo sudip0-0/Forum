@@ -54,7 +54,7 @@ test.describe("Authentication flows", () => {
     await page.goto("/register");
     await page.fill('input[name="username"]', testUser);
     await page.fill('input[name="email"]', email);
-    await page.fill('input[name="password"]', "testpass123");
+    await page.fill('input[name="password"]', "Testpass123");
     await page.click('button[type="submit"]');
 
     await expect(page.getByText("Check your email")).toBeVisible({ timeout: 10000 });
@@ -91,8 +91,8 @@ test.describe("Authentication flows", () => {
   test("password reset email link updates credentials", async ({ page }) => {
     const testUser = `reset-${Date.now()}`;
     const email = `${testUser}@test.com`;
-    const originalPassword = "testpass123";
-    const newPassword = "resetpass123";
+    const originalPassword = "Testpass123";
+    const newPassword = "Resetpass123";
 
     await page.goto("/register");
     await page.fill('input[name="username"]', testUser);

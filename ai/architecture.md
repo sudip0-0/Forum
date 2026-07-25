@@ -293,7 +293,13 @@ Agents must not:
 - Mix moderation logic into normal post routers without clear boundaries.
 - Store raw HTML without sanitization.
 
-## 13. Scale Path
+## 13. Hierarchy Soft Delete
+
+Section, Category, and Forum each have `isDeleted`. Soft-delete sets `isDeleted=true` and does **not** reuse `isPublic` (privacy remains independent). Public visibility helpers require `isDeleted=false` through the full forum → category → section chain.
+
+Public route params still use the legacy `categorySlug` segment name for forum routes (`/forum/[categorySlug]/...`); treat that as the forum slug.
+
+## 14. Scale Path
 
 | Stage | Action |
 |---|---|

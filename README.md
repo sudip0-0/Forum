@@ -2,6 +2,8 @@
 
 Next.js forum MVP scaffold.
 
+Planning and engineering docs live under [`ai/`](ai/), including [architecture](ai/architecture.md), [security](ai/security.md), [testing](ai/testing.md), and the [release checklist](ai/release-checklist.md).
+
 ## Requirements
 
 - Node.js LTS

@@ -9,7 +9,7 @@
 | KI-003 | Medium | Search | Meilisearch adds infrastructure complexity | Open | backend | Start with PostgreSQL search |
 | KI-004 | High | Security | Markdown rendering can introduce XSS | Resolved | security | react-markdown escapes all raw HTML by default |
 | KI-005 | Medium | Progress | Existing progress logs may imply implementation already happened | Resolved | coordinator | Docs now audited and synced to actual repo state (2026-05-15) |
-| KI-010 | Low | Architecture | Category softDelete conflates visibility with deletion (isPublic=false) | Open | architect | Intentional for MVP — document and defer isDeleted field to post-MVP |
+| KI-010 | Low | Architecture | Category softDelete conflates visibility with deletion (isPublic=false) | Resolved | architect | Hierarchy soft-delete now uses `isDeleted` on Section/Category/Forum |
 
 ## Deferred Features
 
@@ -20,7 +20,6 @@ Do not implement until MVP passes staging:
 - email digests
 - reputation
 - badges
-- reactions
 - accepted solutions
 - file uploads
 - private messaging

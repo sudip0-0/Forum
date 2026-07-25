@@ -73,7 +73,7 @@ describe("auth actions", () => {
         formDataOf({
           username: "newuser",
           email: "new@example.com",
-          password: "password123",
+          password: "Password123",
         }),
       ),
     ).resolves.toEqual({ success: true });
@@ -88,6 +88,26 @@ describe("auth actions", () => {
         verificationUrl: expect.stringContaining("/verify-email?token="),
       }),
     );
+  });
+
+  it("returns success without creating when email already exists", async () => {
+    vi.mocked(db.user.findUnique)
+      .mockResolvedValueOnce({ id: "existing" } as never)
+      .mockResolvedValueOnce(null);
+
+    await expect(
+      registerUser(
+        null,
+        formDataOf({
+          username: "newuser",
+          email: "taken@example.com",
+          password: "Password123",
+        }),
+      ),
+    ).resolves.toEqual({ success: true });
+
+    expect(db.user.create).not.toHaveBeenCalled();
+    expect(sendVerificationEmail).not.toHaveBeenCalled();
   });
 
   it("resend replaces the existing verification token", async () => {

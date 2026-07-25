@@ -3,6 +3,7 @@ type StoredUser = {
   email?: string;
   emailVerified: Date | null;
   passwordHash?: string | null;
+  tokenVersion?: number;
 };
 
 type StoredToken = {
@@ -11,11 +12,22 @@ type StoredToken = {
   expires: Date;
 };
 
+type UserUpdateData = {
+  passwordHash?: string | null;
+  emailVerified?: Date | null;
+  tokenVersion?: number | { increment: number };
+};
+
 export function createInMemoryAuthDb(seed?: {
   users?: StoredUser[];
   tokens?: StoredToken[];
 }) {
-  const users = new Map((seed?.users ?? []).map((user) => [user.id, { ...user }]));
+  const users = new Map(
+    (seed?.users ?? []).map((user) => [
+      user.id,
+      { tokenVersion: 0, ...user },
+    ]),
+  );
   const tokens = new Map((seed?.tokens ?? []).map((token) => [token.token, { ...token }]));
 
   const database = {
@@ -24,10 +36,16 @@ export function createInMemoryAuthDb(seed?: {
         const user = users.get(args.where.id);
         return user ? { ...user } : null;
       },
-      async update(args: { where: { id: string }; data: Partial<StoredUser> }) {
+      async update(args: { where: { id: string }; data: UserUpdateData }) {
         const user = users.get(args.where.id);
         if (!user) throw new Error("user not found");
-        Object.assign(user, args.data);
+        const { tokenVersion, ...rest } = args.data;
+        Object.assign(user, rest);
+        if (typeof tokenVersion === "number") {
+          user.tokenVersion = tokenVersion;
+        } else if (tokenVersion && typeof tokenVersion.increment === "number") {
+          user.tokenVersion = (user.tokenVersion ?? 0) + tokenVersion.increment;
+        }
         return { ...user };
       },
     },

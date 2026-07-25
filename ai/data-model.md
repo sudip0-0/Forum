@@ -55,7 +55,7 @@ The schema is in `prisma/schema.prisma`. Key design choices:
 - `isSuspended` on User controls posting rights without changing role
 - `Reaction` has unique constraints per (userId, postId) and (userId, threadId)
 - GIN indexes on `to_tsvector` for Thread.title and Post.content (for full-text search performance)
-- Soft delete via `isDeleted` on Thread and Post; Category/Section/Forum use `isPublic=false` for hiding
+- Soft delete via `isDeleted` on Thread, Post, Section, Category, and Forum; `isPublic` remains independent privacy control on the hierarchy
 
 ```prisma
 // Hierarchy: Section → Category → Forum → Thread

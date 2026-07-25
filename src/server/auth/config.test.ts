@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { authConfig } from "@/server/auth/config";
+import { authConfig, JWT_REFRESH_INTERVAL_MS } from "@/server/auth/config";
 import {
   clearInMemoryRateLimitsForTests,
   hashRateLimitIdentifier,
@@ -73,6 +73,7 @@ describe("auth config", () => {
       passwordHash: "hash",
       role: "MEMBER",
       isSuspended: false,
+      tokenVersion: 0,
     } as never);
     vi.mocked(verifyPassword).mockResolvedValue(true);
 
@@ -90,5 +91,60 @@ describe("auth config", () => {
     await expect(
       authorize({ email: "member@example.com", password: "wrong-password" }),
     ).resolves.toBeNull();
+  });
+
+  it("refreshes role and suspension from the database after the refresh interval", async () => {
+    const jwt = authConfig.callbacks.jwt as (args: {
+      token: Record<string, unknown>;
+      user?: unknown;
+    }) => Promise<Record<string, unknown>>;
+
+    vi.mocked(db.user.findUnique).mockResolvedValue({
+      role: "MODERATOR",
+      isSuspended: true,
+      username: "member",
+      tokenVersion: 0,
+    } as never);
+
+    const refreshed = await jwt({
+      token: {
+        id: "member-1",
+        role: "MEMBER",
+        isSuspended: false,
+        username: "member",
+        tokenVersion: 0,
+        lastRefreshedAt: Date.now() - JWT_REFRESH_INTERVAL_MS - 1,
+      },
+    });
+
+    expect(refreshed.role).toBe("MODERATOR");
+    expect(refreshed.isSuspended).toBe(true);
+  });
+
+  it("invalidates the JWT when tokenVersion no longer matches", async () => {
+    const jwt = authConfig.callbacks.jwt as (args: {
+      token: Record<string, unknown>;
+      user?: unknown;
+    }) => Promise<Record<string, unknown>>;
+
+    vi.mocked(db.user.findUnique).mockResolvedValue({
+      role: "MEMBER",
+      isSuspended: false,
+      username: "member",
+      tokenVersion: 2,
+    } as never);
+
+    const invalidated = await jwt({
+      token: {
+        id: "member-1",
+        role: "MEMBER",
+        isSuspended: false,
+        username: "member",
+        tokenVersion: 0,
+        lastRefreshedAt: Date.now() - JWT_REFRESH_INTERVAL_MS - 1,
+      },
+    });
+
+    expect(invalidated).toEqual({});
   });
 });

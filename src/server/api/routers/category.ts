@@ -45,15 +45,23 @@ export const categoryRouter = router({
       const category = await ctx.db.category.findUnique({
         where: { slug: input.slug },
         include: {
-          section: { select: { id: true, name: true, slug: true, isPublic: true } },
+          section: {
+            select: { id: true, name: true, slug: true, isPublic: true, isDeleted: true },
+          },
           forums: {
-            where: { isPublic: true },
+            where: { isPublic: true, isDeleted: false },
             orderBy: { sortOrder: "asc" },
             select: { id: true, name: true, slug: true, description: true, isPublic: true },
           },
         },
       });
-      if (!category || !category.isPublic || !category.section.isPublic) {
+      if (
+        !category ||
+        category.isDeleted ||
+        !category.isPublic ||
+        category.section.isDeleted ||
+        !category.section.isPublic
+      ) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Category not found." });
       }
       return category;
@@ -61,7 +69,11 @@ export const categoryRouter = router({
 
   listPublic: publicProcedure.query(async ({ ctx }) => {
     return ctx.db.category.findMany({
-      where: { isPublic: true, section: { isPublic: true } },
+      where: {
+        isPublic: true,
+        isDeleted: false,
+        section: { isPublic: true, isDeleted: false },
+      },
       orderBy: { sortOrder: "asc" },
     });
   }),
@@ -190,7 +202,7 @@ export const categoryRouter = router({
 
       return ctx.db.category.update({
         where: { id: input.id },
-        data: { isPublic: false },
+        data: { isDeleted: true },
       });
     }),
 });
